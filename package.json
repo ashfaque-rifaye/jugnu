@@ -10,7 +10,8 @@
     "start": "cross-env NODE_ENV=production NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx server/index.ts",
     "test": "vitest run",
     "typecheck": "tsc",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "eval": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

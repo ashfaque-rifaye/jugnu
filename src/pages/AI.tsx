@@ -24,6 +24,12 @@ interface Call {
   error: string | null;
   created_at: string;
 }
+interface EvalResults {
+  ranAt: string;
+  coding: { coder: string; items: number; precision: number; recall: number; f1: number; tricky: string; newPractices: string; groundedQuotes: number }[];
+  guardrails: { check: string; attacks: number; caught: number; clean: number; falseAlarms: number }[];
+  interviewer: { followsUpOnVague: string; noFollowUpOnSpecific: string };
+}
 interface Trace {
   summary: { tasks: { task: string; source: string; ok: number; n: number; ms: number; tin: number | null; tout: number | null }[]; checks: { name: string; passed: number; failed: number }[] };
   calls: Call[];
@@ -102,6 +108,7 @@ export default function AIPage() {
   const t = useT();
   const status = useStatus();
   const [trace, err] = usePoll<Trace>("/api/ai/trace", 8000);
+  const [ev] = usePoll<EvalResults | null>("/api/ai/eval");
   const total = trace?.summary.tasks.reduce((a, b) => a + b.n, 0) ?? 0;
   const claude = trace?.summary.tasks.filter((x) => x.source === "claude" && x.ok).reduce((a, b) => a + b.n, 0) ?? 0;
   const rejected = trace?.calls.filter((c) => c.error === "rejected by guardrails").length ?? 0;
@@ -165,6 +172,76 @@ export default function AIPage() {
           );
         })}
       </div>
+
+      {ev && (
+        <Glass className="p-5">
+          <SectionTitle
+            eyebrow={`${t("Evaluation", "मूल्यांकन")} · npm run eval · ${new Date(ev.ranAt).toLocaleString()}`}
+            title={t("Measured, not assumed", "मापा गया, माना नहीं गया")}
+            sub={t(
+              "Coding is scored against 30 hand-labelled teacher answers (paraphrases, negations, Hinglish, English, new practices). Each guardrail is attacked with deliberately bad outputs and checked for false alarms on good ones.",
+              "कोडिंग को 30 हाथ से लेबल किए जवाबों पर परखा गया। हर जाँच को जानबूझकर गलत जवाबों से परखा गया, और सही जवाबों पर झूठे अलार्म भी गिने गए।",
+            )}
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="overflow-x-auto">
+              <div className="label mb-2">{t("Transcript coding", "बातचीत की कोडिंग")}</div>
+              <table className="w-full text-left text-sm">
+                <thead className="text-xs text-[var(--color-ink-3)]">
+                  <tr>
+                    <th className="py-1 pr-2">{t("coder", "कोडर")}</th>
+                    <th className="pr-2">P</th>
+                    <th className="pr-2">R</th>
+                    <th className="pr-2">F1</th>
+                    <th className="pr-2">{t("tricky", "कठिन")}</th>
+                    <th>{t("new", "नए")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ev.coding.map((c) => (
+                    <tr key={c.coder} className="border-t border-white/5">
+                      <td className="py-2 pr-2">{c.coder}</td>
+                      <td className="pr-2 tabular-nums">{c.precision}</td>
+                      <td className="pr-2 tabular-nums">{c.recall}</td>
+                      <td className="pr-2 tabular-nums font-semibold">{c.f1}</td>
+                      <td className="pr-2 tabular-nums">{c.tricky}</td>
+                      <td className="tabular-nums">{c.newPractices}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs text-[var(--color-ink-3)]">
+                {t("Interviewer follow-ups:", "इंटरव्यूअर का दोबारा पूछना:")} {ev.interviewer.followsUpOnVague} {t("vague answers followed up", "अस्पष्ट जवाबों पर")} · {ev.interviewer.noFollowUpOnSpecific} {t("specific answers left alone", "ठोस जवाबों पर नहीं")}
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="label mb-2">{t("Guardrails under attack", "हमले में जाँच")}</div>
+              <table className="w-full text-left text-sm">
+                <thead className="text-xs text-[var(--color-ink-3)]">
+                  <tr>
+                    <th className="py-1 pr-2">{t("check", "जाँच")}</th>
+                    <th className="pr-2">{t("caught", "पकड़े")}</th>
+                    <th>{t("false alarms", "झूठे अलार्म")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ev.guardrails.map((r) => (
+                    <tr key={r.check} className="border-t border-white/5">
+                      <td className="py-2 pr-2">{r.check}</td>
+                      <td className={cx("pr-2 tabular-nums", r.caught === r.attacks ? "text-teal-200" : "text-amber-200")}>
+                        {r.caught}/{r.attacks}
+                      </td>
+                      <td className={cx("tabular-nums", r.falseAlarms ? "text-red-300" : "text-[var(--color-ink-3)]")}>
+                        {r.falseAlarms}/{r.clean}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Glass>
+      )}
 
       <Glass className="p-5">
         <SectionTitle eyebrow={t("Guardrails in action", "जाँच का असर")} title={t("Every check, how often it passed", "हर जाँच कितनी बार पास हुई")} />

@@ -1,0 +1,178 @@
+{
+  "ranAt": "2026-10-10T17:39:02.313Z",
+  "coding": [
+    {
+      "coder": "Keyword lexicon (offline)",
+      "items": 30,
+      "precision": 1,
+      "recall": 0.27,
+      "f1": 0.43,
+      "tricky": "9/15",
+      "newPractices": "0/2",
+      "groundedQuotes": 1,
+      "errors": [
+        {
+          "id": "lg-2",
+          "gold": [
+            "level_groups"
+          ],
+          "got": []
+        },
+        {
+          "id": "lg-3",
+          "gold": [
+            "level_groups"
+          ],
+          "got": []
+        },
+        {
+          "id": "lg-4",
+          "gold": [
+            "level_groups"
+          ],
+          "got": []
+        },
+        {
+          "id": "nt-2",
+          "gold": [
+            "number_talk"
+          ],
+          "got": []
+        },
+        {
+          "id": "hl-1",
+          "gold": [
+            "home_language"
+          ],
+          "got": []
+        },
+        {
+          "id": "hl-2",
+          "gold": [
+            "home_language"
+          ],
+          "got": []
+        },
+        {
+          "id": "hl-3",
+          "gold": [
+            "home_language"
+          ],
+          "got": []
+        },
+        {
+          "id": "ab-2",
+          "gold": [
+            "absent_buddies"
+          ],
+          "got": []
+        },
+        {
+          "id": "pv-1",
+          "gold": [
+            "parent_voice"
+          ],
+          "got": []
+        },
+        {
+          "id": "pv-2",
+          "gold": [
+            "parent_voice"
+          ],
+          "got": []
+        },
+        {
+          "id": "pw-1",
+          "gold": [
+            "print_wall"
+          ],
+          "got": []
+        },
+        {
+          "id": "cc-1",
+          "gold": [
+            "circular_compliance"
+          ],
+          "got": []
+        },
+        {
+          "id": "ew-1",
+          "gold": [
+            "extra_worksheets"
+          ],
+          "got": []
+        },
+        {
+          "id": "wt-1",
+          "gold": [
+            "weekly_tests"
+          ],
+          "got": []
+        },
+        {
+          "id": "mix-2",
+          "gold": [
+            "absent_buddies",
+            "parent_voice"
+          ],
+          "got": []
+        }
+      ]
+    }
+  ],
+  "guardrails": [
+    {
+      "check": "quote must be verbatim",
+      "attacks": 29,
+      "caught": 29,
+      "clean": 29,
+      "falseAlarms": 0
+    },
+    {
+      "check": "no invented numbers",
+      "attacks": 30,
+      "caught": 30,
+      "clean": 30,
+      "falseAlarms": 0
+    },
+    {
+      "check": "keeps source numbers",
+      "attacks": 5,
+      "caught": 5,
+      "clean": 5,
+      "falseAlarms": 0
+    },
+    {
+      "check": "stays on classroom routines",
+      "attacks": 12,
+      "caught": 12,
+      "clean": 12,
+      "falseAlarms": 0
+    },
+    {
+      "check": "written in Hindi",
+      "attacks": 5,
+      "caught": 5,
+      "clean": 7,
+      "falseAlarms": 0
+    },
+    {
+      "check": "names only real schools",
+      "attacks": 10,
+      "caught": 10,
+      "clean": 10,
+      "falseAlarms": 0
+    },
+    {
+      "check": "removes phone & ID numbers",
+      "attacks": 4,
+      "caught": 4,
+      "clean": 12,
+      "falseAlarms": 0
+    }
+  ],
+  "interviewer": {
+    "followsUpOnVague": "14/14",
+    "noFollowUpOnSpecific": "16/16"
+  }
+}

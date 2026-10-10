@@ -7,7 +7,7 @@ import { codeInterview } from "../../src/engine/interview";
 import { PRACTICE_IDS, PRACTICES, specificity, type PracticeId } from "../../src/engine/practices";
 import type { Turn } from "../../src/engine/types";
 import { askClaude } from "../claude";
-import { groundQuote, type Check } from "./guardrails";
+import { groundQuote, normalize, type Check } from "./guardrails";
 import { SAFETY } from "./interviewer";
 import { runAI, type AIResult } from "./run";
 
@@ -27,6 +27,7 @@ const CodeSchema = z.object({
     z.object({
       practice: z.enum(PRACTICE_IDS as [PracticeId, ...PracticeId[]]),
       quote: z.string().describe("The teacher's exact words, copied verbatim in the original language"),
+      details: z.array(z.string()).describe("Concrete details copied word-for-word from the quote: a duration, a frequency, a material, a step, what children do"),
       note: z.string().describe("One line: what the teacher actually does"),
     }),
   ),
@@ -34,6 +35,7 @@ const CodeSchema = z.object({
     z.object({
       name: z.string().describe("Short English name for a routine that fits no taxonomy entry"),
       quote: z.string().describe("The teacher's exact words, verbatim"),
+      details: z.array(z.string()),
       note: z.string(),
     }),
   ),
@@ -47,10 +49,15 @@ export function offlineCoding(turns: Turn[]): Coding[] {
 export function guardCoding(out: z.infer<typeof CodeSchema>, turns: Turn[]) {
   const said = turns.filter((t) => t.speaker === "teacher").map((t) => t.text);
   const all = [
-    ...out.mentions.map((m) => ({ practice: m.practice as PracticeId, newName: null, quote: m.quote, note: m.note })),
-    ...out.new_practices.map((m) => ({ practice: null, newName: m.name, quote: m.quote, note: m.note })),
+    ...out.mentions.map((m) => ({ practice: m.practice as PracticeId, newName: null, quote: m.quote, details: m.details, note: m.note })),
+    ...out.new_practices.map((m) => ({ practice: null, newName: m.name, quote: m.quote, details: m.details, note: m.note })),
   ];
-  const coded: Coding[] = all.map((m) => ({ ...m, grounded: groundQuote(m.quote, said).grounded, specificity: specificity(m.quote) }));
+  // Specificity = the larger of the keyword cue count and the number of Claude's concrete details
+  // that really appear in the quote — so a detail only counts if the teacher actually said it.
+  const coded: Coding[] = all.map(({ details, ...m }) => {
+    const verified = new Set(details.map(normalize).filter((d) => d.length >= 3 && normalize(m.quote).includes(d))).size;
+    return { ...m, grounded: groundQuote(m.quote, said).grounded, specificity: Math.min(6, Math.max(specificity(m.quote), verified)) };
+  });
   const kept = coded.filter((c) => c.grounded);
   const lexicon = new Set(codeInterview(turns).map((m) => m.practice));
   const claudeSet = new Set(kept.flatMap((c) => (c.practice ? [c.practice] : [])));

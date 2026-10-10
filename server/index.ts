@@ -138,8 +138,11 @@ app.use("/api/ivr", ivr);
 
 const dist = path.resolve(here, "../dist");
 if (process.env.NODE_ENV === "production" && fs.existsSync(dist)) {
-  app.use(express.static(dist, { maxAge: "7d", index: false }));
-  app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(path.join(dist, "index.html")));
+  // The service worker and the shell must always revalidate so a new deploy reaches phones.
+  app.get(["/sw.js", "/manifest.webmanifest"], (req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(dist, req.path)));
+  app.use("/assets", express.static(path.join(dist, "assets"), { maxAge: "365d", immutable: true }));
+  app.use(express.static(dist, { maxAge: "1d", index: false }));
+  app.get(/^(?!\/api).*/, (_req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(dist, "index.html")));
 }
 
 const port = process.env.NODE_ENV === "production" ? Number(process.env.PORT || 8080) : PORT;

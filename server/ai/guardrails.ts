@@ -48,8 +48,9 @@ export function groundQuote(quote: string, sources: string[]): { grounded: boole
   return { grounded: false, turn: null, method: "none" };
 }
 
+// "एक" (a/one) and "दो" (two/give) are left out: far more often an article or a verb than a count.
 const HINDI_NUMBERS: Record<string, number> = {
-  एक: 1, दो: 2, तीन: 3, चार: 4, पाँच: 5, पांच: 5, छह: 6, छः: 6, सात: 7, आठ: 8, नौ: 9, दस: 10,
+  तीन: 3, चार: 4, पाँच: 5, पांच: 5, छह: 6, छः: 6, सात: 7, आठ: 8, नौ: 9, दस: 10,
   ग्यारह: 11, बारह: 12, पंद्रह: 15, बीस: 20, पच्चीस: 25, तीस: 30, चालीस: 40, पैंतालीस: 45, पचास: 50, साठ: 60, सौ: 100,
 };
 
@@ -98,7 +99,7 @@ export function checkLength(s: string, maxWords: number, label = "length"): Chec
 const BANNED: [string, RegExp][] = [
   ["caste", /जाति|caste|दलित|सवर्ण/i],
   ["religion", /धर्म|religion|मज़हब|मजहब|हिंदू|मुस्लिम|मुसलमान|ईसाई/i],
-  ["politics", /राजनीति|politic|चुनाव|election|पार्टी|\bvote\b|वोट/i],
+  ["politics", /राजनीति|politic|चुनाव|election|पार्टी|\bparty\b|\bvote\b|वोट/i],
   ["pay & transfers", /वेतन|तनख़्वाह|तनख्वाह|salary|ट्रांसफर|transfer|तबादला|रिश्वत|bribe/i],
   ["personal life", /शादी|विवाह|marriage|married|आपके (?:पति|पत्नी)|husband|wife|गर्भ|pregnan/i],
   ["blame & ranking", /सबसे (?:खराब|बुरा)|worst|blame|दोषी|रैंक|rank(?:ing)?\b|सज़ा|punish/i],
@@ -114,7 +115,7 @@ export function scrubPII(s: string): { text: string; removed: number } {
   let removed = 0;
   const text = s
     .replace(/\b\d{4}\s?\d{4}\s?\d{4}\b/g, () => (removed++, "[number removed]"))
-    .replace(/(?:\+?91[\s-]?)?\b[6-9]\d{9}\b/g, () => (removed++, "[phone removed]"))
+    .replace(/(?:\+?91[\s-]?)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, () => (removed++, "[phone removed]"))
     .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, () => (removed++, "[email removed]"));
   return { text, removed };
 }

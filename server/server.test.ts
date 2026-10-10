@@ -114,8 +114,10 @@ describe("coder, writer and officer guardrails", () => {
   it("drops quotes the teacher never said", async () => {
     const { guardCoding } = await import("./ai/coder");
     const turns = [{ speaker: "teacher" as const, text: "रोज़ 10 मिनट तीलियों से गिनती करते हैं।" }];
-    const out = guardCoding({ mentions: [{ practice: "number_talk", quote: "रोज़ 10 मिनट तीलियों से गिनती", note: "" }, { practice: "weekly_tests", quote: "हर हफ़्ते टेस्ट", note: "" }], new_practices: [] }, turns);
+    const out = guardCoding({ mentions: [{ practice: "number_talk", quote: "रोज़ 10 मिनट तीलियों से गिनती", details: ["रोज़", "10 मिनट", "तीलियों", "रविवार को"], note: "" }, { practice: "weekly_tests", quote: "हर हफ़्ते टेस्ट", details: [], note: "" }], new_practices: [] }, turns);
     expect(out.value.map((c) => c.practice)).toEqual(["number_talk"]);
+    // "रविवार को" is not in the quote, so only 3 details count towards specificity.
+    expect(out.value[0].specificity).toBe(3);
     expect(out.checks[0].passed).toBe(false);
     expect(out.accept).toBe(true);
   });

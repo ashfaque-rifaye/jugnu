@@ -16,7 +16,6 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { StatusProvider } from "./lib/api";
 import { PrefsProvider } from "./lib/prefs";
-import { PipelineProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/theme";
 
 createRoot(document.getElementById("root")!).render(
@@ -25,12 +24,15 @@ createRoot(document.getElementById("root")!).render(
       <ThemeProvider fallback="mono">
         <PrefsProvider>
           <StatusProvider>
-            <PipelineProvider>
-              <App />
-            </PipelineProvider>
+            <App />
           </StatusProvider>
         </PrefsProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
 );
+
+// Offline shell for weak networks (production only — the dev server should always be live).
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
