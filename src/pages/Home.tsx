@@ -6,6 +6,7 @@ import { ASER_2024 } from "../engine/block";
 import { HeroMedia, TutorialPlayer, VideoCard } from "../components/media";
 import { Fireflies, Glass, SectionTitle } from "../components/ui";
 import { MEDIA, TOUR } from "../lib/clips";
+import { usePrefs } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
 const Block3D = lazy(() => import("../components/Block3D"));
@@ -21,6 +22,7 @@ const LOOP = [
 
 export default function HomePage({ onTour }: { onTour: () => void }) {
   const { state } = usePipeline();
+  const { lite } = usePrefs();
   const [clip, setClip] = useState<number | null>(null);
   const verified = state.verify.filter((v) => v.verdict === "verified").length;
   const distinctive = state.evidence.filter((e) => e.verdict === "distinctive").length;
@@ -68,6 +70,12 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             </div>
           </div>
           <div className="relative h-[440px] md:h-[560px]">
+            {lite ? (
+              <div className="grid h-full place-items-center p-6 text-center text-sm text-[var(--color-ink-3)]">
+                <Fireflies count={18} />
+                Low-data mode: the 3D block is off. Turn it on with the ⚡ button.
+              </div>
+            ) : (
             <Suspense fallback={<div className="grid h-full place-items-center text-sm text-[var(--color-ink-3)]">Loading 3D block…</div>}>
               <Block3D
                 className="h-full w-full"
@@ -78,6 +86,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
                 inflated={new Set(state.verify.filter((v) => v.verdict === "inflation_suspected").map((v) => v.schoolId))}
               />
             </Suspense>
+            )}
             <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-center text-xs text-white/60">Live 3D block · pillar height = results vs expectation · drag to orbit</div>
           </div>
         </div>

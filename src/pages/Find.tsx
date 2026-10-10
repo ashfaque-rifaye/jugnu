@@ -5,12 +5,14 @@ import { Glass, SectionTitle, StatTile, VerdictChip, cx } from "../components/ui
 import { HeroMedia } from "../components/media";
 import { MEDIA } from "../lib/clips";
 import { CYCLES } from "../engine/types";
+import { usePrefs } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
 const Block3D = lazy(() => import("../components/Block3D"));
 
 export default function FindPage() {
-  const [view3d, setView3d] = useState(true);
+  const { lite } = usePrefs();
+  const [view3d, setView3d] = useState(!lite);
   const { state, evaluation, regenerate, seed, selected, select } = usePipeline();
   const { block, find, verify } = state;
   const last = CYCLES.length - 1;

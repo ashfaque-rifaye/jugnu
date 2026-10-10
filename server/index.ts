@@ -1,4 +1,3 @@
-import "./quiet";
 import "dotenv/config";
 import express from "express";
 import fs from "node:fs";

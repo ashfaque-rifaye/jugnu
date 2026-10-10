@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Quote } from "lucide-react";
+import { Eye, EyeOff, FileCheck2, Loader2, Quote } from "lucide-react";
 import { useState } from "react";
 import { Dumbbell } from "../components/charts";
 import { Glass, SectionTitle, cx } from "../components/ui";
@@ -6,6 +6,7 @@ import { HeroMedia } from "../components/media";
 import { MEDIA } from "../lib/clips";
 import { EFFECTIVE, PRACTICES } from "../engine/practices";
 import type { PracticeEvidence } from "../engine/types";
+import { postJSON } from "../lib/api";
 import { usePipeline } from "../lib/store";
 
 const VERDICT_LABEL: Record<PracticeEvidence["verdict"], { label: string; tone: string }> = {
@@ -132,7 +133,47 @@ function PracticeCard({ e, name, reveal, compact }: { e: PracticeEvidence; name:
           ))}
         </ul>
       )}
+      {!compact && e.quotes.length > 0 && <DraftCard e={e} name={name} />}
       {reveal && <div className="mt-2 text-xs text-[var(--color-ink-3)]">Hidden truth: {effective ? `effective (reading +${p.effect.reading}, maths +${p.effect.numeracy} logit)` : "no effect (decoy)"}</div>}
+    </div>
+  );
+}
+
+/** Ask Claude to turn the teachers' own quotes into a one-page practice card — it lands in the review queue. */
+function DraftCard({ e, name }: { e: PracticeEvidence; name: (id: string) => { teacher: string; village: string } | undefined }) {
+  const [state, setState] = useState<"idle" | "busy" | "queued">("idle");
+  const [source, setSource] = useState<string>("");
+  const [checks, setChecks] = useState<{ name: string; passed: boolean; detail?: string }[]>([]);
+  const draft = async () => {
+    setState("busy");
+    const out = await postJSON<{ source: string; checks: typeof checks }>("/api/reviews/card", {
+      practice: e.practice,
+      quotes: e.quotes.map((q) => ({ school: `${name(q.schoolId)?.teacher ?? ""}, ${name(q.schoolId)?.village ?? ""}`, quote: q.quote })),
+    }).catch(() => null);
+    if (out) {
+      setSource(out.source);
+      setChecks(out.checks);
+    }
+    setState(out ? "queued" : "idle");
+  };
+  return (
+    <div className="mt-3">
+      {state !== "queued" ? (
+        <button className="btn btn-glass !py-1.5 text-sm" onClick={draft} disabled={state === "busy"}>
+          {state === "busy" ? <Loader2 size={14} className="animate-spin" /> : <FileCheck2 size={14} />} Draft a practice card for review
+        </button>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1">
+          <a className="chip" href="/review">
+            {source === "claude" ? "Claude drafted it" : "Offline draft"} · waiting for approval →
+          </a>
+          {checks.map((c) => (
+            <span key={c.name} className="chip text-[10px]" style={{ borderColor: c.passed ? "#2dd4bf88" : "#f8717188" }} title={c.detail}>
+              {c.passed ? "✓" : "✗"} {c.name}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

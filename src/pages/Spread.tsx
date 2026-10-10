@@ -141,10 +141,19 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
     await speak(hi, "hi-IN");
     setPlaying(false);
   };
+  const [checks, setChecks] = useState<{ name: string; passed: boolean; detail?: string }[]>([]);
   const rewrite = async () => {
     setBusy(true);
-    const out = await postJSON<{ voice_hi: string; voice_en: string; source: string }>("/api/voice-note", { draftHi: rec.voiceNoteHi, draftEn: rec.voiceNoteEn, practice: p.label }).catch(() => null);
-    if (out) setNote({ hi: out.voice_hi, en: out.voice_en, source: out.source });
+    const out = await postJSON<{ value: { voice_hi: string; voice_en: string }; source: string; checks: { name: string; passed: boolean; detail?: string }[] }>("/api/reviews/voice-note", {
+      draftHi: rec.voiceNoteHi,
+      draftEn: rec.voiceNoteEn,
+      practice: p.label,
+      schoolId: rec.schoolId,
+    }).catch(() => null);
+    if (out) {
+      setNote({ hi: out.value.voice_hi, en: out.value.voice_en, source: out.source });
+      setChecks(out.checks);
+    }
     setBusy(false);
   };
 
@@ -169,11 +178,24 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
           <button className="btn btn-primary" onClick={play}>
             {playing ? <Pause size={15} /> : <Volume2 size={15} />} {playing ? "Stop" : "Play"}
           </button>
-          <button className="btn btn-glass" onClick={rewrite} disabled={busy || !status.claude} title={status.claude ? "" : "Connect Claude to enable"}>
-            {busy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Polish with Claude
+          <button className="btn btn-glass" onClick={rewrite} disabled={busy || !!note}>
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} {status.claude ? "Polish with Claude · send for review" : "Send for review"}
           </button>
-          {note && <span className="chip">{note.source === "claude" ? "Claude — facts unchanged" : "offline"}</span>}
+          {note && (
+            <a className="chip" href="/review">
+              {note.source === "claude" ? "Claude draft" : "Offline draft"} · waiting for CRP/BEO approval →
+            </a>
+          )}
         </div>
+        {checks.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {checks.map((c) => (
+              <span key={c.name} className="chip text-[10px]" style={{ borderColor: c.passed ? "#2dd4bf88" : "#f8717188" }} title={c.detail}>
+                {c.passed ? "✓" : "✗"} {c.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </Glass>
   );

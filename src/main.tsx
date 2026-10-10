@@ -15,6 +15,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { StatusProvider } from "./lib/api";
+import { PrefsProvider } from "./lib/prefs";
 import { PipelineProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/theme";
 
@@ -22,11 +23,13 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider fallback="mono">
-      <StatusProvider>
-        <PipelineProvider>
-          <App />
-        </PipelineProvider>
-      </StatusProvider>
+        <PrefsProvider>
+          <StatusProvider>
+            <PipelineProvider>
+              <App />
+            </PipelineProvider>
+          </StatusProvider>
+        </PrefsProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
