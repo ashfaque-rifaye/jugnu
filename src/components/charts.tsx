@@ -1,8 +1,8 @@
 // SVG charts: block map, expected-vs-reported scatter, practice dumbbells, effect bars.
 // Thin marks, recessive grid, single axis, hover tooltips, labels never colour-only.
-import { useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { School } from "../engine/types";
-import { zColor } from "./ui";
+import { cx, zColor } from "./ui";
 
 interface Tip {
   x: number;
@@ -212,43 +212,66 @@ export function Dumbbell({ bright, comparison }: { bright: number; comparison: n
   );
 }
 
+/**
+ * Effect per practice with 95% intervals. Drawn at the container's real pixel width (no SVG
+ * scaling), so text stays at reading size on any screen; practice names are HTML and may wrap.
+ */
 export function EffectBars({ rows }: { rows: { label: string; effect: number; ci: [number, number]; truth?: number }[] }) {
-  const W = 640, rowH = 44, pad = { l: 210, r: 70 };
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(640);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(280, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // Narrow screens: each practice name sits on its own line above its bar.
+  const stacked = W < 480;
+  const rowH = stacked ? 62 : 46;
+  const labelW = stacked ? W : Math.round(Math.min(320, Math.max(120, W * 0.36)));
+  const pad = stacked ? { l: 8, r: 48 } : { l: labelW + 12, r: 56 };
+  const barY = (i: number) => (stacked ? 44 + i * rowH : 22 + i * rowH);
   const H = rows.length * rowH + 34;
   const lo = Math.min(-5, ...rows.map((r) => r.ci[0])), hi = Math.max(10, ...rows.map((r) => r.ci[1]), ...rows.map((r) => r.truth ?? 0));
   const x = (v: number) => pad.l + ((v - lo) / (hi - lo)) * (W - pad.l - pad.r);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Estimated effect of each practice with 95% intervals">
-      <line x1={x(0)} x2={x(0)} y1={8} y2={H - 26} stroke="rgb(255 255 255 / 0.35)" />
-      {[lo, 0, hi].map((t) => (
-        <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize={11} fill="rgb(255 255 255 / 0.45)">
-          {t > 0 ? "+" : ""}
-          {Math.round(t)} pts
-        </text>
+    <div ref={box} className="relative w-full" style={{ height: H }}>
+      {rows.map((r, i) => (
+        <div
+          key={r.label}
+          className={cx("absolute left-0 flex text-[13px] leading-tight text-white/85", stacked ? "items-end" : "items-center justify-end text-right")}
+          style={stacked ? { top: barY(i) - 36, height: 24, width: labelW } : { top: barY(i) - rowH / 2, height: rowH, width: labelW }}
+          title={r.label}
+        >
+          <span className={stacked ? "truncate" : "line-clamp-2"}>{r.label}</span>
+        </div>
       ))}
-      {rows.map((r, i) => {
-        const cy = 22 + i * rowH;
-        const good = r.ci[0] > 0;
-        return (
-          <g key={r.label}>
-            <text x={pad.l - 10} y={cy + 4} textAnchor="end" fontSize={12} fill="rgb(255 255 255 / 0.85)">
-              {r.label}
-            </text>
-            <line x1={x(r.ci[0])} x2={x(r.ci[1])} y1={cy} y2={cy} stroke={good ? "#3987e5" : "rgb(255 255 255 / 0.4)"} strokeWidth={2} strokeLinecap="round" />
-            <rect x={Math.min(x(0), x(r.effect))} y={cy - 7} width={Math.abs(x(r.effect) - x(0))} height={14} rx={4} fill={good ? "#3987e5" : "rgb(255 255 255 / 0.25)"} opacity={0.55} />
-            <circle cx={x(r.effect)} cy={cy} r={5} fill={good ? "#3987e5" : "#9ca3af"} stroke="#13202a" strokeWidth={2} />
-            {r.truth !== undefined && (
-              <g>
-                <line x1={x(r.truth)} x2={x(r.truth)} y1={cy - 11} y2={cy + 11} stroke="#fde047" strokeWidth={2} />
-              </g>
-            )}
-            <text x={W - pad.r + 8} y={cy + 4} fontSize={12} fill="rgb(255 255 255 / 0.85)" className="tabular-nums">
-              {r.effect > 0 ? "+" : ""}
-              {r.effect}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute inset-0" role="img" aria-label="Estimated effect of each practice with 95% intervals">
+        <line x1={x(0)} x2={x(0)} y1={stacked ? 24 : 8} y2={H - 26} stroke="rgb(255 255 255 / 0.35)" />
+        {[lo, 0, hi].map((t) => (
+          <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize={11} fill="rgb(255 255 255 / 0.45)">
+            {t > 0 ? "+" : ""}
+            {Math.round(t)} pts
+          </text>
+        ))}
+        {rows.map((r, i) => {
+          const cy = barY(i);
+          const good = r.ci[0] > 0;
+          return (
+            <g key={r.label}>
+              <line x1={x(r.ci[0])} x2={x(r.ci[1])} y1={cy} y2={cy} stroke={good ? "#3987e5" : "rgb(255 255 255 / 0.4)"} strokeWidth={2} strokeLinecap="round" />
+              <rect x={Math.min(x(0), x(r.effect))} y={cy - 7} width={Math.abs(x(r.effect) - x(0))} height={14} rx={4} fill={good ? "#3987e5" : "rgb(255 255 255 / 0.25)"} opacity={0.55} />
+              <circle cx={x(r.effect)} cy={cy} r={5} fill={good ? "#3987e5" : "#9ca3af"} stroke="#13202a" strokeWidth={2} />
+              {r.truth !== undefined && <line x1={x(r.truth)} x2={x(r.truth)} y1={cy - 11} y2={cy + 11} stroke="#fde047" strokeWidth={2} />}
+              <text x={W - pad.r + 8} y={cy + 4} fontSize={12} fill="rgb(255 255 255 / 0.85)" className="tabular-nums">
+                {r.effect > 0 ? "+" : ""}
+                {r.effect}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }
