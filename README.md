@@ -1,61 +1,113 @@
 # Jugnu (जुगनू) — finds the fireflies
 
 **The answer to a block's learning gap is often already in the block.**
-AI for Foundational Learning Hackathon · Challenge 4 (Data to Action).
+AI for Foundational Learning Hackathon · Challenge 4 (Data to Action) · Build stage.
 
-Dashboards tell a Block Education Officer *where* learning is low. Jugnu finds the few teachers who — with the
-same poverty, languages and staff shortages — already get children reading and counting, learns exactly what they
-do through AI voice interviews, spreads it teacher-to-teacher with owned actions, and checks whether it worked.
+Dashboards tell a Block Education Officer *where* learning is low. Jugnu finds the few teachers who —
+with the same poverty, languages and staff shortages — already get children reading and counting,
+**talks to them** (web voice call or an ordinary phone call, in Hindi) to learn exactly what they do,
+keeps only what separates them from similar schools, spreads it **teacher-to-teacher** with owned
+actions, and checks whether it worked.
+
+## Try it
+
+| Who | Where | What |
+|---|---|---|
+| Teacher | `/talk` | A 12-minute Hindi voice interview on any Android phone — no app, no login |
+| Officer / CRP | `/` | The console: Find → Verify → Ask → What works → Spread → Track, plus **Ask Jugnu** |
+| Phone line | `/ask` → *Phone line* | The same interview on a basic phone (Twilio), or its simulator with the TwiML of each step |
+| Judges | `/ai` | Where AI is used, layer by layer, the live trace of every call, and the evaluation |
+| Testers | `/testing` | Consented sessions, role tasks, Hindi/English SUS, results and the change log |
+
+## Where AI is used (read the code here)
+
+Every AI task goes through **`server/ai/run.ts`** — the same five layers in the same order:
+
+```
+input ──► Claude (structured output, deadline) ──► deterministic guardrails ──► value
+                     │ unavailable / slow / declined / fails a check
+                     └──────────────► offline engine ──────────────────────► value
+every call ──► ai_calls trace (task, model, latency, tokens, each check passed/failed)
+```
+
+| Task | File | What Claude does | Guardrails (`server/ai/guardrails.ts`) | Offline fallback |
+|---|---|---|---|---|
+| Adaptive interviewer | `server/ai/interviewer.ts` | next question; follows up when an answer is vague; mirrors the teacher's language | on classroom routines only · ≤ 40 words · right language · never repeats · can't close early | scripted interviewer |
+| Transcript coding | `server/ai/coder.ts` | maps code-mixed Hindi/English answers to the practice taxonomy; finds new practices | quote must be **verbatim** in what the teacher said · specificity counts only details found in the quote | keyword lexicon |
+| Practice card | `server/ai/writer.ts` | 3–5 steps from teachers' own quotes | every step cites a quote · **no invented numbers** · Hindi · then **human review** | card built from quotes |
+| Peer voice note | `server/ai/writer.ts` | 60-second spoken note in the demonstrator's words | keeps every number · invents none · ≤ 170 words · then **human review** | the draft |
+| Follow-up reader | `server/ai/followup.ts` | adopted / trying / barrier / not tried; who can remove the barrier | evidence quote verbatim · barrier has an owner | keyword rules |
+| Officer agent | `server/ai/officer.ts` | answers questions by calling 6 read-only tools over the block (Tool Runner, adaptive thinking) | must look data up · school names checked against the block | rule-based answers |
+
+Statistics does the counting — `src/engine/` (shared by browser and server):
+`find.ts` (robust regression on context, 3 cycles), `verify.ts` (jump checks + 15-child spot check,
+binomial test), `contrast.ts` (Beta-Binomial bright vs comparison), `spread.ts` (fit + nearest
+demonstrator + waves), `track.ts` (difference-in-differences, bootstrap intervals).
+
+## Evaluation
+
+```bash
+npm test        # 21 tests: engine on simulated blocks, guardrails, interview service, IVR signing
+npm run eval    # coding vs 30 hand-labelled answers + guardrails under attack + interviewer behaviour
+npm run smoke   # end-to-end interview against a running server (consent → 7 topics → coding)
+```
+
+`npm run eval` writes `data/eval/results.json` (shown on `/ai`). It attacks every guardrail with
+deliberately bad outputs — fabricated quotes, changed or dropped numbers, caste/religion/politics
+/pay/personal questions, wrong language, invented school names, phone/ID numbers — and counts false
+alarms on good outputs. With a Claude key it also scores the Claude coder against the keyword coder.
+
+## Works in real conditions
+
+- **Voice first, Hindi first:** questions are spoken (browser TTS / Twilio `<Say>`), answers are
+  heard (Web Speech `hi-IN` / Twilio speech recognition); typing is a fallback; the console has a
+  Hindi toggle.
+- **Low connectivity:** service worker caches the app shell; the teacher page keeps an unsent
+  answer on the phone and resends it when the network returns; the teacher link loads ~90 KB.
+- **Low-cost phones:** low-data mode (auto on data-saver, 2G/3G or ≤ 2 GB RAM) removes video, 3D
+  and blur; basic phones are reached by an ordinary call.
+- **Claude down or slow:** every task degrades to the offline engine; on the phone Claude gets
+  8 s per turn so the caller never waits.
+
+## Privacy and safety
+
+Adults only, with spoken consent; a "no" deletes the conversation. Phone numbers are stored only as
+a salted hash; phone/ID numbers are scrubbed from transcripts; transcripts can be erased on request.
+No child-level data (school aggregates + an anonymous 15-child spot check). No public ranking;
+suspected inflation leads to a respectful revisit, never a penalty. AI drafts reach teachers only
+after a CRP or BEO approves them. The interviewer never asks about caste, religion, politics, pay,
+transfers or personal life.
+
+## Data
+
+- **Simulated demo block** (200 schools) calibrated to ASER 2024 national figures, with planted
+  bright spots, inflated schools and decoy practices so every step can be scored against truth.
+- **Live pilot:** real interviews from teachers (web or phone) are stored in SQLite and coded.
+- **Your block:** Data & method → CSV template / Import CSV runs Find + Verify on real data.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev          # web on http://localhost:5190 (or $PORT), API on :8788 (or $API_PORT)
-npm test             # engine tests on four simulated blocks
+cp .env.example .env      # add ANTHROPIC_API_KEY to switch on Claude; everything works without it
+npm run dev               # web http://localhost:5190, API :8788
+npm run build && npm start   # production: one server on $PORT serving the app and the API
 ```
 
-Optional — connect Claude for the adaptive AI interviewer, transcript coding, voice-note polishing and officer Q&A:
+Optional: `DEMO_PASSCODE` (officer console passcode), `TWILIO_*` + `PUBLIC_URL` (real phone line),
+`JUGNU_DB` (database path — point it at a mounted volume when deployed). `railway.json` is ready for
+Railway (build `npm run build`, start `npm start`, health check `/api/status`).
 
-```bash
-cp .env.example .env   # then set ANTHROPIC_API_KEY=...
+## Repository
+
+```
+server/            Express API, SQLite (node:sqlite), interview service, phone line, review queue, testing
+server/ai/         run.ts (the five layers) · guardrails · interviewer · coder · writer · followup · officer
+src/engine/        Find / Verify / Contrast / Spread / Track statistics + the block simulator
+src/pages/         Talk (teacher), Find, Ask, What works, Spread, Track, Review, Testing, AI, Method
+scripts/           eval.ts · smoke.mjs
+data/eval/         hand-labelled coding set and the latest evaluation results
+docs/TESTING-KIT.md   how to run field sessions and record "you said → we changed"
 ```
 
-Without a key everything runs on the offline engine (scripted interviewer with follow-ups, lexicon coding).
-
-## The loop (`src/engine`)
-
-| Step | What happens | Module |
-|---|---|---|
-| **Find** | OLS on context the state already holds (multigrade, size, library, attendance, home-language mismatch, PTR), pooled over 3 cycles with year effects; robust (MAD) residuals; candidates beat expectation in ≥ 2 of 3 cycles | `find.ts` |
-| **Verify** | Noise-aware jump check, consistency, plausibility, and a 15-child spot check (reading + subtraction, binomial test). Only field evidence can mark data as inflated | `verify.ts` |
-| **Ask** | 12-minute interview script about concrete routines; one follow-up whenever a practice is named without specifics; matched comparison schools interviewed too | `interview.ts` |
-| **Contrast** | Beta-Binomial comparison of *specific* descriptions in bright-spot vs comparison interviews; decoys "common everywhere" are set aside | `contrast.ts` |
-| **Spread** | One practice per struggling school (fit to gap + context), nearest demonstrator, 60-second voice note in their words, owned actions (CRP, BEO, Jugnu AI), two waves | `spread.ts` |
-| **Track** | Day-14 follow-up calls; wave 1 vs wave 2 difference-in-differences with bootstrap intervals | `track.ts` |
-
-Evaluation (Data & method page, `npm test`): candidates include the planted bright spots, most planted inflated
-schools are caught by the spot check, no decoy practice is ever promoted, and the overall effect estimate is
-positive on average — reported with honest, wide intervals for a single term.
-
-## Real vs simulated
-
-- **Real:** ASER 2024 national figures used to calibrate the block (Std III reading 23.4% in government schools,
-  52.1% small schools, two-thirds multigrade, 75.9% student attendance, 51.3% library use, 83.2% FLN directive).
-- **Simulated:** the 200-school block, its hidden practices, 6 inflated schools and decoy practices — so every step
-  can be scored against known truth.
-- **Your data:** Data & method → CSV template / Import CSV runs Find + Verify on a real block immediately.
-
-## Design, 3D and video
-
-- **Glass UI**, *Black & white* by default with a gold-teal *Vibrant* theme (toggle in the nav).
-- **3D block** (`src/components/Block3D.tsx`): every school a pillar at its position, height = results vs
-  expectation, verified bright spots glowing gold with fireflies — built from the live pipeline. Orbit, hover, click.
-- **12 cinematic clips generated with Google Flow (Veo 3.1)** in `public/media/`: hero, page headers, ambient
-  backdrop and a captioned guided **Tour** with optional Hindi narration.
-
-## Safety
-
-Adults only, with consent; no child-level personal data (school aggregates + an anonymous spot check). No public
-ranking; bright-spot teachers credited only with permission; suspected inflation leads to a respectful revisit, not a
-penalty. LLM outputs are schema-constrained; if Claude is unavailable, the offline engine continues.
+Built with Claude (Anthropic). Explainer clips generated with Google Flow (Veo 3.1).
