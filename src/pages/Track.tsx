@@ -6,6 +6,7 @@ import { HeroMedia } from "../components/media";
 import { MEDIA } from "../lib/clips";
 import { PRACTICES } from "../engine/practices";
 import { NEXT_CYCLE } from "../engine/types";
+import { useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
 const OUTCOME = {
@@ -16,6 +17,7 @@ const OUTCOME = {
 } as const;
 
 export default function TrackPage() {
+  const tx = useT();
   const { state, runTrack } = usePipeline();
   const [reveal, setReveal] = useState(false);
   const t = state.track;
@@ -28,8 +30,8 @@ export default function TrackPage() {
       <HeroMedia video={MEDIA.officer} className="p-5 md:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="label">Step 5 · Track</div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Did it spread — and did it work?</h1>
+            <div className="label">{tx("Step 5 · Track", "चरण 5 · ट्रैक")}</div>
+            <h1 className="text-2xl font-extrabold tracking-tight">{tx("Did it spread — and did it work?", "क्या तरीका फैला — और क्या काम आया?")}</h1>
             <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
               Jugnu calls every wave-1 teacher after two weeks (“Did you try it? What happened?”). At the next assessment ({NEXT_CYCLE}), each practice is judged by wave 1 vs wave 2 — schools with the same recommendation
               that had not started yet. Change is measured against each school's two-year baseline; intervals are 95% bootstrap.
@@ -37,11 +39,11 @@ export default function TrackPage() {
           </div>
           {!t ? (
             <button className="btn btn-primary" onClick={runTrack}>
-              <Play size={16} /> Play out one term
+              <Play size={16} /> {tx("Play out one term", "एक सत्र चलाकर देखें")}
             </button>
           ) : (
             <button className="btn btn-glass" onClick={() => setReveal((v) => !v)}>
-              {reveal ? <Eye size={16} /> : <EyeOff size={16} />} {reveal ? "Hiding truth markers" : "Compare with hidden truth"}
+              {reveal ? <Eye size={16} /> : <EyeOff size={16} />} {reveal ? tx("Hiding truth markers", "सच के निशान छिपाएँ") : tx("Compare with hidden truth", "छिपे सच से तुलना करें")}
             </button>
           )}
         </div>
@@ -50,11 +52,11 @@ export default function TrackPage() {
       {t && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatTile label="Follow-up calls" value={t.followUps.length} sub="made by Jugnu at day 14" />
-            <StatTile label="Adopted" value={t.followUps.filter((f) => f.outcome === "adopted").length} sub={`${t.followUps.filter((f) => f.outcome === "trying").length} still trying`} accent="#bef264" />
-            <StatTile label="Stuck — escalated" value={t.followUps.filter((f) => f.outcome === "barrier").length} sub="barrier sent to the BEO" accent="#fca5a5" />
+            <StatTile label={tx("Follow-up calls", "फ़ॉलो-अप कॉल")} value={t.followUps.length} sub={tx("made by Jugnu at day 14", "जुगनू ने 14वें दिन कीं")} />
+            <StatTile label={tx("Adopted", "अपनाया")} value={t.followUps.filter((f) => f.outcome === "adopted").length} sub={`${t.followUps.filter((f) => f.outcome === "trying").length} still trying`} accent="#bef264" />
+            <StatTile label={tx("Stuck — escalated", "अटका — ऊपर भेजा")} value={t.followUps.filter((f) => f.outcome === "barrier").length} sub={tx("barrier sent to the BEO", "रुकावट BEO को भेजी")} accent="#fca5a5" />
             <StatTile
-              label="Overall effect (wave 1 vs 2)"
+              label={tx("Overall effect (wave 1 vs 2)", "कुल असर (लहर 1 बनाम 2)")}
               value={`${t.overall.effect > 0 ? "+" : ""}${t.overall.effect} pts`}
               sub={`95% interval ${t.overall.ci[0]} to ${t.overall.ci[1]}`}
               accent="#7dd3fc"
@@ -63,8 +65,8 @@ export default function TrackPage() {
 
           <Glass className="p-5">
             <SectionTitle
-              eyebrow="Which practices transfer?"
-              title="Estimated effect per practice (percentage points)"
+              eyebrow={tx("Which practices transfer?", "कौन-से तरीके दूसरे स्कूलों में चलते हैं?")}
+              title={tx("Estimated effect per practice (percentage points)", "हर तरीके का अनुमानित असर (प्रतिशत अंक)")}
               sub="Bar = difference-in-differences, wave 1 vs wave 2, averaged over reading and maths; line = 95% interval. Blue when the whole interval is above zero. One term is an early signal — the next cycle adds power."
             />
             <EffectBars
@@ -79,7 +81,7 @@ export default function TrackPage() {
           </Glass>
 
           <Glass className="p-5">
-            <SectionTitle eyebrow="Day 14" title="What teachers said on the follow-up call" />
+            <SectionTitle eyebrow={tx("Day 14", "14वाँ दिन")} title={tx("What teachers said on the follow-up call", "फ़ॉलो-अप कॉल पर शिक्षकों ने क्या कहा")} />
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {t.followUps.map((f) => {
                 const s = name(f.schoolId)!;

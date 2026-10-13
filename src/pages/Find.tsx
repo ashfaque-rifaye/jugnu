@@ -5,12 +5,13 @@ import { Glass, SectionTitle, StatTile, VerdictChip, cx } from "../components/ui
 import { HeroMedia } from "../components/media";
 import { MEDIA } from "../lib/clips";
 import { CYCLES } from "../engine/types";
-import { usePrefs } from "../lib/prefs";
+import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
 const Block3D = lazy(() => import("../components/Block3D"));
 
 export default function FindPage() {
+  const tx = useT();
   const { lite } = usePrefs();
   const [view3d, setView3d] = useState(!lite);
   const { state, evaluation, regenerate, seed, selected, select } = usePipeline();
@@ -38,25 +39,24 @@ export default function FindPage() {
             <div className="label">
               Step 1 · {block.name} · {block.source === "simulated" ? `simulated, calibrated to ASER 2024 · seed ${seed}` : "imported data"}
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Who beats their context — year after year?</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight">{tx("Who beats their context — year after year?", "कौन अपने हालात से आगे निकलता है — साल-दर-साल?")}</h1>
             <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
-              Expected results come from context the state already holds (multigrade, school size, library, attendance, home-language mismatch, pupil–teacher ratio). A candidate must beat expectation in at least 2 of 3
-              assessment cycles.
+              {tx("Expected results come from context the state already holds (multigrade, school size, library, attendance, home-language mismatch, pupil–teacher ratio). A candidate must beat expectation in at least 2 of 3 assessment cycles.", "अपेक्षित परिणाम उस जानकारी से निकलते हैं जो राज्य के पास पहले से है (बहु-कक्षा, स्कूल का आकार, पुस्तकालय, उपस्थिति, घर की भाषा का अंतर, छात्र-शिक्षक अनुपात)। उम्मीदवार स्कूल को 3 में से कम से कम 2 परीक्षाओं में अपेक्षा से आगे होना चाहिए।")}
             </p>
           </div>
           {block.source === "simulated" && (
             <button className="btn btn-glass" onClick={() => regenerate()}>
-              <RefreshCw size={16} /> New block
+              <RefreshCw size={16} /> {tx("New block", "नया ब्लॉक")}
             </button>
           )}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-          <StatTile label="Schools" value={block.schools.length} sub={`${new Set(block.schools.map((s) => s.clusterName)).size} clusters`} />
-          <StatTile label="Context explains" value={`${Math.round(((find.r2.reading + find.r2.numeracy) / 2) * 100)}%`} sub="of variation — the rest is what schools DO" />
-          <StatTile label="Candidates" value={find.candidates.length} sub="above expectation ≥ 2 of 3 years" accent="#fde68a" />
-          <StatTile label="Verified bright spots" value={bright.size} sub="passed spot checks" accent="#bef264" />
+          <StatTile label={tx("Schools", "स्कूल")} value={block.schools.length} sub={`${new Set(block.schools.map((s) => s.clusterName)).size} clusters`} />
+          <StatTile label={tx("Context explains", "हालात से समझ आता है")} value={`${Math.round(((find.r2.reading + find.r2.numeracy) / 2) * 100)}%`} sub={tx("of variation — the rest is what schools DO", "अंतर का — बाकी वह है जो स्कूल करते हैं")} />
+          <StatTile label={tx("Candidates", "उम्मीदवार")} value={find.candidates.length} sub={tx("above expectation ≥ 2 of 3 years", "3 में से ≥ 2 साल अपेक्षा से ऊपर")} accent="#fde68a" />
+          <StatTile label={tx("Verified bright spots", "सत्यापित अच्छे स्कूल")} value={bright.size} sub={tx("passed spot checks", "मौके की जाँच में पास")} accent="#bef264" />
           <StatTile
-            label="Data may be inflated"
+            label={tx("Data may be inflated", "डेटा बढ़ा-चढ़ा हो सकता है")}
             value={inflated.size}
             sub={evaluation ? `${evaluation.verification.inflatedCaught} of ${evaluation.verification.inflatedTotal} planted cases caught` : "spot check disagreed"}
             accent="#fca5a5"
@@ -67,8 +67,8 @@ export default function FindPage() {
       <div className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
         <Glass className="p-5">
           <SectionTitle
-            eyebrow="Block map"
-            title="Fireflies in the dark"
+            eyebrow={tx("Block map", "ब्लॉक का नक्शा")}
+            title={tx("Fireflies in the dark", "अंधेरे में जुगनू")}
             sub={
               view3d
                 ? "Pillar height = average results vs expectation. Gold glow = verified bright spot. Ring = needs support. Red = data may be inflated. Drag to orbit, click a pillar."
@@ -94,7 +94,7 @@ export default function FindPage() {
           )}
         </Glass>
         <Glass className="p-5">
-          <SectionTitle eyebrow={`Latest cycle · ${CYCLES[last]}`} title="Expected vs reported" sub="Points far above the dashed line do better than their context predicts. Click one." />
+          <SectionTitle eyebrow={`Latest cycle · ${CYCLES[last]}`} title={tx("Expected vs reported", "अपेक्षित बनाम दर्ज")} sub={tx("Points far above the dashed line do better than their context predicts. Click one.", "बिंदीदार रेखा से काफ़ी ऊपर वाले स्कूल अपने हालात से बेहतर कर रहे हैं। किसी पर क्लिक करें।")} />
           <ExpectedScatter points={points} onSelect={select} />
         </Glass>
       </div>
@@ -141,7 +141,7 @@ export default function FindPage() {
       )}
 
       <Glass className="p-5">
-        <SectionTitle eyebrow="Step 1b · Verify" title="A bright spot must be real before it is celebrated" sub="Consistency checks on the data, then a 15-minute spot check by the cluster resource person: 15 Grade-3 children, one reading and one subtraction task." />
+        <SectionTitle eyebrow={tx("Step 1b · Verify", "चरण 1b · जाँच")} title={tx("A bright spot must be real before it is celebrated", "जश्न से पहले अच्छा स्कूल सच में अच्छा होना चाहिए")} sub={tx("Consistency checks on the data, then a 15-minute spot check by the cluster resource person: 15 Grade-3 children, one reading and one subtraction task.", "पहले डेटा की निरंतरता जाँच, फिर CRP द्वारा 15 मिनट की मौके पर जाँच: कक्षा 3 के 15 बच्चे, एक पढ़ने का और एक घटाने का काम।")} />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -190,7 +190,7 @@ export default function FindPage() {
       </Glass>
 
       <Glass className="p-5">
-        <SectionTitle eyebrow="Transparent model" title="What context explains" sub="Ordinary least squares, pooled over three cycles with year effects; residuals standardised with a robust scale so a few inflated schools cannot hide real bright spots." />
+        <SectionTitle eyebrow={tx("Transparent model", "पारदर्शी मॉडल")} title={tx("What context explains", "हालात क्या समझाते हैं")} sub="Ordinary least squares, pooled over three cycles with year effects; residuals standardised with a robust scale so a few inflated schools cannot hide real bright spots." />
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           {find.coefficients.slice(1).map((c) => (
             <div key={c.feature} className="glass-inset flex items-center justify-between px-3 py-2 text-sm">

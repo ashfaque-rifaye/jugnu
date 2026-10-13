@@ -7,6 +7,7 @@ import { MEDIA } from "../lib/clips";
 import { PRACTICES } from "../engine/practices";
 import type { Action, Recommendation } from "../engine/types";
 import { postJSON, useStatus } from "../lib/api";
+import { useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 import { speak, stopSpeaking } from "../lib/speech";
 
@@ -18,6 +19,7 @@ const COLUMNS: { key: Action["status"]; label: string }[] = [
 ];
 
 export default function SpreadPage() {
+  const tx = useT();
   const { state, selected, select } = usePipeline();
   const { block, find, recs } = state;
   const [wave, setWave] = useState<1 | 2>(1);
@@ -35,18 +37,17 @@ export default function SpreadPage() {
   return (
     <div className="space-y-5">
       <HeroMedia video={MEDIA.spread} className="p-5 md:p-7">
-        <div className="label">Step 4 · Spread — sideways, not top-down</div>
-        <h1 className="text-2xl font-extrabold tracking-tight">Every struggling school gets one practice, one nearby teacher, and owners</h1>
+        <div className="label">{tx("Step 4 · Spread — sideways, not top-down", "चरण 4 · फैलाएँ — साथी से साथी, ऊपर से नहीं")}</div>
+        <h1 className="text-2xl font-extrabold tracking-tight">{tx("Every struggling school gets one practice, one nearby teacher, and owners", "हर पिछड़ते स्कूल को एक तरीका, पास का एक शिक्षक, और ज़िम्मेदार लोग")}</h1>
         <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
-          The practice is chosen for the school's gap (reading or maths) and context (home languages, attendance). The demonstrator is the nearest bright-spot teacher who already does it; their own words become a 60-second
-          voice note. Schools start in two waves, so wave 2 is the fair comparison that tells us whether wave 1 improved.
+          {tx("The practice is chosen for the school's gap (reading or maths) and context (home languages, attendance). The demonstrator is the nearest bright-spot teacher who already does it; their own words become a 60-second voice note. Schools start in two waves, so wave 2 is the fair comparison that tells us whether wave 1 improved.", "तरीका स्कूल की कमी (पढ़ना या गणित) और हालात (घर की भाषा, उपस्थिति) के हिसाब से चुना जाता है। सबसे पास का अच्छा-स्कूल शिक्षक, जो यह पहले से करता है, उदाहरण बनता है; उसके अपने शब्द 60 सेकंड का वॉइस नोट बनते हैं। स्कूल दो लहरों में शुरू करते हैं, ताकि दूसरी लहर से सही तुलना हो सके।")}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label="Schools supported" value={recs.length} sub={`${recs.filter((r) => r.wave === 1).length} in wave 1 · ${recs.filter((r) => r.wave === 2).length} in wave 2`} />
-          <StatTile label="Average distance" value={`${avgKm.toFixed(1)} km`} sub="to a teacher who already does it" accent="#fde68a" />
-          <StatTile label="Owned actions" value={recs.reduce((a, r) => a + r.actions.length, 0)} sub="CRP · BEO · Jugnu AI" />
+          <StatTile label={tx("Schools supported", "मदद पाने वाले स्कूल")} value={recs.length} sub={`${recs.filter((r) => r.wave === 1).length} in wave 1 · ${recs.filter((r) => r.wave === 2).length} in wave 2`} />
+          <StatTile label={tx("Average distance", "औसत दूरी")} value={`${avgKm.toFixed(1)} km`} sub={tx("to a teacher who already does it", "यह करने वाले शिक्षक तक")} accent="#fde68a" />
+          <StatTile label={tx("Owned actions", "ज़िम्मेदारी वाले काम")} value={recs.reduce((a, r) => a + r.actions.length, 0)} sub="CRP · BEO · Jugnu AI" />
           <StatTile
-            label="Practices spreading"
+            label={tx("Practices spreading", "फैल रहे तरीके")}
             value={Object.keys(practiceCounts).length}
             sub={Object.entries(practiceCounts)
               .map(([p, n]) => `${PRACTICES[p as keyof typeof PRACTICES].label.split(" ").slice(0, 2).join(" ")} ×${n}`)
@@ -57,7 +58,7 @@ export default function SpreadPage() {
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
         <Glass className="p-5">
-          <SectionTitle eyebrow="Peer links" title="Who learns from whom" sub="Dashed gold lines connect each struggling school to its demonstrator." />
+          <SectionTitle eyebrow={tx("Peer links", "साथी जोड़")} title={tx("Who learns from whom", "कौन किससे सीखता है")} sub={tx("Dashed gold lines connect each struggling school to its demonstrator.", "सुनहरी बिंदीदार रेखाएँ हर पिछड़ते स्कूल को उसके उदाहरण-शिक्षक से जोड़ती हैं।")} />
           <BlockMap
             schools={block.schools}
             z={meanZ}
@@ -75,8 +76,8 @@ export default function SpreadPage() {
 
       <Glass className="p-5">
         <SectionTitle
-          eyebrow="Officer's action board"
-          title="Every action has an owner and a date"
+          eyebrow={tx("Officer's action board", "अधिकारी का कार्य-बोर्ड")}
+          title={tx("Every action has an owner and a date", "हर काम का एक ज़िम्मेदार और एक तारीख")}
           right={
             <div className="inline-flex rounded-full border border-white/10 bg-black/20 p-1">
               {[1, 2].map((w) => (

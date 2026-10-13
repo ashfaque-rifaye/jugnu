@@ -8,9 +8,11 @@ import { ASER_2024, generateBlock } from "../engine/block";
 import { evaluate, runPipeline, runTrackStage, type Evaluation } from "../engine/pipeline";
 import { PRACTICES } from "../engine/practices";
 import { CSV_COLUMNS, parseCsv, templateCsv } from "../lib/csv";
+import { useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
 export default function MethodPage() {
+  const tx = useT();
   const { state, importBlock, regenerate } = usePipeline();
   const nav = useNavigate();
   const [err, setErr] = useState("");
@@ -37,9 +39,9 @@ export default function MethodPage() {
     <div className="space-y-5">
       <HeroMedia video={MEDIA.pillars} className="p-6 md:p-7">
         <SectionTitle
-          eyebrow="Data & method"
-          title="What is real, what is simulated, and how to plug in your block"
-          sub="The method runs on data states already hold. For the demo, the block is simulated — calibrated to real national figures — so we can plant known bright spots, inflated data and decoy practices, and score Jugnu against them."
+          eyebrow={tx("Data & method", "डेटा व पद्धति")}
+          title={tx("What is real, what is simulated, and how to plug in your block", "क्या असली है, क्या सिम्युलेटेड, और अपना ब्लॉक कैसे जोड़ें")}
+          sub={tx("The method runs on data states already hold. For the demo, the block is simulated — calibrated to real national figures — so we can plant known bright spots, inflated data and decoy practices, and score Jugnu against them.", "यह पद्धति उस डेटा पर चलती है जो राज्यों के पास पहले से है। डेमो के लिए ब्लॉक सिम्युलेटेड है — असली राष्ट्रीय आँकड़ों के अनुसार — ताकि हम जाने-पहचाने अच्छे स्कूल, बढ़ा-चढ़ा डेटा और नकली तरीके रखकर जुगनू को परख सकें।")}
         />
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="glass-inset p-4 text-sm">
@@ -93,7 +95,7 @@ export default function MethodPage() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Glass className="p-5">
-          <SectionTitle eyebrow="Where AI is used" title="AI layers" />
+          <SectionTitle eyebrow={tx("Where AI is used", "AI कहाँ इस्तेमाल होता है")} title={tx("AI layers", "AI की परतें")} />
           <ul className="space-y-3 text-sm text-[var(--color-ink-2)]">
             <li><b className="text-white">Statistics (Find/Verify/Track)</b> — context model with robust residuals, binomial spot-check test, Beta-Binomial practice contrast, stepped-wedge difference-in-differences with bootstrap intervals.</li>
             <li><b className="text-white">Claude as interviewer</b> — adaptive 12-minute voice interviews in Hindi or English; asks one follow-up whenever a practice is named without specifics.</li>
@@ -102,7 +104,7 @@ export default function MethodPage() {
           </ul>
         </Glass>
         <Glass className="p-5">
-          <SectionTitle eyebrow="Guardrails & compliance" title="Built to be trusted by teachers" />
+          <SectionTitle eyebrow={tx("Guardrails & compliance", "सुरक्षा व नियम")} title={tx("Built to be trusted by teachers", "शिक्षकों के भरोसे के लिए बना")} />
           <ul className="space-y-3 text-sm text-[var(--color-ink-2)]">
             <li>Adults only, with consent; no child-level personal data — only school-level results and a 15-child anonymous spot check.</li>
             <li>No public ranking; struggling schools are never named outside the block team. Bright-spot teachers are credited only with permission.</li>
@@ -119,6 +121,7 @@ export default function MethodPage() {
 }
 
 function Evaluation() {
+  const tx = useT();
   const [rows, setRows] = useState<{ seed: number; ev: Evaluation; effect: number; ci: [number, number] }[] | null>(null);
   const [busy, setBusy] = useState(false);
   const run = () => {
@@ -136,8 +139,8 @@ function Evaluation() {
   return (
     <Glass className="p-5">
       <SectionTitle
-        eyebrow="Evaluation · runs in your browser"
-        title="Five blocks, scored against what was planted"
+        eyebrow={tx("Evaluation · runs in your browser", "मूल्यांकन · आपके ब्राउज़र में चलता है")}
+        title={tx("Five blocks, scored against what was planted", "पाँच ब्लॉक, जो रखा गया उससे जाँचे गए")}
         right={
           <button className="btn btn-primary" onClick={run} disabled={busy}>
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} Run evaluation

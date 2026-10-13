@@ -7,6 +7,7 @@ import { MEDIA } from "../lib/clips";
 import { EFFECTIVE, PRACTICES } from "../engine/practices";
 import type { PracticeEvidence } from "../engine/types";
 import { postJSON } from "../lib/api";
+import { useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
 const VERDICT_LABEL: Record<PracticeEvidence["verdict"], { label: string; tone: string }> = {
@@ -17,6 +18,7 @@ const VERDICT_LABEL: Record<PracticeEvidence["verdict"], { label: string; tone: 
 };
 
 export default function PracticesPage() {
+  const tx = useT();
   const { state, evaluation } = usePipeline();
   const [reveal, setReveal] = useState(false);
   const name = (id: string) => state.block.schools.find((s) => s.id === id);
@@ -32,16 +34,15 @@ export default function PracticesPage() {
       <HeroMedia video={MEDIA.demo} className="p-5 md:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="label">Step 3 · Contrast</div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Not “best practices” — the practices that make the difference here</h1>
+            <div className="label">{tx("Step 3 · Contrast", "चरण 3 · तुलना")}</div>
+            <h1 className="text-2xl font-extrabold tracking-tight">{tx("Not “best practices” — the practices that make the difference here", "“सबसे अच्छे तरीके” नहीं — वे तरीके जो यहाँ फ़र्क लाते हैं")}</h1>
             <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
-              For each practice: the share of bright-spot teachers who describe it <b className="text-white">specifically</b> (a duration, frequency, materials, steps) versus similar ordinary schools. A Beta-Binomial model gives the
-              probability it is genuinely more common in bright spots. Practices everyone claims (“we follow the lesson plan”) are set aside.
+              {tx("For each practice: the share of bright-spot teachers who describe it specifically (a duration, frequency, materials, steps) versus similar ordinary schools. A Beta-Binomial model gives the probability it is genuinely more common in bright spots. Practices everyone claims (“we follow the lesson plan”) are set aside.", "हर तरीके के लिए: कितने अच्छे-स्कूल शिक्षक उसे ठोस रूप से (समय, कितनी बार, सामग्री, कदम) बताते हैं, उन जैसे सामान्य स्कूलों के मुकाबले। Beta-Binomial मॉडल बताता है कि वह सच में अच्छे स्कूलों में ज़्यादा है या नहीं। जो सब कहते हैं (“हम पाठ योजना से पढ़ाते हैं”) उसे अलग रखा जाता है।")}
             </p>
           </div>
           {state.block.truth && (
             <button className="btn btn-glass" onClick={() => setReveal((v) => !v)}>
-              {reveal ? <Eye size={16} /> : <EyeOff size={16} />} {reveal ? "Showing hidden truth" : "Reveal hidden truth"}
+              {reveal ? <Eye size={16} /> : <EyeOff size={16} />} {reveal ? tx("Showing hidden truth", "छिपा सच दिख रहा है") : tx("Reveal hidden truth", "छिपा सच दिखाएँ")}
             </button>
           )}
         </div>
@@ -63,7 +64,7 @@ export default function PracticesPage() {
       </div>
 
       <Glass className="p-5">
-        <SectionTitle eyebrow="Set aside" title="Claimed by many, not what separates bright spots" />
+        <SectionTitle eyebrow={tx("Set aside", "अलग रखे गए")} title={tx("Claimed by many, not what separates bright spots", "बहुत लोग कहते हैं, पर यही अच्छे स्कूलों को अलग नहीं करता")} />
         <div className="grid gap-3 md:grid-cols-2">
           {rest.map((e) => (
             <div key={e.practice} className="glass-inset p-4">
