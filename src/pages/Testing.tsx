@@ -8,6 +8,7 @@ import { sendFeedback, useSession, VoiceText, type Role } from "../components/Fe
 import { Glass, SectionTitle, StatTile, cx } from "../components/ui";
 import { postJSON, usePoll } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
+import { usePipeline } from "../lib/store";
 
 interface Task {
   id: string;
@@ -19,20 +20,22 @@ interface Task {
 const TASKS: Record<Role, Task[]> = {
   teacher: [
     { id: "t-interview", en: "Take a 12-minute interview with Jugnu by voice", hi: "जुगनू से आवाज़ में 12 मिनट बात करें", to: "/talk" },
-    { id: "t-voicenote", en: "Listen to a peer voice note — is it clear enough to try?", hi: "एक साथी का वॉइस नोट सुनें — क्या यह आज़माने लायक साफ़ है?", to: "/spread" },
+    { id: "t-voicenote", en: "Listen to a peer voice note — is it clear enough to try?", hi: "एक साथी का वॉइस नोट सुनें — क्या यह आज़माने लायक साफ़ है?", to: "/plan" },
     { id: "t-card", en: "Read a practice card — could you do this tomorrow?", hi: "एक तरीके का कार्ड पढ़ें — क्या आप इसे कल कर सकते हैं?", to: "/review" },
   ],
   crp: [
-    { id: "c-find", en: "Find the verified bright spots in a cluster", hi: "किसी क्लस्टर के सत्यापित अच्छे स्कूल खोजें", to: "/find" },
-    { id: "c-invite", en: "Invite a teacher and send the link on WhatsApp", hi: "किसी शिक्षक को आमंत्रित करें और WhatsApp पर लिंक भेजें", to: "/ask" },
+    { id: "c-find", en: "Find the verified bright spots in a cluster", hi: "किसी क्लस्टर के सत्यापित अच्छे स्कूल खोजें", to: "/schools" },
+    { id: "c-invite", en: "Invite a teacher and send the link on WhatsApp", hi: "किसी शिक्षक को आमंत्रित करें और WhatsApp पर लिंक भेजें", to: "/schools?status=bright" },
     { id: "c-review", en: "Review and approve (or fix) a practice card", hi: "किसी कार्ड की समीक्षा करें और मंज़ूर (या ठीक) करें", to: "/review" },
-    { id: "c-next", en: "Find what to do next for a school that needs support", hi: "मदद चाहने वाले स्कूल के लिए अगला कदम खोजें", to: "/spread" },
+    { id: "c-next", en: "Find what to do next for a school that needs support", hi: "मदद चाहने वाले स्कूल के लिए अगला कदम खोजें", to: "/plan" },
+    { id: "c-spotcheck", en: "Record a spot check for a school that is waiting for one", hi: "जिस स्कूल की जाँच बाकी है, उसकी मौके की जाँच दर्ज करें", to: "/schools?status=check_due" },
+    { id: "c-followup", en: "Record a follow-up call: the teacher has a problem", hi: "फ़ॉलो-अप कॉल दर्ज करें: शिक्षक को कोई दिक्कत है", to: "/results" },
   ],
   beo: [
-    { id: "b-ask", en: "Ask Jugnu: which schools need help with maths, and who can show them?", hi: "जुगनू से पूछें: किन स्कूलों को गणित में मदद चाहिए, और कौन दिखा सकता है?", to: "/track?ask=1" },
-    { id: "b-stuck", en: "Find the stuck actions and who owns them", hi: "अटके काम और उनके ज़िम्मेदार खोजें", to: "/spread" },
-    { id: "b-inflated", en: "Understand why a school's data may be inflated", hi: "समझें कि किसी स्कूल का डेटा बढ़ा-चढ़ा क्यों हो सकता है", to: "/find" },
-    { id: "b-track", en: "Did the practices work? Read the Track page", hi: "क्या तरीके काम आए? 'ट्रैक' पेज पढ़ें", to: "/track" },
+    { id: "b-ask", en: "Ask Jugnu: which schools need help with maths, and who can show them?", hi: "जुगनू से पूछें: किन स्कूलों को गणित में मदद चाहिए, और कौन दिखा सकता है?", to: "/?ask=1" },
+    { id: "b-stuck", en: "Find the stuck actions and who owns them", hi: "अटके काम और उनके ज़िम्मेदार खोजें", to: "/plan" },
+    { id: "b-inflated", en: "Understand why a school's data may be inflated", hi: "समझें कि किसी स्कूल का डेटा बढ़ा-चढ़ा क्यों हो सकता है", to: "/schools" },
+    { id: "b-track", en: "Did the practices work? Read the Results page", hi: "क्या तरीके काम आए? 'नतीजे' पेज पढ़ें", to: "/results" },
   ],
   other: [
     { id: "o-tour", en: "Watch the tour and explain Jugnu in one sentence", hi: "टूर देखें और जुगनू को एक वाक्य में समझाएँ", to: "/" },
@@ -76,8 +79,39 @@ export default function TestingPage() {
         </p>
       </Glass>
       {session.id && session.role ? <ActiveSession role={session.role} id={session.id} onEnd={session.end} /> : <StartSession onStart={session.begin} />}
+      <ResetDemo />
       <Results />
     </div>
+  );
+}
+
+/** Before a session: clear what earlier testers recorded in the demo block (real interviews are kept). */
+function ResetDemo() {
+  const t = useT();
+  const { state, events, resetBlock } = usePipeline();
+  const [busy, setBusy] = useState(false);
+  if (state.block.source !== "simulated") return null;
+  return (
+    <Glass className="flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="text-sm">
+        <div className="font-semibold">{t("Start the demo block fresh", "डेमो ब्लॉक नए सिरे से शुरू करें")}</div>
+        <div className="text-[var(--color-ink-2)]">
+          {t(`${events.length} recorded actions, spot checks and follow-up calls. Clearing them gives the next tester the same starting point. Real interviews and survey answers are kept.`, `${events.length} दर्ज काम, जाँचें और फ़ॉलो-अप कॉल। इन्हें हटाने से अगले परीक्षक को वही शुरुआत मिलती है। असली बातचीत और सर्वे के जवाब बने रहते हैं।`)}
+        </div>
+      </div>
+      <button
+        className="btn btn-glass"
+        disabled={busy || !events.length}
+        onClick={async () => {
+          if (!window.confirm(t("Clear everything recorded in the demo block?", "डेमो ब्लॉक में दर्ज सब कुछ हटाएँ?"))) return;
+          setBusy(true);
+          await resetBlock().catch(() => null);
+          setBusy(false);
+        }}
+      >
+        {t("Clear recorded actions", "दर्ज काम हटाएँ")}
+      </button>
+    </Glass>
   );
 }
 

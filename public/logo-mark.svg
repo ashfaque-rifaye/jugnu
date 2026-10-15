@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Jugnu">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#132a46"/>
+      <stop offset="0.55" stop-color="#0a1626"/>
+      <stop offset="1" stop-color="#04080f"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fde047" stop-opacity="0.9"/>
+      <stop offset="0.45" stop-color="#facc15" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#facc15" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb" cx="42%" cy="38%" r="62%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#fef3a2"/>
+      <stop offset="0.8" stop-color="#facc15"/>
+      <stop offset="1" stop-color="#eab308"/>
+    </radialGradient>
+    <linearGradient id="wing" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0f9ff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#bae6fd" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="trail" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#fef08a"/>
+      <stop offset="0.45" stop-color="#facc15"/>
+      <stop offset="0.8" stop-color="#2dd4bf" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#2dd4bf" stop-opacity="0.25"/>
+    </linearGradient>
+  </defs>
+  <circle cx="36" cy="16.5" r="15" fill="url(#halo)"/>
+  <!-- the trail: the stroke of a lowercase j, drawn as the firefly's flight -->
+  <path d="M32.6 28.6a3.45 3.45 0 0 1 6.9 0V43c0 8.6-7.4 12.9-17.6 9.9 6.9.2 10.7-3.3 10.7-9.9z" fill="url(#trail)"/>
+  <!-- wings -->
+  <ellipse cx="31.4" cy="11.6" rx="4.3" ry="2.1" transform="rotate(-28 31.4 11.6)" fill="url(#wing)"/>
+  <ellipse cx="40.6" cy="11.6" rx="4.3" ry="2.1" transform="rotate(28 40.6 11.6)" fill="url(#wing)"/>
+  <!-- the glowing body: the dot of the j -->
+  <circle cx="36" cy="17" r="5.4" fill="url(#orb)"/>
+  <!-- sparks left behind -->
+  <circle cx="17.5" cy="49.5" r="1.25" fill="#5eead4" fill-opacity="0.85"/>
+  <circle cx="13.2" cy="45.2" r="0.85" fill="#5eead4" fill-opacity="0.55"/>
+  <circle cx="45.5" cy="27" r="0.9" fill="#fde68a" fill-opacity="0.7"/>
+</svg>

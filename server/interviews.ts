@@ -22,6 +22,7 @@ export interface InterviewRow {
   consent: number;
   status: "invited" | "in_progress" | "completed" | "declined";
   call_sid: string | null;
+  school_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,12 +41,12 @@ export interface TurnRow {
 
 const token = () => crypto.randomBytes(9).toString("base64url");
 
-export async function createInterview(args: { teacherName?: string; schoolName?: string; group?: Group; channel?: Channel; language?: Lang; phoneHash?: string }): Promise<InterviewRow> {
+export async function createInterview(args: { teacherName?: string; schoolName?: string; schoolId?: string; group?: Group; channel?: Channel; language?: Lang; phoneHash?: string }): Promise<InterviewRow> {
   const id = crypto.randomUUID();
   const t = now();
   await db.run(
-    `INSERT INTO interviews (id, token, school_name, teacher_name, grp, channel, language, phone_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id, token(), args.schoolName?.trim() || null, args.teacherName?.trim() || null, args.group ?? "live", args.channel ?? "web", args.language ?? "hi", args.phoneHash ?? null, t, t);
+    `INSERT INTO interviews (id, token, school_name, teacher_name, school_id, grp, channel, language, phone_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id, token(), args.schoolName?.trim() || null, args.teacherName?.trim() || null, args.schoolId ?? null, args.group ?? "live", args.channel ?? "web", args.language ?? "hi", args.phoneHash ?? null, t, t);
   return (await getById(id))!;
 }
 
@@ -69,6 +70,17 @@ export async function listInterviews() {
   );
   const coded = await db.all<{ interview_id: string; name: string | null }>(`SELECT interview_id, COALESCE(practice, new_name) name FROM codings WHERE grounded = 1 ORDER BY id`);
   return rows.map((r) => ({ ...r, practices: coded.filter((c) => c.interview_id === r.id).map((c) => c.name) }));
+}
+
+/** Completed interviews linked to a school in the block, with their grounded codings — they feed the block's evidence. */
+export async function codedForBlock() {
+  const rows = await db.all<{ id: string; school_id: string; grp: Group; language: Lang; updated_at: string }>(
+    `SELECT id, school_id, grp, language, updated_at FROM interviews WHERE status = 'completed' AND school_id IS NOT NULL ORDER BY updated_at`,
+  );
+  const coded = await db.all<{ interview_id: string; practice: string | null; new_name: string | null; quote: string; specificity: number; coder: string }>(
+    `SELECT c.interview_id, c.practice, c.new_name, c.quote, c.specificity, c.coder FROM codings c JOIN interviews i ON i.id = c.interview_id WHERE c.grounded = 1 AND i.status = 'completed' AND i.school_id IS NOT NULL ORDER BY c.id`,
+  );
+  return rows.map((r) => ({ ...r, codings: coded.filter((c) => c.interview_id === r.id).map(({ interview_id: _, ...c }) => c) }));
 }
 
 type NewTurn = { speaker: "jugnu" | "teacher"; text: string; text_en?: string | null; kind?: string | null; topic?: string | null; source?: string | null; confidence?: number | null };

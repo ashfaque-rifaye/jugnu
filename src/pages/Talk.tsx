@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Keyboard, Loader2, Mic, Send, Square, Volume2, VolumeX, WifiOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { LogoMark } from "../components/Logo";
 import { cx } from "../components/ui";
 import { ApiError, getJSON, postJSON } from "../lib/api";
 import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/speech";
@@ -239,8 +240,8 @@ export default function TalkPage() {
     return (
       <Shell>
         <div className="glass-strong p-6">
-          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-amber-200/10 glow-ring">
-            <span className="h-5 w-5 rounded-full bg-amber-200 shadow-[0_0_24px_9px_rgba(253,224,71,0.55)]" />
+          <div className="mx-auto mb-4 w-fit">
+            <LogoMark size={72} />
           </div>
           <h1 className="text-center font-deva text-3xl font-bold">{COPY.hi.hello(view.interview.teacher_name)}</h1>
           {view.interview.school_name && <p className="mt-1 text-center text-sm text-[var(--color-ink-3)]">{view.interview.school_name}</p>}
@@ -265,7 +266,7 @@ export default function TalkPage() {
     <Shell>
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-200 shadow-[0_0_10px_3px_rgba(253,224,71,0.6)]" />
+          <LogoMark size={28} />
           <span className="font-display font-bold">Jugnu</span>
           <span className={cx("chip text-[11px]", lang === "hi" && "font-deva")}>{c.progress(Math.min(asked, TOPICS))}</span>
         </div>

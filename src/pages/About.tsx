@@ -1,24 +1,25 @@
 import { motion } from "framer-motion";
 import { ArrowRight, BadgeCheck, BrainCircuit, Clapperboard, FlaskConical, Handshake, LineChart, MapPinned, Mic, Phone, Stars } from "lucide-react";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { LivingMap } from "../components/maps";
 import { HeroMedia, TutorialPlayer, VideoCard } from "../components/media";
 import { Fireflies, Glass, SectionTitle, cx } from "../components/ui";
 import { ASER_2024 } from "../engine/block";
 import { MEDIA, TOUR } from "../lib/clips";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
+import { meanZ, schoolStatuses } from "../lib/status";
 
-const Block3D = lazy(() => import("../components/Block3D"));
-
-export default function HomePage({ onTour }: { onTour: () => void }) {
+export default function AboutPage({ onTour }: { onTour: () => void }) {
   const t = useT();
   const { state } = usePipeline();
-  const { lite, lang } = usePrefs();
+  const { lang } = usePrefs();
   const [clip, setClip] = useState<number | null>(null);
   const verified = state.verify.filter((v) => v.verdict === "verified").length;
   const distinctive = state.evidence.filter((e) => e.verdict === "distinctive").length;
-  const meanZ = useMemo(() => Object.fromEntries(state.block.schools.map((s) => [s.id, state.find.z[s.id].reduce((a, b) => a + b, 0) / state.find.z[s.id].length])), [state]);
+  const status = useMemo(() => schoolStatuses(state), [state]);
+  const z = useMemo(() => meanZ(state), [state]);
   const hi = lang === "hi" && "font-deva";
 
   const LOOP = [
@@ -32,7 +33,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
 
   const TRY = [
     { to: "/talk", icon: Mic, title: t("Be the teacher", "शिक्षक बनकर देखें"), text: t("A 12-minute Hindi voice interview with Jugnu on your phone — no app, no login.", "अपने फ़ोन पर जुगनू से 12 मिनट की हिंदी आवाज़-बातचीत — न ऐप, न लॉगिन।"), ext: true },
-    { to: "/ask", icon: Phone, title: t("Phone line", "फ़ोन लाइन"), text: t("The same interview on a basic phone call, with the exact TwiML at each step.", "वही बातचीत साधारण फ़ोन कॉल पर — हर कदम का TwiML भी।"), ext: false },
+    { to: "/interviews", icon: Phone, title: t("Phone line", "फ़ोन लाइन"), text: t("The same interview on a basic phone call, with the exact TwiML at each step.", "वही बातचीत साधारण फ़ोन कॉल पर — हर कदम का TwiML भी।"), ext: false },
     { to: "/ai", icon: BrainCircuit, title: t("AI & guardrails", "AI व जाँच"), text: t("Six AI tasks in five layers, the live trace of every call, and the evaluation.", "छह AI काम पाँच परतों में, हर कॉल का लाइव ट्रेस, और मूल्यांकन।"), ext: false },
     { to: "/testing", icon: FlaskConical, title: t("User testing", "उपयोगकर्ता परीक्षण"), text: t("Sessions with teachers, CRPs and BEOs — tasks, usability survey, what we changed.", "शिक्षकों, CRP और BEO के साथ सत्र — काम, सर्वे, और जो बदला गया।"), ext: false },
   ];
@@ -60,8 +61,8 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               <button className="btn btn-primary !px-5 !py-3 text-base" onClick={onTour}>
                 <Clapperboard size={18} /> {t("Watch the tour", "टूर देखें")}
               </button>
-              <Link to="/find" className="btn btn-glass !px-5 !py-3 text-base">
-                {t("Find the fireflies", "जुगनू खोजें")} <ArrowRight size={16} />
+              <Link to="/" className="btn btn-glass !px-5 !py-3 text-base">
+                {t("Open today's tasks", "आज के काम खोलें")} <ArrowRight size={16} />
               </Link>
               <a href="/talk" target="_blank" rel="noreferrer" className="btn btn-glass !px-5 !py-3 text-base">
                 <Mic size={16} /> {t("Talk to Jugnu as a teacher", "शिक्षक बनकर जुगनू से बात करें")}
@@ -82,25 +83,9 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             </div>
           </div>
           <div className="relative h-[440px] md:h-[560px]">
-            {lite ? (
-              <div className="grid h-full place-items-center p-6 text-center text-sm text-[var(--color-ink-3)]">
-                <Fireflies count={18} />
-                {t("Low-data mode: the 3D block is off. Turn it on with the ⚡ button.", "कम-डेटा मोड: 3D ब्लॉक बंद है। ⚡ बटन से चालू करें।")}
-              </div>
-            ) : (
-              <Suspense fallback={<div className="grid h-full place-items-center text-sm text-[var(--color-ink-3)]">{t("Loading 3D block…", "3D ब्लॉक लोड हो रहा है…")}</div>}>
-                <Block3D
-                  className="h-full w-full"
-                  schools={state.block.schools}
-                  z={meanZ}
-                  bright={new Set(state.bright)}
-                  struggling={new Set(state.find.struggling)}
-                  inflated={new Set(state.verify.filter((v) => v.verdict === "inflation_suspected").map((v) => v.schoolId))}
-                />
-              </Suspense>
-            )}
+            <LivingMap schools={state.block.schools} status={status} z={z} links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} height={540} autoRotate className="h-full overflow-hidden rounded-3xl" />
             <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-center text-xs text-white/60">
-              {t("Live 3D block · pillar height = results vs expectation · drag to orbit", "लाइव 3D ब्लॉक · खंभे की ऊँचाई = अपेक्षा के मुकाबले परिणाम · घुमाने के लिए खींचें")}
+              {t("Live map of the demo block · fireflies = bright spots · arcs = who learns from whom", "डेमो ब्लॉक का लाइव नक्शा · जुगनू = अच्छे स्कूल · रेखाएँ = कौन किससे सीखता है")}
             </div>
           </div>
         </div>

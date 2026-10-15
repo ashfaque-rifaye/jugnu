@@ -12,7 +12,8 @@ import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
 import { pipelineFor } from "./blocks";
 import { claudeAvailable, MODEL } from "./claude";
 import { db, storage } from "./db";
-import { answer, codeAndStore, codingsOf, createInterview, eraseInterview, getById, getByToken, listInterviews, start, turnsOf } from "./interviews";
+import { answer, codeAndStore, codedForBlock, codingsOf, createInterview, eraseInterview, getById, getByToken, listInterviews, start, turnsOf } from "./interviews";
+import { events } from "./events";
 import { ivr, ivrConfigured } from "./ivr";
 import { reviews } from "./reviews";
 import { testing } from "./testing";
@@ -31,11 +32,15 @@ app.post("/api/auth/check", (req, res) => res.json({ ok: !process.env.DEMO_PASSC
 const Invite = z.object({
   teacherName: z.string().max(80).optional(),
   schoolName: z.string().max(120).optional(),
+  schoolId: z.string().max(40).optional(),
   group: z.enum(["bright", "comparison", "live"]).default("live"),
   language: z.enum(["hi", "en"]).default("hi"),
 });
 
 app.get("/api/interviews", requireOfficer, async (_req, res) => res.json(await listInterviews()));
+
+/** Completed, school-linked interviews with grounded codings — merged into the block's evidence. */
+app.get("/api/interviews/coded", requireOfficer, async (_req, res) => res.json(await codedForBlock()));
 
 app.post("/api/interviews", requireOfficer, async (req, res) => {
   const body = Invite.safeParse(req.body ?? {});
@@ -75,7 +80,8 @@ const publicView = async (token: string) => {
 /** Anyone (e.g. a judge) can try the teacher side: creates a practice interview. */
 app.post("/api/talk/demo", rateLimit("demo", 12, 600000), async (req, res) => {
   const body = Invite.safeParse(req.body ?? {});
-  const row = await createInterview({ ...(body.success ? body.data : {}), group: "live", channel: "web", schoolName: body.success ? body.data.schoolName || "Demo school" : "Demo school" });
+  // Public practice interviews are never linked to a school in the block.
+  const row = await createInterview({ ...(body.success ? { ...body.data, schoolId: undefined } : {}), group: "live", channel: "web", schoolName: body.success ? body.data.schoolName || "Demo school" : "Demo school" });
   res.json({ token: row.token });
 });
 
@@ -132,6 +138,7 @@ app.get("/api/ai/eval", (_req, res) => {
   res.json(fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf-8")) : null);
 });
 
+app.use("/api/events", events);
 app.use("/api/reviews", reviews);
 app.use("/api/testing", testing);
 app.use("/api/ivr", ivr);

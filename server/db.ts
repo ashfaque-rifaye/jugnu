@@ -106,6 +106,19 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at   TEXT NOT NULL
 );
 
+-- What people did in the console: action status changes, spot checks, follow-up calls, notes.
+-- The block's state is the simulated (or imported) baseline with these events applied in order.
+CREATE TABLE IF NOT EXISTS events (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  block        TEXT NOT NULL,                     -- e.g. seed:2024
+  kind         TEXT NOT NULL,                     -- action | spotcheck | followup | note
+  ref          TEXT NOT NULL,                     -- action id or school id
+  payload      TEXT NOT NULL,
+  actor        TEXT,
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS events_by_block ON events(block, id);
+
 CREATE TABLE IF NOT EXISTS ai_calls (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   task          TEXT NOT NULL,
@@ -123,6 +136,9 @@ CREATE TABLE IF NOT EXISTS ai_calls (
 `;
 
 /** turso: lasting · sqlite: a local file that lasts · temporary: Vercel without Turso — lost on restart. */
+/** Columns added after the first deploy: applied once, ignored if they already exist. */
+const MIGRATIONS = [`ALTER TABLE interviews ADD COLUMN school_id TEXT`];
+
 export const storage = (): "turso" | "sqlite" | "temporary" =>
   process.env.TURSO_DATABASE_URL ? "turso" : process.env.VERCEL && !process.env.JUGNU_DB ? "temporary" : "sqlite";
 
@@ -133,6 +149,12 @@ async function openSqlite(): Promise<Store> {
   const d = new DatabaseSync(file);
   d.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   d.exec(SCHEMA);
+  for (const m of MIGRATIONS)
+    try {
+      d.exec(m);
+    } catch {
+      /* already applied */
+    }
   return {
     all: async (sql, ...args) => d.prepare(sql).all(...args) as never,
     get: async (sql, ...args) => d.prepare(sql).get(...args) as never,
@@ -160,6 +182,7 @@ async function openTurso(): Promise<Store> {
 /** The Turso adapter, for any libSQL client: HTTPS in production, a local libSQL file in the tests. */
 export async function libsqlStore(c: Pick<Client, "execute" | "batch" | "executeMultiple">): Promise<Store> {
   await c.executeMultiple(SCHEMA);
+  for (const m of MIGRATIONS) await c.execute(m).catch(() => undefined); // already applied
   const objects = (rs: ResultSet) => rs.rows.map((r) => Object.fromEntries(rs.columns.map((col, i) => [col, r[i]])));
   return {
     all: async (sql, ...args) => objects(await c.execute({ sql, args })) as never,

@@ -1,14 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, ExternalLink, Globe2, Loader2, MessageCircle, Mic, Phone, PhoneCall, PhoneOff, RefreshCw, Send, ShieldCheck, Trash2, TriangleAlert, Volume2 } from "lucide-react";
-import QRCode from "qrcode";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { HeroMedia } from "../components/media";
+import { ExternalLink, Globe2, Loader2, MessageCircle, Mic, Phone, PhoneOff, RefreshCw, Send, ShieldCheck, Trash2, TriangleAlert, Volume2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { PageHeader } from "../components/kit";
+import { InviteCard, type PilotRow } from "../components/Invite";
 import { Glass, SectionTitle, cx } from "../components/ui";
 import { codeInterview } from "../engine/interview";
 import { PRACTICES, type PracticeId } from "../engine/practices";
 import type { Interview } from "../engine/types";
 import { delJSON, postJSON, usePoll, useStatus } from "../lib/api";
-import { MEDIA } from "../lib/clips";
 import { useT } from "../lib/prefs";
 import { canListen, listen, speak, stopSpeaking } from "../lib/speech";
 import { usePipeline } from "../lib/store";
@@ -19,24 +18,21 @@ export default function AskPage() {
   const t = useT();
   const [tab, setTab] = useState<Tab>("pilot");
   return (
-    <div className="space-y-5">
-      <HeroMedia video={MEDIA.call} className="p-5 md:p-7">
-        <div className="label">{t("Step 2 · Ask", "चरण 2 · पूछें")}</div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{t("12-minute conversations that capture what good teachers actually do", "12 मिनट की बातचीत — अच्छे शिक्षक असल में क्या करते हैं")}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
-          {t(
-            "Jugnu interviews bright-spot teachers — and matched ordinary schools — in their language, over a web voice call on any Android phone or an ordinary phone call. It asks about concrete routines and follows up whenever an answer names a practice without specifics.",
-            "जुगनू अच्छे स्कूलों के शिक्षकों से — और उन्हीं जैसे सामान्य स्कूलों से — उनकी भाषा में बात करता है: किसी भी Android फ़ोन पर वेब कॉल से या सामान्य फ़ोन कॉल से। वह ठोस रोज़ के तरीकों के बारे में पूछता है, और अधूरे जवाब पर एक और सवाल करता है।",
-          )}
-        </p>
-      </HeroMedia>
+    <div className="space-y-4">
+      <PageHeader
+        title={t("Interviews", "बातचीत")}
+        sub={t(
+          "Jugnu talks to bright-spot teachers — and teachers in similar ordinary schools — for 12 minutes in their language: a voice call on any Android phone, or an ordinary phone call. It asks about concrete routines and follows up when an answer is vague.",
+          "जुगनू अच्छे स्कूलों के — और उन जैसे सामान्य स्कूलों के — शिक्षकों से उनकी भाषा में 12 मिनट बात करता है: किसी भी Android फ़ोन पर आवाज़-कॉल से, या सामान्य फ़ोन कॉल से। वह ठोस रोज़ के तरीकों के बारे में पूछता है, और अधूरे जवाब पर एक और सवाल करता है।",
+        )}
+      />
 
       <div className="inline-flex flex-wrap rounded-full border border-white/10 bg-black/20 p-1">
         {(
           [
             ["pilot", t("Live pilot", "लाइव पायलट"), Globe2],
             ["phone", t("Phone line", "फ़ोन लाइन"), Phone],
-            ["simulated", t("Simulated block", "सिम्युलेटेड ब्लॉक"), MessageCircle],
+            ["simulated", t("Demo interview history", "डेमो बातचीत का इतिहास"), MessageCircle],
           ] as const
         ).map(([id, label, Icon]) => (
           <button key={id} className={cx("flex items-center gap-1.5 rounded-full px-4 py-2 text-sm", tab === id ? "bg-white/15 text-white" : "text-[var(--color-ink-2)]")} onClick={() => setTab(id)}>
@@ -53,20 +49,6 @@ export default function AskPage() {
 }
 
 // ================================================================== live pilot
-interface PilotRow {
-  id: string;
-  token: string;
-  teacher_name: string | null;
-  school_name: string | null;
-  grp: "bright" | "comparison" | "live";
-  channel: "web" | "phone" | "phone-sim";
-  language: "hi" | "en";
-  status: "invited" | "in_progress" | "completed" | "declined";
-  consent: number;
-  created_at: string;
-  turns: number;
-  practices: string[];
-}
 
 const STATUS: Record<PilotRow["status"], [string, string, string]> = {
   invited: ["Invited", "आमंत्रित", "#a1a1aa"],
@@ -208,63 +190,6 @@ function InviteForm({ onCreated }: { onCreated: (link: string, row: PilotRow) =>
           <ShieldCheck size={14} className="mt-0.5 shrink-0 text-teal-300" />
           {t("Jugnu asks for consent first. If the teacher says no, nothing is kept. Phone numbers and other personal numbers are removed from transcripts.", "जुगनू पहले अनुमति लेता है। शिक्षक मना करें तो कुछ भी नहीं रखा जाता। फ़ोन नंबर जैसी निजी जानकारी बातचीत से हटा दी जाती है।")}
         </p>
-      </div>
-    </Glass>
-  );
-}
-
-function InviteCard({ link, row }: { link: string; row: PilotRow }) {
-  const t = useT();
-  const status = useStatus();
-  const [qr, setQr] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [phone, setPhone] = useState("+91");
-  const [calling, setCalling] = useState<string | null>(null);
-  useEffect(() => {
-    QRCode.toDataURL(link, { margin: 1, width: 220, color: { dark: "#0b0b0f", light: "#fef9c3" } }).then(setQr).catch(() => setQr(null));
-  }, [link]);
-  const message =
-    row.language === "hi"
-      ? `नमस्ते ${row.teacher_name ? `${row.teacher_name} जी` : ""}, ब्लॉक शिक्षा कार्यालय की ओर से जुगनू आपकी कक्षा के रोज़ के तरीकों के बारे में 12 मिनट बात करना चाहता है, ताकि पास के स्कूल भी सीख सकें। फ़ोन पर यह लिंक खोलें: ${link}`
-      : `Namaste ${row.teacher_name ?? ""}, Jugnu from the Block Education Office would like a 12-minute conversation about your classroom routines so nearby schools can learn. Open this link on your phone: ${link}`;
-  const call = async () => {
-    setCalling(t("Calling…", "कॉल लग रही है…"));
-    try {
-      await postJSON("/api/ivr/call", { to: phone, interviewId: row.id });
-      setCalling(t("Ringing the teacher's phone. The interview appears on the right as it happens.", "शिक्षक के फ़ोन पर घंटी जा रही है। बातचीत दाईं ओर दिखेगी।"));
-    } catch (e) {
-      setCalling((e as Error).message);
-    }
-  };
-  return (
-    <Glass className="p-5">
-      <div className="label mb-2">{t("Link ready", "लिंक तैयार")} · {row.teacher_name || t("teacher", "शिक्षक")}</div>
-      <div className="flex gap-4">
-        {qr && <img src={qr} alt="QR code for the interview link" className="h-32 w-32 rounded-xl" />}
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="glass-inset truncate px-3 py-2 font-mono text-xs">{link}</div>
-          <div className="flex flex-wrap gap-2">
-            <button className="btn btn-glass !py-1.5" onClick={() => navigator.clipboard.writeText(link).then(() => setCopied(true))}>
-              {copied ? <Check size={14} /> : <Copy size={14} />} {t("Copy", "कॉपी")}
-            </button>
-            <a className="btn btn-primary !py-1.5" href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">
-              <MessageCircle size={14} /> WhatsApp
-            </a>
-            <a className="btn btn-glass !py-1.5" href={link} target="_blank" rel="noreferrer">
-              <ExternalLink size={14} /> {t("Open", "खोलें")}
-            </a>
-          </div>
-        </div>
-      </div>
-      <div className="mt-4 border-t border-white/10 pt-4">
-        <div className="label mb-2">{t("Or call a basic phone", "या साधारण फ़ोन पर कॉल करें")}</div>
-        <div className="flex gap-2">
-          <input className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/25 px-3 py-2 text-sm outline-none" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={!status.ivr} />
-          <button className="btn btn-glass" onClick={call} disabled={!status.ivr || phone.length < 10}>
-            <PhoneCall size={15} /> {t("Call", "कॉल")}
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-[var(--color-ink-3)]">{status.ivr ? calling : t("The phone line is not connected on this server yet — try the same flow in the Phone line tab.", "इस सर्वर पर फ़ोन लाइन अभी नहीं जुड़ी है — वही बातचीत 'फ़ोन लाइन' टैब में आज़माएँ।")}</p>
       </div>
     </Glass>
   );

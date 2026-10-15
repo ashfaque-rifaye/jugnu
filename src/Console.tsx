@@ -1,32 +1,55 @@
-import { motion } from "framer-motion";
-import { BookOpen, BrainCircuit, ChevronDown, ClipboardCheck, Clapperboard, FlaskConical, Handshake, LineChart, MapPinned, MessageCircleQuestion, Mic, Sparkles, Stars, Zap } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
-import { NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  BookOpen,
+  BrainCircuit,
+  CalendarCheck2,
+  ClipboardCheck,
+  Clapperboard,
+  FlaskConical,
+  Handshake,
+  Info,
+  LineChart,
+  Menu,
+  MessageCircleQuestion,
+  Mic,
+  School as SchoolIcon,
+  Search,
+  Stars,
+  UserRound,
+  X,
+  Zap,
+} from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AskJugnu } from "./components/AskJugnu";
 import { FeedbackButton, useSession } from "./components/Feedback";
-import { BackgroundVideo, TutorialPlayer } from "./components/media";
+import { Wordmark } from "./components/Logo";
+import { TutorialPlayer } from "./components/media";
 import { PasscodeGate } from "./components/Passcode";
 import { AIStatus, cx } from "./components/ui";
 import { usePoll } from "./lib/api";
-import { MEDIA, TOUR } from "./lib/clips";
+import { TOUR } from "./lib/clips";
 import { usePrefs, useT } from "./lib/prefs";
+import { roleName, useRole, type Role } from "./lib/role";
 import { PipelineProvider, usePipeline } from "./lib/store";
-import { ThemeToggle, useTheme } from "./lib/theme";
+import { ThemeToggle } from "./lib/theme";
 
-const AIPage = lazy(() => import("./pages/AI"));
+const TodayPage = lazy(() => import("./pages/Today"));
+const SchoolsPage = lazy(() => import("./pages/Schools"));
+const SchoolPage = lazy(() => import("./pages/School"));
 const AskPage = lazy(() => import("./pages/Ask"));
-const FindPage = lazy(() => import("./pages/Find"));
-const HomePage = lazy(() => import("./pages/Home"));
-const MethodPage = lazy(() => import("./pages/Method"));
 const PracticesPage = lazy(() => import("./pages/Practices"));
+const PlanPage = lazy(() => import("./pages/Plan"));
+const ResultsPage = lazy(() => import("./pages/Results"));
 const ReviewPage = lazy(() => import("./pages/Review"));
-const SpreadPage = lazy(() => import("./pages/Spread"));
 const TestingPage = lazy(() => import("./pages/Testing"));
-const TrackPage = lazy(() => import("./pages/Track"));
+const AIPage = lazy(() => import("./pages/AI"));
+const MethodPage = lazy(() => import("./pages/Method"));
+const AboutPage = lazy(() => import("./pages/About"));
 
 const Loading = () => <div className="grid min-h-[40vh] place-items-center text-sm text-[var(--color-ink-3)]">…</div>;
 
-/** The officer / CRP console. The simulated block is computed only here, never for teachers. */
+/** The officer / CRP console. The block is computed only here, never for teachers. */
 export default function ConsoleRoot() {
   return (
     <PipelineProvider>
@@ -35,6 +58,8 @@ export default function ConsoleRoot() {
   );
 }
 
+type NavItem = { to: string; label: string; icon: typeof Stars; badge?: number };
+
 function Console() {
   const t = useT();
   const location = useLocation();
@@ -42,8 +67,9 @@ function Console() {
   const [params, setParams] = useSearchParams();
   const [tour, setTour] = useState(false);
   const [ask, setAsk] = useState(false);
-  const { theme } = useTheme();
-  const { lang, setLang, lite, setLite, liteReason } = usePrefs();
+  const [drawer, setDrawer] = useState(false);
+  const [role, setRole] = useRole();
+  const [chooseRole, setChooseRole] = useState(false);
   const { state, select } = usePipeline();
   const session = useSession();
   const [pending] = usePoll<unknown[]>("/api/reviews?status=pending", 15000);
@@ -55,146 +81,342 @@ function Console() {
       setParams(params, { replace: true });
     }
   }, [params, setParams]);
+  useEffect(() => setDrawer(false), [location.pathname]);
 
-  const NAV = [
-    { to: "/", label: t("Overview", "सारांश"), icon: Sparkles },
-    { to: "/find", label: t("1 Find", "1 खोजें"), icon: MapPinned },
-    { to: "/ask", label: t("2 Ask", "2 पूछें"), icon: Mic },
-    { to: "/practices", label: t("3 What works", "3 क्या काम करता"), icon: Stars },
-    { to: "/spread", label: t("4 Spread", "4 फैलाएँ"), icon: Handshake },
-    { to: "/track", label: t("5 Track", "5 ट्रैक"), icon: LineChart },
-  ];
-  const MORE = [
+  const MAIN: NavItem[] = [
+    { to: "/", label: t("Today", "आज"), icon: CalendarCheck2 },
+    { to: "/schools", label: t("Schools", "स्कूल"), icon: SchoolIcon },
+    { to: "/interviews", label: t("Interviews", "बातचीत"), icon: Mic },
+    { to: "/practices", label: t("What works", "क्या काम करता है"), icon: Stars },
+    { to: "/plan", label: t("Support plan", "मदद की योजना"), icon: Handshake },
+    { to: "/results", label: t("Results", "नतीजे"), icon: LineChart },
     { to: "/review", label: t("Review", "समीक्षा"), icon: ClipboardCheck, badge: pending?.length ?? 0 },
-    { to: "/testing", label: t("Testing", "परीक्षण"), icon: FlaskConical, badge: 0 },
-    { to: "/ai", label: t("AI & guardrails", "AI व जाँच"), icon: BrainCircuit, badge: 0 },
-    { to: "/method", label: t("Data & method", "डेटा व पद्धति"), icon: BookOpen, badge: 0 },
   ];
-  const link = (isActive: boolean) =>
-    cx("relative flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition", isActive ? "bg-white/15 text-white shadow-inner" : "text-[var(--color-ink-2)] hover:bg-white/8 hover:text-white");
+  const TOOLS: NavItem[] = [
+    { to: "/testing", label: t("User testing", "उपयोगकर्ता परीक्षण"), icon: FlaskConical },
+    { to: "/ai", label: t("AI & safety checks", "AI व सुरक्षा जाँच"), icon: BrainCircuit },
+    { to: "/method", label: t("Data & method", "डेटा व पद्धति"), icon: BookOpen },
+    { to: "/about", label: t("About Jugnu", "जुगनू के बारे में"), icon: Info },
+  ];
+
+  const nav = (items: NavItem[]) =>
+    items.map(({ to, label, icon: Icon, badge }) => (
+      <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("nav-item", isActive && "active")}>
+        <Icon size={18} aria-hidden />
+        <span className="flex-1">{label}</span>
+        {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 text-[11px] font-bold text-black">{badge}</span>}
+      </NavLink>
+    ));
+
+  const sidebar = (
+    <div className="flex h-full flex-col gap-4 p-4">
+      <NavLink to="/" className="px-1">
+        <Wordmark sub={`${state.block.name} · ${state.block.source === "simulated" ? t("demo data", "डेमो डेटा") : t("your data", "आपका डेटा")}`} />
+      </NavLink>
+      <nav className="space-y-0.5" aria-label={t("Main", "मुख्य")}>
+        {nav(MAIN)}
+      </nav>
+      <button className="btn btn-primary justify-center" onClick={() => setAsk(true)}>
+        <MessageCircleQuestion size={16} /> {t("Ask Jugnu", "जुगनू से पूछें")}
+      </button>
+      <nav className="space-y-0.5 border-t border-white/8 pt-3" aria-label={t("More", "और")}>
+        {nav(TOOLS)}
+        <button className="nav-item w-full" onClick={() => setTour(true)}>
+          <Clapperboard size={18} aria-hidden /> <span className="flex-1 text-left">{t("Watch the 2-minute tour", "2 मिनट का टूर देखें")}</span>
+        </button>
+      </nav>
+      <div className="mt-auto space-y-3">
+        <RoleCard role={role} onChange={() => setChooseRole(true)} />
+        <PrefsRow />
+      </div>
+    </div>
+  );
+
+  const BOTTOM: NavItem[] = [MAIN[0], MAIN[1], MAIN[4], MAIN[2]];
 
   return (
     <>
-      <div className="aurora" aria-hidden>
-        <div className="blob a" />
-        <div className="blob b" />
-        <div className="blob c" />
-        {!lite && <BackgroundVideo key={theme} src={theme === "mono" ? MEDIA.ribbonsMono : MEDIA.fireflies} opacity={theme === "mono" ? 0.14 : 0.3} className="mix-blend-screen" />}
-        <div className="grid" />
-        <div className="grain" />
-      </div>
-      <header className="no-print sticky top-0 z-40 px-3 pt-3 md:px-6">
-        <nav className="glass-strong mx-auto flex max-w-[1500px] items-center gap-2 rounded-full px-3 py-2">
-          <NavLink to="/" className="mr-1 flex items-center gap-2 pl-1">
-            <span className="relative grid h-9 w-9 place-items-center rounded-full bg-amber-200/10 glow-ring" aria-hidden>
-              <span className="h-3 w-3 rounded-full bg-amber-200 shadow-[0_0_18px_7px_rgba(253,224,71,0.6)]" />
-            </span>
-            <span className="hidden font-display text-lg font-bold tracking-tight sm:inline">
-              Jugnu <span className="font-deva text-sm font-semibold text-[var(--color-ink-3)]">जुगनू</span>
-            </span>
-          </NavLink>
-          <div className="scroll-thin flex flex-1 items-center gap-1 overflow-x-auto">
-            {NAV.map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => link(isActive)} title={label}>
-                <Icon size={15} aria-hidden />
-                <span className={cx("hidden lg:inline", lang === "hi" && "font-deva")}>{label}</span>
-              </NavLink>
-            ))}
-          </div>
-          <MoreMenu items={MORE} lang={lang} label={t("More", "और")} />
-          <button className="btn btn-primary !py-1.5" onClick={() => setAsk(true)} title="Ask Jugnu">
-            <MessageCircleQuestion size={15} /> <span className="hidden md:inline">Ask Jugnu</span>
-          </button>
-          <button className="btn btn-glass hidden !py-1.5 2xl:inline-flex" onClick={() => setTour(true)}>
-            <Clapperboard size={15} /> {t("Tour", "टूर")}
-          </button>
-          <button className="btn btn-glass !px-3 !py-1.5 font-deva" onClick={() => setLang(lang === "hi" ? "en" : "hi")} title={t("Switch to Hindi", "Switch to English")}>
-            {lang === "hi" ? "EN" : "हिं"}
-          </button>
-          <button
-            className={cx("btn !px-3 !py-1.5", lite ? "btn-primary" : "btn-glass")}
-            onClick={() => setLite(!lite)}
-            title={lite ? t(`Low-data mode on${liteReason ? ` — ${liteReason}` : ""}`, "कम-डेटा मोड चालू") : t("Low-data mode: no video, no 3D", "कम-डेटा मोड: न वीडियो, न 3D")}
-            aria-pressed={lite}
-          >
-            <Zap size={15} />
-          </button>
-          <ThemeToggle />
-          <AIStatus />
-        </nav>
-        {session.id && (
-          <div className="mx-auto mt-2 flex max-w-[1500px] items-center justify-between gap-2 rounded-full border border-amber-200/30 bg-amber-200/10 px-4 py-1.5 text-sm">
-            <span>
-              <FlaskConical size={14} className="mr-1 inline" /> {t("Testing session running", "परीक्षण सत्र जारी")} · {session.role}
-            </span>
-            <NavLink to="/testing" className="underline">
-              {t("Tasks & survey", "काम व सर्वे")}
-            </NavLink>
-          </div>
+      <div className="app-bg" aria-hidden />
+      {/* desktop sidebar */}
+      <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-[264px] border-r border-white/8 bg-[#070c16]/80 backdrop-blur-xl lg:block">{sidebar}</aside>
+      {/* mobile drawer */}
+      <AnimatePresence>
+        {drawer && (
+          <>
+            <motion.div className="fixed inset-0 z-40 bg-black/60 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawer(false)} />
+            <motion.aside
+              className="fixed inset-y-0 left-0 z-50 w-[290px] overflow-y-auto border-r border-white/10 bg-[#070c16] lg:hidden"
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: "tween", duration: 0.2 }}
+            >
+              {sidebar}
+            </motion.aside>
+          </>
         )}
-      </header>
-      <main className="mx-auto max-w-[1500px] px-3 pb-24 pt-6 md:px-6">
-        <motion.div key={location.pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-          <Suspense fallback={<Loading />}>
-          <Routes location={location}>
-            <Route path="/" element={<HomePage onTour={() => setTour(true)} />} />
-            <Route path="/find" element={<FindPage />} />
-            <Route path="/ask" element={<AskPage />} />
-            <Route path="/practices" element={<PracticesPage />} />
-            <Route path="/spread" element={<SpreadPage />} />
-            <Route path="/track" element={<TrackPage />} />
-            <Route path="/review" element={<ReviewPage />} />
-            <Route path="/testing" element={<TestingPage />} />
-            <Route path="/ai" element={<AIPage />} />
-            <Route path="/method" element={<MethodPage />} />
-          </Routes>
-          </Suspense>
-        </motion.div>
-      </main>
+      </AnimatePresence>
+
+      <div className="lg:pl-[264px]">
+        <header className="no-print sticky top-0 z-20 border-b border-white/8 bg-[#070c16]/85 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-3 py-2.5 md:px-6">
+            <button className="btn btn-glass !p-2 lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Menu", "मेनू")}>
+              <Menu size={18} />
+            </button>
+            <NavLink to="/" className="lg:hidden">
+              <Wordmark size={28} />
+            </NavLink>
+            <SchoolSearch
+              onPick={(id) => {
+                select(id);
+                navigate(`/schools/${id}`);
+              }}
+            />
+            <button className="btn btn-glass hidden !py-2 md:inline-flex lg:hidden" onClick={() => setAsk(true)}>
+              <MessageCircleQuestion size={16} /> {t("Ask", "पूछें")}
+            </button>
+            <AIStatus />
+          </div>
+          {session.id && (
+            <div className="flex items-center justify-between gap-2 border-t border-amber-200/20 bg-amber-200/10 px-4 py-1.5 text-sm md:px-6">
+              <span>
+                <FlaskConical size={14} className="mr-1 inline" /> {t("Testing session running", "परीक्षण सत्र जारी")} · {session.role}
+              </span>
+              <NavLink to="/testing" className="underline">
+                {t("Tasks & survey", "काम व सर्वे")}
+              </NavLink>
+            </div>
+          )}
+        </header>
+
+        <main className="mx-auto max-w-[1400px] px-3 pb-28 pt-5 md:px-6 lg:pb-12">
+          <motion.div key={location.pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            <Suspense fallback={<Loading />}>
+              <Routes location={location}>
+                <Route path="/" element={<TodayPage onTour={() => setTour(true)} onAsk={() => setAsk(true)} />} />
+                <Route path="/schools" element={<SchoolsPage />} />
+                <Route path="/schools/:id" element={<SchoolPage />} />
+                <Route path="/interviews" element={<AskPage />} />
+                <Route path="/practices" element={<PracticesPage />} />
+                <Route path="/plan" element={<PlanPage />} />
+                <Route path="/results" element={<ResultsPage />} />
+                <Route path="/review" element={<ReviewPage />} />
+                <Route path="/testing" element={<TestingPage />} />
+                <Route path="/ai" element={<AIPage />} />
+                <Route path="/method" element={<MethodPage />} />
+                <Route path="/about" element={<AboutPage onTour={() => setTour(true)} />} />
+                {/* older links */}
+                <Route path="/find" element={<Navigate to="/schools" replace />} />
+                <Route path="/ask" element={<Navigate to="/interviews" replace />} />
+                <Route path="/spread" element={<Navigate to="/plan" replace />} />
+                <Route path="/track" element={<Navigate to="/results" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </motion.div>
+        </main>
+        <footer className="no-print mx-auto max-w-[1400px] px-6 pb-24 text-xs text-[var(--color-ink-3)] lg:pb-8">
+          {t(
+            "Jugnu · AI for Foundational Learning Hackathon, Challenge 4. Adults only, with consent; no child-level data. The demo block is simulated (calibrated to ASER 2024); live interviews are real. Background videos are AI-generated (Google Veo).",
+            "जुगनू · AI for Foundational Learning हैकाथॉन, चुनौती 4। सिर्फ़ वयस्क, सहमति से; बच्चों का कोई व्यक्तिगत डेटा नहीं। डेमो ब्लॉक सिम्युलेटेड है (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
+          )}
+        </footer>
+      </div>
+
+      {/* phone bottom bar */}
+      <nav className="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/10 bg-[#070c16]/95 backdrop-blur-xl lg:hidden" aria-label={t("Main", "मुख्य")}>
+        {BOTTOM.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            className={({ isActive }) => cx("flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-amber-200" : "text-[var(--color-ink-3)]")}
+          >
+            <Icon size={20} aria-hidden />
+            <span className="truncate">{label}</span>
+          </NavLink>
+        ))}
+        <button className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-[var(--color-ink-3)]" onClick={() => setAsk(true)}>
+          <MessageCircleQuestion size={20} aria-hidden />
+          {t("Ask", "पूछें")}
+        </button>
+      </nav>
+
       <TutorialPlayer clips={TOUR} open={tour} onClose={() => setTour(false)} />
       <AskJugnu
         open={ask}
         onClose={() => setAsk(false)}
         onSchool={(name) => {
           const s = state.block.schools.find((x) => x.name === name);
-          if (s) select(s.id);
-          navigate("/find");
+          if (s) {
+            select(s.id);
+            navigate(`/schools/${s.id}`);
+          }
         }}
       />
       <FeedbackButton />
       <PasscodeGate />
-      <footer className="no-print mx-auto max-w-[1500px] px-6 pb-8 text-xs text-[var(--color-ink-3)]">
-        {t(
-          "Jugnu · AI for Foundational Learning Hackathon · Challenge 4 (Data to Action). Adults only, with consent — no child-level data. The demo block is simulated and calibrated to ASER 2024; live pilot interviews are real. Cinematic clips generated with Google Flow (Veo 3.1).",
-          "जुगनू · AI for Foundational Learning हैकाथॉन · चुनौती 4 (डेटा से कार्य)। सिर्फ़ वयस्क, सहमति से — बच्चों का कोई व्यक्तिगत डेटा नहीं। डेमो ब्लॉक सिम्युलेटेड है (ASER 2024 के अनुसार); लाइव पायलट बातचीत असली है।",
-        )}
-      </footer>
+      <RoleChooser open={chooseRole || role === null} onClose={() => setChooseRole(false)} onPick={(r) => (setRole(r), setChooseRole(false))} />
     </>
   );
 }
 
-function MoreMenu({ items, lang, label }: { items: { to: string; label: string; icon: typeof Sparkles; badge: number }[]; lang: string; label: string }) {
-  const [open, setOpen] = useState(false);
-  const location = useLocation();
-  useEffect(() => setOpen(false), [location.pathname]);
-  const total = items.reduce((a, b) => a + b.badge, 0);
-  const active = items.some((i) => location.pathname.startsWith(i.to));
+function RoleCard({ role, onChange }: { role: Role | null; onChange: () => void }) {
+  const t = useT();
+  const { state } = usePipeline();
   return (
-    <div className="relative">
-      <button className={cx("btn !py-1.5", active ? "btn-primary" : "btn-glass")} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <ChevronDown size={15} /> <span className={cx("hidden sm:inline", lang === "hi" && "font-deva")}>{label}</span>
-        {total > 0 && <span className="grid h-4 min-w-4 place-items-center rounded-full bg-amber-200 px-1 text-[10px] font-bold text-black">{total}</span>}
+    <button className="card-inset flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-white/5" onClick={onChange}>
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-amber-200/12 text-amber-200">
+        <UserRound size={17} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs text-[var(--color-ink-3)]">{t("You are using Jugnu as", "आप जुगनू इस रूप में चला रहे हैं")}</span>
+        <span className="block truncate text-sm font-semibold">{roleName(role, state.block) ?? t("Choose your role", "अपनी भूमिका चुनें")}</span>
+      </span>
+      <span className="text-xs text-amber-200">{t("Change", "बदलें")}</span>
+    </button>
+  );
+}
+
+function PrefsRow() {
+  const t = useT();
+  const { lang, setLang, lite, setLite, liteReason } = usePrefs();
+  return (
+    <div className="flex items-center gap-2">
+      <button className="btn btn-glass flex-1 justify-center !py-1.5 font-deva" onClick={() => setLang(lang === "hi" ? "en" : "hi")} title={t("Switch to Hindi", "Switch to English")}>
+        {lang === "hi" ? "English" : "हिंदी"}
       </button>
-      {open && (
-        <div className="glass-strong absolute right-0 top-11 z-50 w-56 p-2">
-          {items.map(({ to, label: l, icon: Icon, badge }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => cx("flex items-center gap-2 rounded-xl px-3 py-2 text-sm", isActive ? "bg-white/15" : "hover:bg-white/8")}>
-              <Icon size={15} /> <span className={cx("flex-1", lang === "hi" && "font-deva")}>{l}</span>
-              {badge > 0 && <span className="grid h-4 min-w-4 place-items-center rounded-full bg-amber-200 px-1 text-[10px] font-bold text-black">{badge}</span>}
-            </NavLink>
-          ))}
-        </div>
+      <button
+        className={cx("btn !px-3 !py-1.5", lite ? "btn-primary" : "btn-glass")}
+        onClick={() => setLite(!lite)}
+        title={lite ? t(`Low-data mode on${liteReason ? ` — ${liteReason}` : ""}`, "कम-डेटा मोड चालू") : t("Low-data mode: no video, no 3D", "कम-डेटा मोड: न वीडियो, न 3D")}
+        aria-pressed={lite}
+        aria-label={t("Low-data mode", "कम-डेटा मोड")}
+      >
+        <Zap size={15} />
+      </button>
+      <ThemeToggle />
+    </div>
+  );
+}
+
+function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
+  const t = useT();
+  const { state } = usePipeline();
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const hits = useMemo(() => {
+    const k = q.trim().toLowerCase();
+    if (k.length < 2) return [];
+    return state.block.schools.filter((s) => `${s.name} ${s.village} ${s.teacher} ${s.clusterName}`.toLowerCase().includes(k)).slice(0, 8);
+  }, [q, state.block]);
+  useEffect(() => {
+    const off = (e: MouseEvent) => box.current && !box.current.contains(e.target as Node) && setOpen(false);
+    window.addEventListener("mousedown", off);
+    return () => window.removeEventListener("mousedown", off);
+  }, []);
+  return (
+    <div ref={box} className="relative ml-auto w-full max-w-md">
+      <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-3)]" />
+      <input
+        value={q}
+        onChange={(e) => (setQ(e.target.value), setOpen(true))}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && hits[0]) (onPick(hits[0].id), setQ(""), setOpen(false));
+          if (e.key === "Escape") setOpen(false);
+        }}
+        placeholder={t("Find a school, village or teacher…", "स्कूल, गाँव या शिक्षक खोजें…")}
+        className="w-full rounded-full border border-white/12 bg-black/30 py-2 pl-9 pr-8 text-sm outline-none focus:border-amber-200/60"
+        aria-label={t("Search schools", "स्कूल खोजें")}
+      />
+      {q && (
+        <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-ink-3)]" onClick={() => setQ("")} aria-label={t("Clear", "साफ़ करें")}>
+          <X size={15} />
+        </button>
       )}
+      {open && hits.length > 0 && (
+        <ul className="card absolute inset-x-0 top-11 z-50 max-h-80 overflow-y-auto p-1.5">
+          {hits.map((s) => (
+            <li key={s.id}>
+              <button className="w-full rounded-lg px-3 py-2 text-left hover:bg-white/8" onClick={() => (onPick(s.id), setQ(""), setOpen(false))}>
+                <div className="text-sm font-semibold">{s.name}</div>
+                <div className="text-xs text-[var(--color-ink-3)]">
+                  {s.teacher} · {s.clusterName} {t("cluster", "क्लस्टर")}
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function RoleChooser({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (r: Role) => void }) {
+  const t = useT();
+  const { state } = usePipeline();
+  const [role] = useRole();
+  const clusters = useMemo(() => {
+    const m = new Map<number, { name: string; crp: string; n: number }>();
+    for (const s of state.block.schools) m.set(s.cluster, { name: s.clusterName, crp: s.crp, n: (m.get(s.cluster)?.n ?? 0) + 1 });
+    return [...m.entries()].sort((a, b) => a[0] - b[0]);
+  }, [state.block]);
+  const [cluster, setCluster] = useState(role?.kind === "crp" ? role.cluster : (clusters[0]?.[0] ?? 0));
+  if (!open) return null;
+  const option = "card card-hover w-full p-4 text-left";
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="card w-full max-w-lg overflow-hidden">
+        <div className="relative h-36 overflow-hidden">
+          <video className="welcome-video" src="/media/jugnu-welcome.mp4" poster="/media/jugnu-welcome.jpg" autoPlay muted loop playsInline />
+          <div className="welcome-shade" />
+          <div className="absolute bottom-3 left-4">
+            <Wordmark size={40} />
+          </div>
+        </div>
+        <div className="space-y-3 p-5">
+          <div>
+            <h2 className="text-xl font-bold">{t("Who is using Jugnu?", "जुगनू कौन चला रहा है?")}</h2>
+            <p className="text-sm text-[var(--color-ink-2)]">{t("Jugnu shows you the tasks that are yours. You can switch any time.", "जुगनू आपको आपके काम दिखाएगा। आप कभी भी बदल सकते हैं।")}</p>
+          </div>
+          <button className={option} onClick={() => onPick({ kind: "beo" })}>
+            <div className="font-semibold">{t("Block Education Officer", "ब्लॉक शिक्षा अधिकारी (BEO)")}</div>
+            <div className="text-sm text-[var(--color-ink-2)]">{t("The whole block: where to act, what is stuck, did it work.", "पूरा ब्लॉक: कहाँ काम करना है, क्या अटका है, क्या असर हुआ।")}</div>
+          </button>
+          <div className={cx(option, "space-y-2")}>
+            <div className="font-semibold">{t("Cluster resource person (CRP)", "क्लस्टर संसाधन व्यक्ति (CRP)")}</div>
+            <div className="text-sm text-[var(--color-ink-2)]">{t("Your cluster: spot checks, interviews, peer visits, follow-ups.", "आपका क्लस्टर: मौके की जाँच, बातचीत, साथी-दौरे, फ़ॉलो-अप।")}</div>
+            <div className="flex gap-2">
+              <select
+                className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm"
+                value={cluster}
+                onChange={(e) => setCluster(Number(e.target.value))}
+                aria-label={t("Your cluster", "आपका क्लस्टर")}
+              >
+                {clusters.map(([i, c]) => (
+                  <option key={i} value={i}>
+                    {c.name} — {c.crp} ({c.n} {t("schools", "स्कूल")})
+                  </option>
+                ))}
+              </select>
+              <button className="btn btn-primary" onClick={() => onPick({ kind: "crp", cluster })}>
+                {t("Continue", "आगे")}
+              </button>
+            </div>
+          </div>
+          <button className={option} onClick={() => onPick({ kind: "guest" })}>
+            <div className="font-semibold">{t("Just looking (judge or visitor)", "सिर्फ़ देख रहा/रही हूँ (जज या मेहमान)")}</div>
+            <div className="text-sm text-[var(--color-ink-2)]">{t("See everything, with a short guide on the Today page.", "सब कुछ देखें, 'आज' पेज पर छोटी गाइड के साथ।")}</div>
+          </button>
+          {role && (
+            <button className="w-full text-center text-sm text-[var(--color-ink-3)] underline" onClick={onClose}>
+              {t("Cancel", "रद्द करें")}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

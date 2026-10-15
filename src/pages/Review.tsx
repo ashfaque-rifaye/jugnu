@@ -42,10 +42,9 @@ export default function ReviewPage() {
   const [reviewer, setReviewer] = useState(() => localStorage.getItem("jugnu-reviewer") ?? "");
   return (
     <div className="space-y-5">
-      <Glass strong className="p-5 md:p-7">
-        <div className="label">{t("Human in the loop", "मानव समीक्षा")}</div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{t("Nothing reaches a teacher until a person approves it", "किसी व्यक्ति की मंज़ूरी के बिना कुछ भी शिक्षक तक नहीं जाता")}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight md:text-[1.75rem]">{t("Review", "समीक्षा")}</h1>
+        <p className="mt-1 max-w-3xl text-[15px] text-[var(--color-ink-2)]">
           {t(
             "Claude drafts practice cards and peer voice notes from teachers' own words. Automatic checks run first (every step cites a real quote, no invented numbers, right language, fits in 60 seconds); then a CRP or the BEO approves, edits or rejects.",
             "Claude शिक्षकों के अपने शब्दों से तरीकों के कार्ड और वॉइस नोट बनाता है। पहले अपने-आप जाँच होती है (हर कदम असली उद्धरण से, कोई गढ़ा हुआ अंक नहीं, सही भाषा, 60 सेकंड में); फिर CRP या BEO मंज़ूर, संपादित या अस्वीकार करते हैं।",
@@ -69,12 +68,12 @@ export default function ReviewPage() {
             />
           </label>
         </div>
-      </Glass>
+      </div>
 
       {items === null && <Loader2 className="animate-spin text-amber-200" />}
       {items?.length === 0 && (
         <Glass className="p-6 text-sm text-[var(--color-ink-2)]">
-          {t("Nothing here. Draft a practice card on “What works”, or a voice note on “Spread”.", "यहाँ कुछ नहीं। 'क्या काम करता है' पर कार्ड बनाएँ, या 'फैलाएँ' पर वॉइस नोट।")}
+          {t("Nothing here. Draft a practice card on “What works”, or send a voice note from a school in the Support plan.", "यहाँ कुछ नहीं। 'क्या काम करता है' पर कार्ड बनाएँ, या 'मदद की योजना' के किसी स्कूल से वॉइस नोट भेजें।")}
         </Glass>
       )}
       <div className="grid gap-5 xl:grid-cols-2">

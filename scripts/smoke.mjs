@@ -21,7 +21,9 @@ const byTopic = {
 };
 const followUp = "रोज़ 15 मिनट, पहले बच्चे खुद करते हैं, फिर कॉपी में लिखते हैं।";
 
-const { interview, link } = await j("POST", "/api/interviews", { teacherName: "Smoke Test", schoolName: "GPS Smoke", group: "bright" });
+// SCHOOL_ID=s123 links the interview to a school in the demo block (it then feeds that school's page and "What works").
+const school = process.env.SCHOOL_ID;
+const { interview, link } = await j("POST", "/api/interviews", { teacherName: "Smoke Test", schoolName: school ? undefined : "GPS Smoke", schoolId: school, group: process.env.GROUP ?? "bright" });
 console.log("invite", link);
 await j("POST", `/api/talk/${interview.token}/start`, {});
 let reply = { kind: "consent", topic: null };

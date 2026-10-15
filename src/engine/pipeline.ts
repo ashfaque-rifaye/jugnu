@@ -40,16 +40,51 @@ export function simulatedSpotCheck(block: Block, seed = 17): SpotCheck {
   };
 }
 
-export function runPipeline(block: Block = generateBlock()): PipelineState {
+/** What happened in the field, on top of the block's data. */
+export interface FieldData {
+  /** Spot checks recorded by cluster resource people — they replace the simulated ones. */
+  spotChecks?: Record<string, { sampled: number; proficient: number; numeracyProficient: number }>;
+  /** Real interviews from the live pilot, linked to schools in this block. */
+  live?: Interview[];
+}
+
+/**
+ * In the demo block a few candidates still wait for their spot check, so a CRP can do that step for
+ * real. They are chosen among candidates the simulated checks would NOT have verified (several have
+ * inflated data), so the demo's evidence about what works stays the same.
+ */
+export function demoPending(block: Block, notVerified: string[]): Set<string> {
+  if (!block.truth) return new Set();
+  return new Set(notVerified.slice(0, 3));
+}
+
+export function runPipeline(block: Block = generateBlock(), field: FieldData = {}): PipelineState {
   const find = runFind(block);
-  const verify = runVerify(block, find, simulatedSpotCheck(block));
+  // Simulated spot checks are drawn once, in candidate order, so recording one school never reshuffles another.
+  const sim = simulatedSpotCheck(block);
+  const drawn = new Map(find.candidates.map((id) => [id, sim(id)]));
+  const simulated = runVerify(block, find, (id) => drawn.get(id) ?? null);
+  const pending = demoPending(block, simulated.filter((v) => v.verdict !== "verified").map((v) => v.schoolId));
+  const history: SpotCheck = (id) => (pending.has(id) ? null : (drawn.get(id) ?? null));
+  const verify = runVerify(block, find, (id) => field.spotChecks?.[id] ?? history(id));
   const bright = verify.filter((v) => v.verdict === "verified").map((v) => v.schoolId);
   const comparison = matchComparisons(block, find, bright);
-  const rng = mulberry32(block.seed + 31);
+
+  // The demo's interview history covers the schools verified before anyone touched the block;
+  // a school verified today still needs its interview (a real one, from the live pilot).
   const interviews: Interview[] = [];
   if (block.truth) {
-    for (const id of bright) interviews.push(simulateInterview(block.schools.find((s) => s.id === id)!, block.truth[id], "bright", rng));
-    for (const id of comparison) interviews.push(simulateInterview(block.schools.find((s) => s.id === id)!, block.truth[id], "comparison", rng));
+    const before = runVerify(block, find, history).filter((v) => v.verdict === "verified").map((v) => v.schoolId);
+    const beforeComparison = matchComparisons(block, find, before);
+    const rng = mulberry32(block.seed + 31);
+    for (const id of before) interviews.push(simulateInterview(block.schools.find((s) => s.id === id)!, block.truth[id], "bright", rng));
+    for (const id of beforeComparison) interviews.push(simulateInterview(block.schools.find((s) => s.id === id)!, block.truth[id], "comparison", rng));
+  }
+  // A real interview replaces the simulated one for the same school.
+  for (const live of field.live ?? []) {
+    const i = interviews.findIndex((x) => x.schoolId === live.schoolId);
+    if (i >= 0) interviews.splice(i, 1);
+    interviews.push(live);
   }
   const evidence = runContrast(interviews);
   const recs = runSpread(block, find, evidence, interviews);
@@ -96,7 +131,9 @@ export function evaluate(state: PipelineState): Evaluation | null {
     return uplift >= 0.1 && !t[id].inflated;
   };
   const cands = state.find.candidates;
-  const inflatedCands = cands.filter((id) => t[id].inflated);
+  // Only a spot check can catch inflated data, so schools still waiting for theirs are not counted.
+  const checked = new Set(state.verify.filter((v) => v.spotCheck.sampled > 0).map((v) => v.schoolId));
+  const inflatedCands = cands.filter((id) => t[id].inflated && checked.has(id));
   const brightCands = cands.filter(isBright);
   const distinctive = state.evidence.filter((e) => e.verdict === "distinctive").map((e) => e.practice);
   const strongEffective: PracticeId[] = EFFECTIVE.filter((p) => p !== "print_wall");

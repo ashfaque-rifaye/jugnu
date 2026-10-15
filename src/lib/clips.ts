@@ -14,6 +14,10 @@ export const MEDIA = {
   sunrise: "/media/jugnu-sunrise.mp4",
   lantern: "/media/jugnu-lantern.mp4",
   pillars: "/media/jugnu-pillars.mp4",
+  welcome: "/media/jugnu-welcome.mp4",
+  welcomePoster: "/media/jugnu-welcome.jpg",
+  network: "/media/jugnu-network.mp4",
+  networkPoster: "/media/jugnu-network.jpg",
 };
 
 export const TOUR: Clip[] = [
