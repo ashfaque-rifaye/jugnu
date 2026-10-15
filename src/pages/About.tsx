@@ -61,7 +61,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
               <button className="btn btn-primary !px-5 !py-3 text-base" onClick={onTour}>
                 <Clapperboard size={18} /> {t("Watch the tour", "टूर देखें")}
               </button>
-              <Link to="/" className="btn btn-glass !px-5 !py-3 text-base">
+              <Link to="/today" className="btn btn-glass !px-5 !py-3 text-base">
                 {t("Open today's tasks", "आज के काम खोलें")} <ArrowRight size={16} />
               </Link>
               <a href="/talk" target="_blank" rel="noreferrer" className="btn btn-glass !px-5 !py-3 text-base">

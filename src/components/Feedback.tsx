@@ -57,7 +57,7 @@ export function VoiceText({ value, onChange, placeholder, rows = 3 }: { value: s
     <div className="relative">
       <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} className="w-full rounded-xl border border-white/15 bg-black/25 p-3 pr-11 font-deva text-sm outline-none focus:border-amber-200/60" />
       {canListen() && (
-        <button type="button" onClick={dictate} className={cx("absolute bottom-2 right-2 grid h-8 w-8 place-items-center rounded-full", listening ? "bg-amber-200 text-black" : "bg-white/10")} aria-label="dictate">
+        <button type="button" onClick={dictate} className={cx("absolute bottom-2 right-2 grid h-8 w-8 place-items-center rounded-full", listening ? "accent-solid" : "bg-white/10")} aria-label="dictate">
           <Mic size={14} />
         </button>
       )}

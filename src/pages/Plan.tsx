@@ -112,14 +112,14 @@ export default function PlanPage() {
             `${recs.filter((r) => r.wave === 1).length} अभी · ${recs.filter((r) => r.wave === 2).length} अगले सत्र`,
           )}
         />
-        <Stat label={t("Distance to a teacher who does it", "करने वाले शिक्षक तक दूरी")} value={`${avgKm.toFixed(1)} km`} hint={t("on average", "औसतन")} tone="#fde68a" />
-        <Stat label={t("Actions done", "पूरे काम")} value={`${done}/${all.length}`} tone="#4ade80" />
+        <Stat label={t("Distance to a teacher who does it", "करने वाले शिक्षक तक दूरी")} value={`${avgKm.toFixed(1)} km`} hint={t("on average", "औसतन")} tone="var(--tone-warn)" />
+        <Stat label={t("Actions done", "पूरे काम")} value={`${done}/${all.length}`} tone="var(--tone-good)" />
         <button className="text-left" onClick={() => (setOnlyStuck((v) => !v), setView("board"))}>
           <Stat
             label={t("Stuck — needs someone", "अटके — किसी की ज़रूरत")}
             value={stuck}
             hint={onlyStuck ? t("showing only these · tap to show all", "सिर्फ़ ये दिख रहे · सब दिखाने को छुएँ") : t("tap to show only these", "सिर्फ़ ये देखने को छुएँ")}
-            tone="#f87171"
+            tone="var(--tone-bad)"
           />
         </button>
       </div>

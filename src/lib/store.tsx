@@ -8,7 +8,7 @@ import { evaluate, runPipeline, runTrackStage, type Evaluation, type FieldData, 
 import { PRACTICE_IDS, type PracticeId } from "../engine/practices";
 import type { Action, Block, FollowUp, Interview } from "../engine/types";
 import { runVerify } from "../engine/verify";
-import { delJSON, getJSON, PASSCODE_EVENT, postJSON } from "./api";
+import { delJSON, getJSON, postJSON } from "./api";
 import { roleName, useRole } from "./role";
 
 export type EventKind = "action" | "spotcheck" | "followup" | "note";
@@ -109,10 +109,10 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void load();
+    // (No reload on a passcode request: that request fails again and would loop. The passcode
+    // prompt reloads the page once the right passcode is entered.)
     const t = setInterval(load, 12000);
-    const again = () => void load();
-    window.addEventListener(PASSCODE_EVENT, again);
-    return () => (clearInterval(t), window.removeEventListener(PASSCODE_EVENT, again));
+    return () => clearInterval(t);
   }, [load]);
 
   const record = useCallback(

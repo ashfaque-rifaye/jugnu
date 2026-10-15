@@ -7,6 +7,7 @@ import {
   Clapperboard,
   FlaskConical,
   Handshake,
+  House,
   Info,
   LineChart,
   Menu,
@@ -34,6 +35,7 @@ import { roleName, useRole, type Role } from "./lib/role";
 import { PipelineProvider, usePipeline } from "./lib/store";
 import { ThemeToggle } from "./lib/theme";
 
+const HomePage = lazy(() => import("./pages/Home"));
 const TodayPage = lazy(() => import("./pages/Today"));
 const SchoolsPage = lazy(() => import("./pages/Schools"));
 const SchoolPage = lazy(() => import("./pages/School"));
@@ -51,10 +53,23 @@ const Loading = () => <div className="grid min-h-[40vh] place-items-center text-
 
 /** The officer / CRP console. The block is computed only here, never for teachers. */
 export default function ConsoleRoot() {
+  const { pathname } = useLocation();
+  return <PipelineProvider>{pathname === "/" ? <Home /> : <Console />}</PipelineProvider>;
+}
+
+/** The front door: a page of its own, without the app's menus. */
+function Home() {
+  const [tour, setTour] = useState(false);
+  useEffect(() => {
+    window.scrollTo(0, 0); // (newer browsers return a Promise here, which an effect must not return)
+  }, []);
   return (
-    <PipelineProvider>
-      <Console />
-    </PipelineProvider>
+    <>
+      <Suspense fallback={<div className="min-h-dvh" />}>
+        <HomePage onTour={() => setTour(true)} />
+      </Suspense>
+      <TutorialPlayer clips={TOUR} open={tour} onClose={() => setTour(false)} />
+    </>
   );
 }
 
@@ -84,7 +99,7 @@ function Console() {
   useEffect(() => setDrawer(false), [location.pathname]);
 
   const MAIN: NavItem[] = [
-    { to: "/", label: t("Today", "आज"), icon: CalendarCheck2 },
+    { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
     { to: "/schools", label: t("Schools", "स्कूल"), icon: SchoolIcon },
     { to: "/interviews", label: t("Interviews", "बातचीत"), icon: Mic },
     { to: "/practices", label: t("What works", "क्या काम करता है"), icon: Stars },
@@ -104,13 +119,13 @@ function Console() {
       <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("nav-item", isActive && "active")}>
         <Icon size={18} aria-hidden />
         <span className="flex-1">{label}</span>
-        {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 text-[11px] font-bold text-black">{badge}</span>}
+        {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#fcd34d] px-1.5 text-[11px] font-bold text-[#0b1308]">{badge}</span>}
       </NavLink>
     ));
 
   const sidebar = (
     <div className="flex h-full flex-col gap-4 p-4">
-      <NavLink to="/" className="px-1">
+      <NavLink to="/" className="px-1" title={t("Home page", "होम पेज")}>
         <Wordmark sub={`${state.block.name} · ${state.block.source === "simulated" ? t("demo data", "डेमो डेटा") : t("your data", "आपका डेटा")}`} />
       </NavLink>
       <nav className="space-y-0.5" aria-label={t("Main", "मुख्य")}>
@@ -119,7 +134,10 @@ function Console() {
       <button className="btn btn-primary justify-center" onClick={() => setAsk(true)}>
         <MessageCircleQuestion size={16} /> {t("Ask Jugnu", "जुगनू से पूछें")}
       </button>
-      <nav className="space-y-0.5 border-t border-white/8 pt-3" aria-label={t("More", "और")}>
+      <nav className="space-y-0.5 border-t border-[var(--chrome-line)] pt-3" aria-label={t("More", "और")}>
+        <NavLink to="/" end className="nav-item">
+          <House size={18} aria-hidden /> <span className="flex-1">{t("Home page", "होम पेज")}</span>
+        </NavLink>
         {nav(TOOLS)}
         <button className="nav-item w-full" onClick={() => setTour(true)}>
           <Clapperboard size={18} aria-hidden /> <span className="flex-1 text-left">{t("Watch the 2-minute tour", "2 मिनट का टूर देखें")}</span>
@@ -138,14 +156,14 @@ function Console() {
     <>
       <div className="app-bg" aria-hidden />
       {/* desktop sidebar */}
-      <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-[264px] border-r border-white/8 bg-[#070c16]/80 backdrop-blur-xl lg:block">{sidebar}</aside>
+      <aside className="chrome no-print fixed inset-y-0 left-0 z-30 hidden w-[264px] overflow-y-auto border-r lg:block">{sidebar}</aside>
       {/* mobile drawer */}
       <AnimatePresence>
         {drawer && (
           <>
-            <motion.div className="fixed inset-0 z-40 bg-black/60 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawer(false)} />
+            <motion.div className="fixed inset-0 z-40 bg-[#020617]/60 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawer(false)} />
             <motion.aside
-              className="fixed inset-y-0 left-0 z-50 w-[290px] overflow-y-auto border-r border-white/10 bg-[#070c16] lg:hidden"
+              className="chrome-solid fixed inset-y-0 left-0 z-50 w-[290px] overflow-y-auto border-r lg:hidden"
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
@@ -158,12 +176,12 @@ function Console() {
       </AnimatePresence>
 
       <div className="lg:pl-[264px]">
-        <header className="no-print sticky top-0 z-20 border-b border-white/8 bg-[#070c16]/85 backdrop-blur-xl">
+        <header className="chrome no-print sticky top-0 z-20 border-b">
           <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-3 py-2.5 md:px-6">
             <button className="btn btn-glass !p-2 lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Menu", "मेनू")}>
               <Menu size={18} />
             </button>
-            <NavLink to="/" className="lg:hidden">
+            <NavLink to="/" className="lg:hidden" title={t("Home page", "होम पेज")}>
               <Wordmark size={28} />
             </NavLink>
             <SchoolSearch
@@ -193,7 +211,7 @@ function Console() {
           <motion.div key={location.pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
             <Suspense fallback={<Loading />}>
               <Routes location={location}>
-                <Route path="/" element={<TodayPage onTour={() => setTour(true)} onAsk={() => setAsk(true)} />} />
+                <Route path="/today" element={<TodayPage onAsk={() => setAsk(true)} onRole={() => setChooseRole(true)} />} />
                 <Route path="/schools" element={<SchoolsPage />} />
                 <Route path="/schools/:id" element={<SchoolPage />} />
                 <Route path="/interviews" element={<AskPage />} />
@@ -224,12 +242,11 @@ function Console() {
       </div>
 
       {/* phone bottom bar */}
-      <nav className="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/10 bg-[#070c16]/95 backdrop-blur-xl lg:hidden" aria-label={t("Main", "मुख्य")}>
+      <nav className="chrome no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t lg:hidden" aria-label={t("Main", "मुख्य")}>
         {BOTTOM.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
-            end={to === "/"}
             className={({ isActive }) => cx("flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-amber-200" : "text-[var(--color-ink-3)]")}
           >
             <Icon size={20} aria-hidden />
@@ -265,7 +282,7 @@ function RoleCard({ role, onChange }: { role: Role | null; onChange: () => void 
   const t = useT();
   const { state } = usePipeline();
   return (
-    <button className="card-inset flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-white/5" onClick={onChange}>
+    <button className="card-inset flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--hover)]" onClick={onChange}>
       <span className="grid h-9 w-9 place-items-center rounded-full bg-amber-200/12 text-amber-200">
         <UserRound size={17} />
       </span>
@@ -295,7 +312,7 @@ function PrefsRow() {
       >
         <Zap size={15} />
       </button>
-      <ThemeToggle />
+      <ThemeToggle labels={{ dark: t("Dark mode", "डार्क मोड"), light: t("Light mode", "लाइट मोड") }} />
     </div>
   );
 }
@@ -328,7 +345,7 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
           if (e.key === "Escape") setOpen(false);
         }}
         placeholder={t("Find a school, village or teacher…", "स्कूल, गाँव या शिक्षक खोजें…")}
-        className="w-full rounded-full border border-white/12 bg-black/30 py-2 pl-9 pr-8 text-sm outline-none focus:border-amber-200/60"
+        className="w-full rounded-full border border-[var(--chip-line)] bg-[var(--inset-bg)] py-2 pl-9 pr-8 text-sm outline-none focus:border-amber-200/60"
         aria-label={t("Search schools", "स्कूल खोजें")}
       />
       {q && (
@@ -340,7 +357,7 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
         <ul className="card absolute inset-x-0 top-11 z-50 max-h-80 overflow-y-auto p-1.5">
           {hits.map((s) => (
             <li key={s.id}>
-              <button className="w-full rounded-lg px-3 py-2 text-left hover:bg-white/8" onClick={() => (onPick(s.id), setQ(""), setOpen(false))}>
+              <button className="w-full rounded-lg px-3 py-2 text-left hover:bg-[var(--hover)]" onClick={() => (onPick(s.id), setQ(""), setOpen(false))}>
                 <div className="text-sm font-semibold">{s.name}</div>
                 <div className="text-xs text-[var(--color-ink-3)]">
                   {s.teacher} · {s.clusterName} {t("cluster", "क्लस्टर")}
@@ -367,9 +384,9 @@ function RoleChooser({ open, onClose, onPick }: { open: boolean; onClose: () => 
   if (!open) return null;
   const option = "card card-hover w-full p-4 text-left";
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="card w-full max-w-lg overflow-hidden">
-        <div className="relative h-36 overflow-hidden">
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-[#020617]/70 p-4 backdrop-blur-sm">
+      <div className="card max-h-[94dvh] w-full max-w-lg overflow-y-auto">
+        <div className="on-dark relative h-36 overflow-hidden">
           <video className="welcome-video" src="/media/jugnu-welcome.mp4" poster="/media/jugnu-welcome.jpg" autoPlay muted loop playsInline />
           <div className="welcome-shade" />
           <div className="absolute bottom-3 left-4">
@@ -390,7 +407,7 @@ function RoleChooser({ open, onClose, onPick }: { open: boolean; onClose: () => 
             <div className="text-sm text-[var(--color-ink-2)]">{t("Your cluster: spot checks, interviews, peer visits, follow-ups.", "आपका क्लस्टर: मौके की जाँच, बातचीत, साथी-दौरे, फ़ॉलो-अप।")}</div>
             <div className="flex gap-2">
               <select
-                className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm"
+                className="min-w-0 flex-1 rounded-xl border border-[var(--chip-line)] bg-[var(--inset-bg)] px-3 py-2 text-sm"
                 value={cluster}
                 onChange={(e) => setCluster(Number(e.target.value))}
                 aria-label={t("Your cluster", "आपका क्लस्टर")}
@@ -408,7 +425,7 @@ function RoleChooser({ open, onClose, onPick }: { open: boolean; onClose: () => 
           </div>
           <button className={option} onClick={() => onPick({ kind: "guest" })}>
             <div className="font-semibold">{t("Just looking (judge or visitor)", "सिर्फ़ देख रहा/रही हूँ (जज या मेहमान)")}</div>
-            <div className="text-sm text-[var(--color-ink-2)]">{t("See everything, with a short guide on the Today page.", "सब कुछ देखें, 'आज' पेज पर छोटी गाइड के साथ।")}</div>
+            <div className="text-sm text-[var(--color-ink-2)]">{t("See everything in the demo block, as the Block Education Officer would.", "डेमो ब्लॉक का सब कुछ देखें, जैसे ब्लॉक शिक्षा अधिकारी देखते हैं।")}</div>
           </button>
           {role && (
             <button className="w-full text-center text-sm text-[var(--color-ink-3)] underline" onClick={onClose}>

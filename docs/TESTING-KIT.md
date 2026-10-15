@@ -24,8 +24,10 @@ Everything is recorded inside the app (**User testing** in the left menu). No na
   block), then **Start a session**: choose the role, read the consent text aloud, tick the box. A yellow "Testing session running" bar appears at the top.
 - Teachers: send them the teacher link (`/talk`) on their own phone if possible — that is the real
   setting. CRPs/BEOs: let them use the console on a phone or laptop.
-- At the bottom of the left menu (☰ on a phone): **हिंदी** for Hindi, **⚡** for low-data mode on a slow phone.
-- When Jugnu asks *Who is using Jugnu?*, pick the tester's real role (a CRP picks their cluster).
+- At the bottom of the left menu (☰ on a phone): **हिंदी** for Hindi, **⚡** for low-data mode on a slow phone,
+  **☾ / ☀** for dark or light mode (light reads better outdoors).
+- On the home page, the tester picks their real role (*Open as BEO*, or a CRP picks their cluster and
+  presses *Open my cluster*). Inside the app, *Switch role* on the Today page does the same.
 
 ## 3. During the session (15 minutes)
 

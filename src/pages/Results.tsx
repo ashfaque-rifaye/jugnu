@@ -10,12 +10,13 @@ import { NEXT_CYCLE, type FollowUp } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
 import { inMyPatch, useRole } from "../lib/role";
 import { usePipeline } from "../lib/store";
+import { tint } from "../lib/status";
 
 const OUTCOME: Record<FollowUp["outcome"], { en: string; hi: string; color: string }> = {
-  adopted: { en: "Doing it regularly", hi: "नियमित कर रहे हैं", color: "#4ade80" },
-  trying: { en: "Trying it", hi: "आज़मा रहे हैं", color: "#facc15" },
-  barrier: { en: "Something is in the way", hi: "रुकावट", color: "#f87171" },
-  no_answer: { en: "No answer yet", hi: "जवाब नहीं", color: "#9ca3af" },
+  adopted: { en: "Doing it regularly", hi: "नियमित कर रहे हैं", color: "var(--tone-good)" },
+  trying: { en: "Trying it", hi: "आज़मा रहे हैं", color: "var(--tone-warn)" },
+  barrier: { en: "Something is in the way", hi: "रुकावट", color: "var(--tone-bad)" },
+  no_answer: { en: "No answer yet", hi: "जवाब नहीं", color: "var(--tone-muted)" },
 };
 
 export default function ResultsPage() {
@@ -80,7 +81,7 @@ export default function ResultsPage() {
                     <div className="text-xs text-[var(--color-ink-3)]">{lang === "hi" ? PRACTICES[r.practice].labelHi : PRACTICES[r.practice].label}</div>
                   </div>
                   {f ? (
-                    <span className="chip text-[11px]" style={{ borderColor: `${OUTCOME[f.outcome].color}88`, color: OUTCOME[f.outcome].color }}>
+                    <span className="chip text-[11px]" style={{ borderColor: tint(OUTCOME[f.outcome].color, 55), color: OUTCOME[f.outcome].color }}>
                       {t(OUTCOME[f.outcome].en, OUTCOME[f.outcome].hi)}
                     </span>
                   ) : (

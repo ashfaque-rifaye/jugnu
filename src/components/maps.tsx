@@ -3,7 +3,7 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import type { School } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
-import { STATUS_INFO, type SchoolStatus } from "../lib/status";
+import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
 import { cx } from "./ui";
 
 const BlockScene = lazy(() => import("./BlockScene"));
@@ -34,7 +34,10 @@ export function LivingMap(props: MapProps & { mode?: "auto" | "2d" | "3d"; autoR
         </div>
       }
     >
-      <BlockScene {...props} height={h} autoRotate={props.autoRotate} />
+      {/* the 3D night map keeps its dark look in light mode too */}
+      <div className="on-dark">
+        <BlockScene {...props} height={h} autoRotate={props.autoRotate} />
+      </div>
     </Suspense>
   );
 }
@@ -67,8 +70,8 @@ export function StatusMap({ schools, status, selected, onSelect, links = [], hig
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={t("Map of the block's schools by status", "ब्लॉक के स्कूलों का नक्शा, स्थिति के अनुसार")}>
         <defs>
           <radialGradient id="map-glow">
-            <stop offset="0%" stopColor="#fde047" stopOpacity="0.85" />
-            <stop offset="100%" stopColor="#fde047" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--st-bright-fill)" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="var(--st-bright-fill)" stopOpacity="0" />
           </radialGradient>
         </defs>
         {clusters.map((c) => (
@@ -83,7 +86,7 @@ export function StatusMap({ schools, status, selected, onSelect, links = [], hig
           const [x1, y1, x2, y2] = [px(a.x), py(a.y), px(b.x), py(b.y)];
           const mx = (x1 + x2) / 2;
           const my = (y1 + y2) / 2 - Math.hypot(x2 - x1, y2 - y1) * 0.25;
-          return <path key={`${l.from}-${l.to}`} d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`} fill="none" stroke="#fde047" strokeOpacity="0.55" strokeWidth="1.4" strokeDasharray="4 4" />;
+          return <path key={`${l.from}-${l.to}`} d={`M${x1},${y1} Q${mx},${my} ${x2},${y2}`} fill="none" stroke="var(--st-bright-fill)" strokeOpacity="0.7" strokeWidth="1.4" strokeDasharray="4 4" />;
         })}
         {[...schools]
           .sort((a, b) => order.indexOf(status.get(a.id) ?? "ok") - order.indexOf(status.get(b.id) ?? "ok"))
@@ -104,7 +107,7 @@ export function StatusMap({ schools, status, selected, onSelect, links = [], hig
               >
                 <circle r={14} fill="transparent" />
                 {st === "bright" && <circle r={18} fill="url(#map-glow)" />}
-                <circle r={r} fill={st === "ok" ? "#4b5563" : c} stroke={selected === s.id ? "#fff" : "#0b1220"} strokeWidth={selected === s.id ? 2.4 : 1.2} />
+                <circle r={r} fill={st === "ok" ? "var(--st-ok-dot)" : c} stroke={selected === s.id ? "var(--sel-ring)" : "var(--dot-ring)"} strokeWidth={selected === s.id ? 2.4 : 1.2} />
               </g>
             );
           })}
@@ -135,11 +138,11 @@ export function MapLegend({ status, onPick, active }: { status: Map<string, Scho
           <button
             key={k}
             className={cx("chip transition", active && active !== k && "opacity-45")}
-            style={{ borderColor: `${STATUS_INFO[k].color}66` }}
+            style={{ borderColor: tint(STATUS_INFO[k].color, 40) }}
             onClick={() => onPick?.(active === k ? null : k)}
             aria-pressed={active === k}
           >
-            <span className="h-2 w-2 rounded-full" style={{ background: k === "ok" ? "#4b5563" : STATUS_INFO[k].color }} />
+            <span className="h-2 w-2 rounded-full" style={{ background: k === "ok" ? "var(--st-ok-dot)" : STATUS_INFO[k].color }} />
             {t(STATUS_INFO[k].en, STATUS_INFO[k].hi)} <span className="tabular-nums text-[var(--color-ink-3)]">{counts[k]}</span>
           </button>
         ))}

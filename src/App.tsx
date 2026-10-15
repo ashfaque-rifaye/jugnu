@@ -6,7 +6,7 @@ import { Route, Routes } from "react-router-dom";
 const TalkPage = lazy(() => import("./pages/Talk"));
 const Console = lazy(() => import("./Console"));
 
-const Loading = () => <div className="grid min-h-dvh place-items-center bg-[#05060a] text-sm text-white/40">…</div>;
+const Loading = () => <div className="grid min-h-dvh place-items-center bg-[var(--bg)] text-sm text-[var(--color-ink-3)]">…</div>;
 
 export default function App() {
   return (

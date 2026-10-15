@@ -12,7 +12,7 @@ import { usePoll } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 import { schoolStatuses, STATUS_INFO } from "../lib/status";
-import { ActivityFeed } from "./Today";
+import { ActivityFeed } from "../components/ActivityFeed";
 
 interface PilotRow {
   id: string;

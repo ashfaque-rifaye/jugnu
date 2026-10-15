@@ -1,50 +1,57 @@
-import { Contrast, Palette } from "lucide-react";
+// Light and dark mode. Dark is the original look and the default; light is for daylight,
+// projectors and printouts. index.html applies the saved mode before the first paint.
+import { Moon, Sun } from "lucide-react";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type Theme = "vibrant" | "mono";
-const KEY = "jugnu-theme";
+export type Mode = "dark" | "light";
+const KEY = "jugnu-mode";
+const META = { dark: "#060b14", light: "#f6f5f0" };
 
-const ThemeContext = createContext<{ theme: Theme; setTheme: (t: Theme) => void }>({ theme: "vibrant", setTheme: () => {} });
+const ThemeContext = createContext<{ mode: Mode; setMode: (m: Mode) => void }>({ mode: "dark", setMode: () => {} });
 
-export function ThemeProvider({ children, fallback = "vibrant" }: { children: ReactNode; fallback?: Theme }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      const saved = localStorage.getItem(KEY);
-      return saved === "mono" || saved === "vibrant" ? saved : fallback;
-    } catch {
-      return fallback;
-    }
-  });
+function saved(): Mode {
+  try {
+    return localStorage.getItem(KEY) === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [mode, setMode] = useState<Mode>(saved);
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.mode = mode;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", META[mode]);
     try {
-      localStorage.setItem(KEY, theme);
+      localStorage.setItem(KEY, mode);
     } catch {
       /* private mode — fine */
     }
-  }, [theme]);
-  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
+  }, [mode]);
+  return <ThemeContext.Provider value={{ mode, setMode }}>{children}</ThemeContext.Provider>;
 }
 
 export const useTheme = () => useContext(ThemeContext);
 
-export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+export function ThemeToggle({ labels }: { labels?: { dark: string; light: string } }) {
+  const { mode, setMode } = useTheme();
+  const names = labels ?? { dark: "Dark mode", light: "Light mode" };
   return (
-    <div className="flex items-center rounded-full border border-white/12 bg-black/30 p-0.5" role="radiogroup" aria-label="Colour theme">
+    <div className="flex items-center rounded-full border border-[var(--chip-line)] bg-[var(--chip)] p-0.5" role="radiogroup" aria-label="Colour mode">
       {(
         [
-          ["vibrant", "Vibrant", Palette],
-          ["mono", "Black & white", Contrast],
+          ["dark", names.dark, Moon],
+          ["light", names.light, Sun],
         ] as const
-      ).map(([t, label, Icon]) => (
+      ).map(([m, label, Icon]) => (
         <button
-          key={t}
+          key={m}
           role="radio"
-          aria-checked={theme === t}
+          aria-checked={mode === m}
+          aria-label={label}
           title={label}
-          onClick={() => setTheme(t)}
-          className={`grid h-7 w-7 place-items-center rounded-full transition ${theme === t ? "bg-white/20 text-white" : "text-[var(--color-ink-3)] hover:text-white"}`}
+          onClick={() => setMode(m)}
+          className={`grid h-7 w-7 place-items-center rounded-full transition ${mode === m ? "seg-on" : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]"}`}
         >
           <Icon size={14} aria-hidden />
         </button>

@@ -31,7 +31,7 @@ export function BackgroundVideo({ src, className, opacity = 0.62 }: { src: strin
 /** Full-bleed cinematic hero: video + gradient shade + optional 3D layer + content. */
 export function HeroMedia({ video, children, layer, className }: { video: string; children: ReactNode; layer?: ReactNode; className?: string }) {
   return (
-    <section className={cx("glass-strong relative overflow-hidden", className)}>
+    <section className={cx("glass-strong on-dark relative overflow-hidden", className)}>
       <div className="absolute inset-0 overflow-hidden rounded-[inherit]">
         <div className="absolute inset-0" style={{ background: "var(--grad-soft)" }} />
         <BackgroundVideo src={video} />
@@ -55,7 +55,7 @@ export function VideoCard({ clip, index, onOpen }: { clip: Clip; index?: number;
   const ok = useVideoAvailable(clip.src);
   return (
     <button
-      className="glass glass-hover group block overflow-hidden text-left"
+      className="glass glass-hover on-dark group block overflow-hidden text-left"
       onMouseEnter={() => ref.current?.play().catch(() => {})}
       onMouseLeave={() => ref.current?.pause()}
       onClick={onOpen}
@@ -111,7 +111,7 @@ export function TutorialPlayer({ clips, open, onClose, start = 0 }: { clips: Cli
   return (
     <AnimatePresence>
       {open && clip && (
-        <motion.div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+        <motion.div className="on-dark fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
           <motion.div className="glass-strong w-full max-w-5xl overflow-hidden" initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} onClick={(e) => e.stopPropagation()}>
             <div className="relative aspect-video overflow-hidden rounded-t-[1.8rem]" style={{ background: "var(--grad-soft)" }}>
               {ok ? (

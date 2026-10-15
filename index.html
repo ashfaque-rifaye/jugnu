@@ -10,6 +10,14 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#060b14" />
     <title>Jugnu · जुगनू</title>
+    <script>
+      // Apply the saved colour mode before the first paint (no flash of the wrong theme).
+      try {
+        var m = localStorage.getItem("jugnu-mode") === "light" ? "light" : "dark";
+        document.documentElement.dataset.mode = m;
+        if (m === "light") document.querySelector('meta[name="theme-color"]').setAttribute("content", "#f6f5f0");
+      } catch (e) {}
+    </script>
     <!-- Link previews (WhatsApp, social): the share card is public/og.jpg -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Jugnu · जुगनू" />

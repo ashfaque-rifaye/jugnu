@@ -218,7 +218,7 @@ export function Trend({ values }: { values: number[] }) {
         return (
           <div key={i} className="relative h-8 w-2.5">
             <div className="absolute left-0 right-0 top-1/2 h-px bg-white/15" />
-            <div className="absolute left-0 right-0 rounded-sm" style={{ height: h, top: v >= 0 ? 16 - h : 16, background: v >= 0.9 ? "#38bdf8" : v <= -0.5 ? "#fb7185" : "#6b7280" }} />
+            <div className="absolute left-0 right-0 rounded-sm" style={{ height: h, top: v >= 0 ? 16 - h : 16, background: v >= 0.9 ? "var(--tone-reading)" : v <= -0.5 ? "var(--tone-bad)" : "var(--st-ok-dot)" }} />
           </div>
         );
       })}

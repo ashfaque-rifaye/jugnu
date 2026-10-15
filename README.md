@@ -13,8 +13,9 @@ actions, and checks whether it worked.
 
 | Who | Where | What |
 |---|---|---|
+| Everyone | `/` | **Home page** — one real practice followed from a bright spot to the school next door, the whole block as one flow from data to action, and a door for each role |
 | Teacher | `/talk` | A 12-minute Hindi voice interview on any Android phone — no app, no login |
-| Officer / CRP | `/` | **Today** (my tasks, the block's 3D night map, activity) · **Schools** (list, map, a page per school) · **Interviews** · **What works** · **Support plan** (action board) · **Results** · **Review** · **Ask Jugnu** |
+| Officer / CRP | `/today` | **Today** (my tasks, the block's 3D night map, activity) · **Schools** (list, map, a page per school) · **Interviews** · **What works** · **Support plan** (action board) · **Results** · **Review** · **Ask Jugnu** |
 | Phone line | `/ask` → *Phone line* | The same interview on a basic phone (Twilio), or its simulator with the TwiML of each step |
 | Judges | `/ai` | Where AI is used, layer by layer, the live trace of every call, and the evaluation |
 | Testers | `/testing` | Consented sessions, role tasks, Hindi/English SUS, results and the change log |
@@ -66,6 +67,8 @@ alarms on good outputs. With a Claude key it also scores the Claude coder agains
   answer on the phone and resends it when the network returns; the teacher link loads ~90 KB.
 - **Low-cost phones:** low-data mode (auto on data-saver, 2G/3G or ≤ 2 GB RAM) removes video, 3D
   and blur; basic phones are reached by an ordinary call.
+- **Bright sunlight, projectors:** light and dark mode (☾ / ☀ in the menu and on the home page);
+  dark is the default, and videos and the 3D night map stay dark in both.
 - **Claude down or slow:** every task degrades to the offline engine; on the phone Claude gets
   8 s per turn so the caller never waits.
 

@@ -11,6 +11,7 @@ import { usePipeline } from "../lib/store";
 import { VoiceText } from "./Feedback";
 import { fieldClass } from "./kit";
 import { cx } from "./ui";
+import { tint } from "../lib/status";
 
 /** A count: type it, or tap − / + (big targets for phones). */
 function Stepper({ label, value, onChange, max }: { label: string; value: number; onChange: (v: number) => void; max: number }) {
@@ -89,17 +90,17 @@ export function SpotCheckForm({ school, onSaved }: { school: School; onSaved?: (
 }
 
 const STATUS_STYLE: Record<Action["status"], { en: string; hi: string; color: string }> = {
-  todo: { en: "To do", hi: "करना है", color: "#9ca3af" },
-  scheduled: { en: "Scheduled", hi: "तय है", color: "#7dd3fc" },
-  done: { en: "Done", hi: "पूरा", color: "#4ade80" },
-  stuck: { en: "Stuck", hi: "अटका", color: "#f87171" },
+  todo: { en: "To do", hi: "करना है", color: "var(--tone-muted)" },
+  scheduled: { en: "Scheduled", hi: "तय है", color: "var(--tone-info)" },
+  done: { en: "Done", hi: "पूरा", color: "var(--tone-good)" },
+  stuck: { en: "Stuck", hi: "अटका", color: "var(--tone-bad)" },
 };
 
 export function ActionStatus({ status }: { status: Action["status"] }) {
   const t = useT();
   const s = STATUS_STYLE[status];
   return (
-    <span className="chip !text-[11px]" style={{ borderColor: `${s.color}80`, color: s.color, background: `${s.color}14` }}>
+    <span className="chip !text-[11px]" style={{ borderColor: tint(s.color, 50), color: s.color, background: tint(s.color, 8) }}>
       {status === "done" ? <Check size={11} /> : status === "stuck" ? <TriangleAlert size={11} /> : <CircleDashed size={11} />} {t(s.en, s.hi)}
     </span>
   );

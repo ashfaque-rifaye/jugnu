@@ -243,7 +243,7 @@ function ActiveSession({ role, id, onEnd }: { role: Role; id: string; onEnd: () 
                   </span>
                   <span className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((v) => (
-                      <button key={v} className={cx("h-8 w-8 rounded-full text-sm", sus[i] === v ? "bg-amber-200 font-bold text-black" : "bg-white/10")} onClick={() => setSus((s) => s.map((x, k) => (k === i ? v : x)))}>
+                      <button key={v} className={cx("h-8 w-8 rounded-full text-sm", sus[i] === v ? "accent-solid font-bold" : "bg-white/10")} onClick={() => setSus((s) => s.map((x, k) => (k === i ? v : x)))}>
                         {v}
                       </button>
                     ))}

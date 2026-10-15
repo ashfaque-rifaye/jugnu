@@ -60,15 +60,15 @@ export function BlockMap({
             <stop offset="100%" stopColor="#fef08a" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <rect x={0} y={0} width={W} height={H} rx={18} fill="rgb(255 255 255 / 0.02)" />
+        <rect x={0} y={0} width={W} height={H} rx={18} fill="rgb(var(--fg) / 0.02)" />
         {links.map((l, i) => {
           const a = byId.get(l.from), b = byId.get(l.to);
           if (!a || !b) return null;
-          return <line key={i} x1={px(a.x)} y1={py(a.y)} x2={px(b.x)} y2={py(b.y)} stroke="#fde68a" strokeOpacity={0.35} strokeWidth={1.2} strokeDasharray="3 4" />;
+          return <line key={i} x1={px(a.x)} y1={py(a.y)} x2={px(b.x)} y2={py(b.y)} stroke="var(--st-bright-fill)" strokeOpacity={0.45} strokeWidth={1.2} strokeDasharray="3 4" />;
         })}
         <g>
-          <circle cx={px(0)} cy={py(0)} r={5} fill="none" stroke="rgb(255 255 255 / 0.5)" />
-          <text x={px(0) + 8} y={py(0) + 4} fontSize={10} fill="rgb(255 255 255 / 0.5)">
+          <circle cx={px(0)} cy={py(0)} r={5} fill="none" stroke="rgb(var(--fg) / 0.5)" />
+          <text x={px(0) + 8} y={py(0) + 4} fontSize={10} fill="rgb(var(--fg) / 0.5)">
             Block HQ
           </text>
         </g>
@@ -106,8 +106,8 @@ export function BlockMap({
                 cx={px(s.x)}
                 cy={py(s.y)}
                 r={r}
-                fill={isBright ? "#fde047" : zColor(z[s.id])}
-                stroke={selected === s.id ? "white" : struggling.has(s.id) ? "rgb(255 255 255 / 0.55)" : "#13202a"}
+                fill={isBright ? "var(--st-bright-fill)" : zColor(z[s.id])}
+                stroke={selected === s.id ? "var(--sel-ring)" : struggling.has(s.id) ? "rgb(var(--fg) / 0.55)" : "#13202a"}
                 strokeWidth={selected === s.id ? 2.5 : struggling.has(s.id) ? 1.5 : 1.5}
                 strokeDasharray={struggling.has(s.id) ? "2 2" : undefined}
               />
@@ -143,23 +143,23 @@ export function ExpectedScatter({
       <svg ref={ref} viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Expected versus reported proficiency">
         {[0, 25, 50, 75, 100].map((t) => (
           <g key={t}>
-            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="rgb(255 255 255 / 0.07)" />
-            <text x={pad.l - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="rgb(255 255 255 / 0.45)">
+            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="rgb(var(--fg) / 0.07)" />
+            <text x={pad.l - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="rgb(var(--fg) / 0.45)">
               {t}%
             </text>
-            <text x={x(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={11} fill="rgb(255 255 255 / 0.45)">
+            <text x={x(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.45)">
               {t}%
             </text>
           </g>
         ))}
-        <line x1={x(0)} y1={y(0)} x2={x(100)} y2={y(100)} stroke="rgb(255 255 255 / 0.3)" strokeDasharray="4 4" />
-        <text x={x(78)} y={y(84)} fontSize={10} fill="rgb(255 255 255 / 0.5)" transform={`rotate(-34 ${x(78)} ${y(84)})`}>
+        <line x1={x(0)} y1={y(0)} x2={x(100)} y2={y(100)} stroke="rgb(var(--fg) / 0.3)" strokeDasharray="4 4" />
+        <text x={x(78)} y={y(84)} fontSize={10} fill="rgb(var(--fg) / 0.5)" transform={`rotate(-34 ${x(78)} ${y(84)})`}>
           as expected
         </text>
-        <text x={(W + pad.l) / 2} y={H - 4} textAnchor="middle" fontSize={11} fill="rgb(255 255 255 / 0.6)">
+        <text x={(W + pad.l) / 2} y={H - 4} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.6)">
           Expected from context (%)
         </text>
-        <text x={12} y={(H - pad.b) / 2} textAnchor="middle" fontSize={11} fill="rgb(255 255 255 / 0.6)" transform={`rotate(-90 12 ${(H - pad.b) / 2})`}>
+        <text x={12} y={(H - pad.b) / 2} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.6)" transform={`rotate(-90 12 ${(H - pad.b) / 2})`}>
           Reported (%)
         </text>
         {points.map((p) => (
@@ -168,8 +168,8 @@ export function ExpectedScatter({
             cx={x(p.expected)}
             cy={y(p.reported)}
             r={p.bright ? 6 : 4}
-            fill={p.bright ? "#fde047" : p.inflated ? "#e66767" : zColor((p.reported - p.expected) / 12)}
-            stroke="#13202a"
+            fill={p.bright ? "var(--st-bright-fill)" : p.inflated ? "#e66767" : zColor((p.reported - p.expected) / 12)}
+            stroke="var(--dot-ring)"
             strokeWidth={1.5}
             className="cursor-pointer"
             onClick={() => onSelect?.(p.id)}
@@ -204,10 +204,10 @@ export function Dumbbell({ bright, comparison }: { bright: number; comparison: n
   const x = (v: number) => 8 + v * (W - 16);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[260px]" role="img" aria-label={`Bright spots ${Math.round(bright * 100)}%, comparison ${Math.round(comparison * 100)}%`}>
-      <line x1={x(0)} x2={x(1)} y1={H / 2} y2={H / 2} stroke="rgb(255 255 255 / 0.1)" strokeWidth={2} strokeLinecap="round" />
-      <line x1={x(Math.min(bright, comparison))} x2={x(Math.max(bright, comparison))} y1={H / 2} y2={H / 2} stroke="rgb(255 255 255 / 0.35)" strokeWidth={2} />
-      <circle cx={x(comparison)} cy={H / 2} r={5} fill="#9ca3af" stroke="#13202a" strokeWidth={2} />
-      <circle cx={x(bright)} cy={H / 2} r={6} fill="#fde047" stroke="#13202a" strokeWidth={2} />
+      <line x1={x(0)} x2={x(1)} y1={H / 2} y2={H / 2} stroke="rgb(var(--fg) / 0.1)" strokeWidth={2} strokeLinecap="round" />
+      <line x1={x(Math.min(bright, comparison))} x2={x(Math.max(bright, comparison))} y1={H / 2} y2={H / 2} stroke="rgb(var(--fg) / 0.35)" strokeWidth={2} />
+      <circle cx={x(comparison)} cy={H / 2} r={5} fill="#9ca3af" stroke="var(--dot-ring)" strokeWidth={2} />
+      <circle cx={x(bright)} cy={H / 2} r={6} fill="var(--st-bright-fill)" stroke="var(--dot-ring)" strokeWidth={2} />
     </svg>
   );
 }
@@ -240,7 +240,7 @@ export function EffectBars({ rows }: { rows: { label: string; effect: number; ci
       {rows.map((r, i) => (
         <div
           key={r.label}
-          className={cx("absolute left-0 flex text-[13px] leading-tight text-white/85", stacked ? "items-end" : "items-center justify-end text-right")}
+          className={cx("absolute left-0 flex text-[13px] leading-tight text-[var(--color-ink)]", stacked ? "items-end" : "items-center justify-end text-right")}
           style={stacked ? { top: barY(i) - 36, height: 24, width: labelW } : { top: barY(i) - rowH / 2, height: rowH, width: labelW }}
           title={r.label}
         >
@@ -248,9 +248,9 @@ export function EffectBars({ rows }: { rows: { label: string; effect: number; ci
         </div>
       ))}
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute inset-0" role="img" aria-label="Estimated effect of each practice with 95% intervals">
-        <line x1={x(0)} x2={x(0)} y1={stacked ? 24 : 8} y2={H - 26} stroke="rgb(255 255 255 / 0.35)" />
+        <line x1={x(0)} x2={x(0)} y1={stacked ? 24 : 8} y2={H - 26} stroke="rgb(var(--fg) / 0.35)" />
         {[lo, 0, hi].map((t) => (
-          <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize={11} fill="rgb(255 255 255 / 0.45)">
+          <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.45)">
             {t > 0 ? "+" : ""}
             {Math.round(t)} pts
           </text>
@@ -260,11 +260,11 @@ export function EffectBars({ rows }: { rows: { label: string; effect: number; ci
           const good = r.ci[0] > 0;
           return (
             <g key={r.label}>
-              <line x1={x(r.ci[0])} x2={x(r.ci[1])} y1={cy} y2={cy} stroke={good ? "#3987e5" : "rgb(255 255 255 / 0.4)"} strokeWidth={2} strokeLinecap="round" />
-              <rect x={Math.min(x(0), x(r.effect))} y={cy - 7} width={Math.abs(x(r.effect) - x(0))} height={14} rx={4} fill={good ? "#3987e5" : "rgb(255 255 255 / 0.25)"} opacity={0.55} />
-              <circle cx={x(r.effect)} cy={cy} r={5} fill={good ? "#3987e5" : "#9ca3af"} stroke="#13202a" strokeWidth={2} />
-              {r.truth !== undefined && <line x1={x(r.truth)} x2={x(r.truth)} y1={cy - 11} y2={cy + 11} stroke="#fde047" strokeWidth={2} />}
-              <text x={W - pad.r + 8} y={cy + 4} fontSize={12} fill="rgb(255 255 255 / 0.85)" className="tabular-nums">
+              <line x1={x(r.ci[0])} x2={x(r.ci[1])} y1={cy} y2={cy} stroke={good ? "#3987e5" : "rgb(var(--fg) / 0.4)"} strokeWidth={2} strokeLinecap="round" />
+              <rect x={Math.min(x(0), x(r.effect))} y={cy - 7} width={Math.abs(x(r.effect) - x(0))} height={14} rx={4} fill={good ? "#3987e5" : "rgb(var(--fg) / 0.25)"} opacity={0.55} />
+              <circle cx={x(r.effect)} cy={cy} r={5} fill={good ? "#3987e5" : "#9ca3af"} stroke="var(--dot-ring)" strokeWidth={2} />
+              {r.truth !== undefined && <line x1={x(r.truth)} x2={x(r.truth)} y1={cy - 11} y2={cy + 11} stroke="var(--st-bright-fill)" strokeWidth={2} />}
+              <text x={W - pad.r + 8} y={cy + 4} fontSize={12} fill="rgb(var(--fg) / 0.85)" className="tabular-nums">
                 {r.effect > 0 ? "+" : ""}
                 {r.effect}
               </text>

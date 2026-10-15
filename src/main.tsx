@@ -21,7 +21,7 @@ import { ThemeProvider } from "./lib/theme";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <ThemeProvider fallback="mono">
+      <ThemeProvider>
         <PrefsProvider>
           <StatusProvider>
             <App />

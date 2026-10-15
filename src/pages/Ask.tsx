@@ -11,6 +11,7 @@ import { delJSON, postJSON, usePoll, useStatus } from "../lib/api";
 import { useT } from "../lib/prefs";
 import { canListen, listen, speak, stopSpeaking } from "../lib/speech";
 import { usePipeline } from "../lib/store";
+import { tint } from "../lib/status";
 
 type Tab = "pilot" | "simulated" | "phone";
 
@@ -51,17 +52,17 @@ export default function AskPage() {
 // ================================================================== live pilot
 
 const STATUS: Record<PilotRow["status"], [string, string, string]> = {
-  invited: ["Invited", "आमंत्रित", "#a1a1aa"],
-  in_progress: ["Talking", "बातचीत जारी", "#fde047"],
-  completed: ["Completed", "पूरी", "#2dd4bf"],
-  declined: ["Declined", "मना किया", "#f87171"],
+  invited: ["Invited", "आमंत्रित", "var(--tone-muted)"],
+  in_progress: ["Talking", "बातचीत जारी", "var(--tone-warn)"],
+  completed: ["Completed", "पूरी", "var(--tone-teal)"],
+  declined: ["Declined", "मना किया", "var(--tone-bad)"],
 };
 
 function StatusChip({ s }: { s: PilotRow["status"] }) {
   const t = useT();
   const [en, hi, color] = STATUS[s];
   return (
-    <span className="chip text-[11px]" style={{ borderColor: `${color}88`, background: `${color}1f` }}>
+    <span className="chip text-[11px]" style={{ borderColor: tint(color, 55), background: tint(color, 12) }}>
       {t(en, hi)}
     </span>
   );
@@ -349,7 +350,7 @@ function PhoneLine() {
   return (
     <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
       <Glass className="p-5">
-        <div className="mx-auto w-full max-w-[300px] rounded-[2.4rem] border border-white/15 bg-black/60 p-4 shadow-2xl">
+        <div className="on-dark mx-auto w-full max-w-[300px] rounded-[2.4rem] border border-white/15 bg-[#0b0f17] p-4 shadow-2xl">
           <div className="mb-3 text-center text-xs text-[var(--color-ink-3)]">{state === "idle" ? t("Basic phone", "साधारण फ़ोन") : state === "ringing" ? t("Incoming call…", "कॉल आ रही है…") : state === "on" ? t("On call · Jugnu (Block office)", "कॉल पर · जुगनू (ब्लॉक कार्यालय)") : t("Call ended", "कॉल खत्म")}</div>
           <div className="scroll-thin h-72 space-y-2 overflow-y-auto rounded-2xl bg-white/5 p-2">
             <AnimatePresence initial={false}>
@@ -369,7 +370,7 @@ function PhoneLine() {
               </button>
             ) : (
               <>
-                <button className={cx("grid h-14 w-14 place-items-center rounded-full", listening ? "bg-amber-200 text-black" : "bg-white/15")} onClick={mic} disabled={!canListen() || busy || state !== "on"} aria-label="speak">
+                <button className={cx("grid h-14 w-14 place-items-center rounded-full", listening ? "accent-solid" : "bg-white/15")} onClick={mic} disabled={!canListen() || busy || state !== "on"} aria-label="speak">
                   <Mic size={22} />
                 </button>
                 <button className="grid h-14 w-14 place-items-center rounded-full bg-red-500 text-black" onClick={() => (stopSpeaking(), setState("ended"))} aria-label="hang up">

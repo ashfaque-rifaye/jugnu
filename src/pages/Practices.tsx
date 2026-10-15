@@ -9,6 +9,7 @@ import type { PracticeEvidence } from "../engine/types";
 import { postJSON, usePoll } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
+import { tint } from "../lib/status";
 
 interface ReviewItem {
   id: string;
@@ -151,7 +152,7 @@ function PracticeCard({ e, reveal, cardStatus, onDrafted }: { e: PracticeEvidenc
           <h3 className="text-lg font-semibold">{lang === "hi" ? p.labelHi : p.label}</h3>
           <div className="text-xs text-[var(--color-ink-3)]">{lang === "hi" ? p.label : p.labelHi}</div>
         </div>
-        <span className="chip" style={{ borderColor: "#bef26488", color: "#bef264" }}>
+        <span className="chip" style={{ borderColor: tint("var(--tone-lime)", 55), color: "var(--tone-lime)" }}>
           {t("Travels", "दूसरों तक पहुँचाने लायक")} · {t(p.cost === "zero" ? "no cost" : `${p.cost} cost`, p.cost === "zero" ? "बिना खर्च" : "कम खर्च")}
         </span>
       </div>
@@ -187,7 +188,7 @@ function PracticeCard({ e, reveal, cardStatus, onDrafted }: { e: PracticeEvidenc
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {cardStatus === "approved" ? (
-          <span className="chip" style={{ borderColor: "#4ade8088", color: "#4ade80" }}>
+          <span className="chip" style={{ borderColor: tint("var(--tone-good)", 55), color: "var(--tone-good)" }}>
             <FileCheck2 size={13} /> {t("Practice card approved", "तरीके का कार्ड मंज़ूर")}
           </span>
         ) : cardStatus === "pending" ? (

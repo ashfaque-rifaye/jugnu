@@ -316,7 +316,7 @@ export default function TalkPage() {
           {!typing ? (
             <div className="flex flex-col items-center gap-3">
               <button
-                className={cx("relative grid h-24 w-24 place-items-center rounded-full transition", listening ? "bg-amber-200 text-black" : "bg-white/12 hover:bg-white/20")}
+                className={cx("relative grid h-24 w-24 place-items-center rounded-full transition", listening ? "accent-solid" : "bg-white/12 hover:bg-white/20")}
                 onClick={() => (listening ? stopRef.current() : startListening())}
                 disabled={busy}
                 aria-label={listening ? c.listening : c.tap}
@@ -373,7 +373,7 @@ export default function TalkPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh px-4 pb-10 pt-6" style={{ background: "radial-gradient(1200px 600px at 50% -10%, rgba(250,204,21,.12), transparent 60%), #05060a" }}>
+    <div className="min-h-dvh px-4 pb-10 pt-6" style={{ background: "radial-gradient(1200px 600px at 50% -10%, rgba(250,204,21,.12), transparent 60%), var(--bg)" }}>
       <div className="mx-auto max-w-md">{children}</div>
     </div>
   );

@@ -18,6 +18,8 @@ export const MEDIA = {
   welcomePoster: "/media/jugnu-welcome.jpg",
   network: "/media/jugnu-network.mp4",
   networkPoster: "/media/jugnu-network.jpg",
+  dawn: "/media/jugnu-dawn.mp4",
+  dawnPoster: "/media/jugnu-dawn.jpg",
 };
 
 export const TOUR: Clip[] = [

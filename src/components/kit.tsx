@@ -2,7 +2,7 @@
 // form fields — plain, readable, the same on every page.
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { STATUS_INFO, type SchoolStatus } from "../lib/status";
+import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
 import { usePrefs, useT } from "../lib/prefs";
 import { cx } from "./ui";
 
@@ -56,7 +56,7 @@ export function StatusChip({ status, size = "md" }: { status: SchoolStatus; size
   const t = useT();
   const s = STATUS_INFO[status];
   return (
-    <span className={cx("chip", size === "sm" && "!px-2 !py-0.5 !text-[11px]")} style={{ borderColor: `${s.color}80`, background: `${s.color}1c`, color: s.color }}>
+    <span className={cx("chip", size === "sm" && "!px-2 !py-0.5 !text-[11px]")} style={{ borderColor: tint(s.color, 50), background: tint(s.color, 11), color: s.color }}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} aria-hidden />
       {t(s.en, s.hi)}
     </span>
@@ -75,7 +75,7 @@ export function Segmented<T extends string | number>({
   className?: string;
 }) {
   return (
-    <div className={cx("inline-flex flex-wrap rounded-full border border-white/10 bg-black/25 p-1", className)} role="tablist">
+    <div className={cx("inline-flex flex-wrap rounded-full border border-[var(--chip-line)] bg-[var(--chip)] p-1", className)} role="tablist">
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -83,7 +83,7 @@ export function Segmented<T extends string | number>({
           aria-selected={value === o.value}
           className={cx(
             "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition",
-            value === o.value ? "bg-white/15 text-white" : "text-[var(--color-ink-2)] hover:text-white",
+            value === o.value ? "seg-on" : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]",
           )}
           onClick={() => onChange(o.value)}
         >
@@ -134,7 +134,7 @@ export function Field({ label, children, hint }: { label: ReactNode; children: R
 export function MediaHeader({ video, poster, children }: { video: string; poster: string; children: ReactNode }) {
   const { lite } = usePrefs();
   return (
-    <section className="card relative mb-5 overflow-hidden">
+    <section className="card on-dark relative mb-5 overflow-hidden">
       {lite ? <img className="welcome-video" src={poster} alt="" aria-hidden /> : <video className="welcome-video" src={video} poster={poster} autoPlay muted loop playsInline aria-hidden />}
       <div className="welcome-shade" />
       <AIVideoLabel className="absolute bottom-2 right-2" />
@@ -145,7 +145,7 @@ export function MediaHeader({ video, poster, children }: { video: string; poster
 
 /** Visible label for AI-generated video, wherever one plays. */
 export function AIVideoLabel({ className }: { className?: string }) {
-  return <span className={cx("pointer-events-none rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/70 backdrop-blur", className)}>AI video · Veo</span>;
+  return <span className={cx("on-dark pointer-events-none rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/70 backdrop-blur", className)}>AI video · Veo</span>;
 }
 
 /** "3 days ago" in the user's language. */
