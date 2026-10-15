@@ -4,7 +4,7 @@ Goal: 6–8 short sessions with real users before **25 Oct** (≥ 2 teachers, �
 team member), then change Jugnu based on what they say — and record each change. Judges score
 "proof of testing and refinement basis user input" inside the largest criterion (35%).
 
-Everything is recorded inside the app (**More → Testing**). No names or phone numbers are stored.
+Everything is recorded inside the app (**User testing** in the left menu). No names or phone numbers are stored.
 
 ---
 
@@ -20,11 +20,12 @@ Everything is recorded inside the app (**More → Testing**). No names or phone 
 
 ## 2. Before the session (2 minutes)
 
-- Open the app → **More → Testing → Start a session**, choose the role, read the consent text aloud,
-  tick the box. A yellow "Testing session running" bar appears at the top.
+- Open the app → **User testing → Clear recorded actions** (so every tester starts from the same demo
+  block), then **Start a session**: choose the role, read the consent text aloud, tick the box. A yellow "Testing session running" bar appears at the top.
 - Teachers: send them the teacher link (`/talk`) on their own phone if possible — that is the real
   setting. CRPs/BEOs: let them use the console on a phone or laptop.
-- Switch on **हिं** (Hindi) if they prefer Hindi; switch on **⚡ low-data** on a slow phone.
+- At the bottom of the left menu (☰ on a phone): **हिंदी** for Hindi, **⚡** for low-data mode on a slow phone.
+- When Jugnu asks *Who is using Jugnu?*, pick the tester's real role (a CRP picks their cluster).
 
 ## 3. During the session (15 minutes)
 
@@ -37,8 +38,8 @@ Everything is recorded inside the app (**More → Testing**). No names or phone 
 | Role | Tasks |
 |---|---|
 | Teacher | 12-minute voice interview with Jugnu · listen to a peer voice note · read a practice card |
-| CRP | find bright spots in a cluster · invite a teacher on WhatsApp · approve a practice card · next step for a struggling school |
-| BEO | ask Jugnu which schools need maths help · find stuck actions · why a school's data may be inflated · did it work (Track) |
+| CRP | find bright spots in a cluster · invite a teacher on WhatsApp · record a spot check · record a follow-up call · approve a practice card · next step for a struggling school |
+| BEO | ask Jugnu which schools need maths help · find stuck actions · why a school's data may be inflated · did it work (Results) |
 
 ## 4. After the tasks (3 minutes)
 
@@ -72,4 +73,4 @@ Everything is recorded inside the app (**More → Testing**). No names or phone 
 - Recorded: role, optional block/district, device type, task results, comments, survey answers.
 - Not recorded: names, phone numbers, faces, audio. Comments are scrubbed of phone/ID numbers.
 - Interview transcripts from real teachers are kept only with their spoken consent and can be
-  deleted on request (Ask → interview → 🗑).
+  deleted on request (Interviews → open the interview → 🗑).

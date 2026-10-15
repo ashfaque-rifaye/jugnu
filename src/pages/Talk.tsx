@@ -8,6 +8,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { LogoMark } from "../components/Logo";
 import { cx } from "../components/ui";
 import { ApiError, getJSON, postJSON } from "../lib/api";
+import { usePrefs } from "../lib/prefs";
 import { canListen, canSpeak, listen, speak, stopSpeaking } from "../lib/speech";
 
 interface PublicTurn {
@@ -71,6 +72,7 @@ const COPY = {
 const pendingKey = (t: string) => `jugnu-pending-${t}`;
 
 export default function TalkPage() {
+  const { lite } = usePrefs();
   const { token } = useParams();
   const nav = useNavigate();
   const [view, setView] = useState<View | null>(null);
@@ -239,9 +241,16 @@ export default function TalkPage() {
   if (status === "invited")
     return (
       <Shell>
-        <div className="glass-strong p-6">
-          <div className="mx-auto mb-4 w-fit">
-            <LogoMark size={72} />
+        <div className="glass-strong overflow-hidden">
+          {!lite && (
+            <picture>
+              <source srcSet="/media/teacher-welcome.webp" type="image/webp" />
+              <img src="/media/teacher-welcome.jpg" alt="" width={760} height={568} className="h-48 w-full object-cover object-[50%_35%]" />
+            </picture>
+          )}
+          <div className={cx("p-6", !lite && "-mt-12 pt-0")}>
+          <div className="relative mx-auto mb-3 w-fit">
+            <LogoMark size={lite ? 72 : 64} />
           </div>
           <h1 className="text-center font-deva text-3xl font-bold">{COPY.hi.hello(view.interview.teacher_name)}</h1>
           {view.interview.school_name && <p className="mt-1 text-center text-sm text-[var(--color-ink-3)]">{view.interview.school_name}</p>}
@@ -257,6 +266,7 @@ export default function TalkPage() {
             </button>
           </div>
           {!canListen() && <p className="mt-4 font-deva text-sm text-amber-200">{COPY.hi.noVoice}</p>}
+          </div>
         </div>
       </Shell>
     );

@@ -14,7 +14,7 @@ actions, and checks whether it worked.
 | Who | Where | What |
 |---|---|---|
 | Teacher | `/talk` | A 12-minute Hindi voice interview on any Android phone — no app, no login |
-| Officer / CRP | `/` | The console: Find → Verify → Ask → What works → Spread → Track, plus **Ask Jugnu** |
+| Officer / CRP | `/` | **Today** (my tasks, the block's 3D night map, activity) · **Schools** (list, map, a page per school) · **Interviews** · **What works** · **Support plan** (action board) · **Results** · **Review** · **Ask Jugnu** |
 | Phone line | `/ask` → *Phone line* | The same interview on a basic phone (Twilio), or its simulator with the TwiML of each step |
 | Judges | `/ai` | Where AI is used, layer by layer, the live trace of every call, and the evaluation |
 | Testers | `/testing` | Consented sessions, role tasks, Hindi/English SUS, results and the change log |
@@ -117,7 +117,7 @@ Turso. `npm test` runs the interview service against both.
 server/            Express API (app.ts), SQLite or Turso (db.ts), interview service, phone line, review queue, testing
 server/ai/         run.ts (the five layers) · guardrails · interviewer · coder · writer · followup · officer
 src/engine/        Find / Verify / Contrast / Spread / Track statistics + the block simulator
-src/pages/         Talk (teacher), Find, Ask, What works, Spread, Track, Review, Testing, AI, Method
+src/pages/         Talk (teacher) · Today · Schools · School · Ask (Interviews) · Practices · Plan · Results · Review · Testing · AI · Method · About
 scripts/           eval.ts · smoke.mjs
 data/eval/         hand-labelled coding set and the latest evaluation results
 docs/TESTING-KIT.md   how to run field sessions and record "you said → we changed"
