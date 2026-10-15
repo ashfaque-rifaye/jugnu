@@ -9,3 +9,4 @@ data/runtime/
 *.db
 *.db-*
 coverage/
+.vercel/

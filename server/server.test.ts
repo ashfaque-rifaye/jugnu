@@ -63,11 +63,11 @@ describe("interviewer", () => {
 
 describe("interview service (offline)", () => {
   it("asks for consent, runs the script, finishes, and codes grounded practices", async () => {
-    const row = svc.createInterview({ teacherName: "Sunita", schoolName: "GPS Test", group: "bright" });
-    const opening = svc.start(row);
+    const row = await svc.createInterview({ teacherName: "Sunita", schoolName: "GPS Test", group: "bright" });
+    const opening = await svc.start(row);
     expect(opening.map((t) => t.kind)).toEqual(["intro", "consent"]);
-    let r = await svc.answer(svc.getById(row.id)!, "हाँ, शुरू कीजिए");
-    expect(svc.getById(row.id)!.consent).toBe(1);
+    let r = await svc.answer((await svc.getById(row.id))!, "हाँ, शुरू कीजिए");
+    expect((await svc.getById(row.id))!.consent).toBe(1);
     expect(r.reply.kind).toBe("question");
     const answers = [
       "रोज़ पहले 45 मिनट हम बच्चों को स्तर से समूह में बाँटते हैं — अक्षर, शब्द, कहानी। हर सोमवार समूह फिर बनाते हैं।",
@@ -83,30 +83,39 @@ describe("interview service (offline)", () => {
     ];
     for (const a of answers) {
       if (r.status === "completed") break;
-      r = await svc.answer(svc.getById(row.id)!, a);
+      r = await svc.answer((await svc.getById(row.id))!, a);
     }
     expect(r.status).toBe("completed");
+    const turns = await svc.turnsOf(row.id);
+    expect(turns.map((t) => t.idx)).toEqual(turns.map((_, i) => i)); // one ordered transcript, no gaps
     const res = await svc.codeAndStore(row.id);
     expect(res.source).toBe("offline");
-    const practices = svc.codingsOf(row.id).map((c) => c.practice);
+    const practices = (await svc.codingsOf(row.id)).map((c) => c.practice);
     expect(practices).toContain("level_groups");
     expect(practices).toContain("number_talk");
+    const listed = (await svc.listInterviews()).find((i) => i.id === row.id)!;
+    expect(listed.turns).toBeGreaterThan(5);
+    expect(listed.practices).toContain("level_groups");
+    await svc.eraseInterview(row.id);
+    expect(await svc.getById(row.id)).toBeUndefined();
+    expect(await svc.turnsOf(row.id)).toHaveLength(0);
+    expect(await svc.codingsOf(row.id)).toHaveLength(0);
   });
 
   it("keeps no transcript when the teacher declines", async () => {
-    const row = svc.createInterview({ teacherName: "Ramesh" });
-    svc.start(row);
-    const r = await svc.answer(svc.getById(row.id)!, "नहीं, अभी नहीं");
+    const row = await svc.createInterview({ teacherName: "Ramesh" });
+    await svc.start(row);
+    const r = await svc.answer((await svc.getById(row.id))!, "नहीं, अभी नहीं");
     expect(r.status).toBe("declined");
-    expect(svc.turnsOf(row.id)).toHaveLength(0);
+    expect(await svc.turnsOf(row.id)).toHaveLength(0);
   });
 
   it("asks again on silence instead of storing an empty answer", async () => {
-    const row = svc.createInterview({});
-    svc.start(row);
-    const r = await svc.answer(svc.getById(row.id)!, "  ");
+    const row = await svc.createInterview({});
+    await svc.start(row);
+    const r = await svc.answer((await svc.getById(row.id))!, "  ");
     expect(r.reply.kind).toBe("clarify");
-    expect(svc.turnsOf(row.id).filter((t) => t.speaker === "teacher")).toHaveLength(0);
+    expect((await svc.turnsOf(row.id)).filter((t) => t.speaker === "teacher")).toHaveLength(0);
   });
 });
 

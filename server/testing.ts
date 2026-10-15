@@ -14,24 +14,24 @@ export const testing = express.Router();
 
 const Role = z.enum(["teacher", "crp", "beo", "other"]);
 
-testing.post("/sessions", rateLimit("session", 30, 600000), (req, res) => {
+testing.post("/sessions", rateLimit("session", 30, 600000), async (req, res) => {
   const body = z.object({ role: Role, place: z.string().max(80).optional(), consent: z.boolean() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "role and consent are required" });
   if (!body.data.consent) return res.status(400).json({ error: "A session can only start with consent" });
   const id = crypto.randomUUID();
   const device = String(req.get("user-agent") ?? "").slice(0, 160);
-  db.prepare(`INSERT INTO sessions (id, role, place, device, consent, created_at) VALUES (?, ?, ?, ?, 1, ?)`).run(id, body.data.role, body.data.place ?? null, device, now());
+  await db.run(`INSERT INTO sessions (id, role, place, device, consent, created_at) VALUES (?, ?, ?, ?, 1, ?)`, id, body.data.role, body.data.place ?? null, device, now());
   res.json({ id });
 });
 
-testing.post("/sessions/:id/sus", (req, res) => {
+testing.post("/sessions/:id/sus", async (req, res) => {
   const answers = z.array(z.number().int().min(1).max(5)).length(10).safeParse(req.body.answers);
   if (!answers.success) return res.status(400).json({ error: "10 answers from 1 to 5" });
-  db.prepare(`UPDATE sessions SET sus = ?, ended_at = ? WHERE id = ?`).run(JSON.stringify(answers.data), now(), String(req.params.id));
+  await db.run(`UPDATE sessions SET sus = ?, ended_at = ? WHERE id = ?`, JSON.stringify(answers.data), now(), String(req.params.id));
   res.json({ score: susScore(answers.data) });
 });
 
-testing.post("/feedback", rateLimit("feedback", 60, 600000), (req, res) => {
+testing.post("/feedback", rateLimit("feedback", 60, 600000), async (req, res) => {
   const body = z
     .object({
       sessionId: z.string().nullable().optional(),
@@ -46,7 +46,8 @@ testing.post("/feedback", rateLimit("feedback", 60, 600000), (req, res) => {
     .safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "Invalid feedback" });
   const b = body.data;
-  db.prepare(`INSERT INTO feedback (session_id, role, page, kind, task, rating, text, lang, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+  await db.run(
+    `INSERT INTO feedback (session_id, role, page, kind, task, rating, text, lang, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     b.sessionId ?? null, b.role ?? null, b.page, b.kind, b.task ?? null, b.rating ?? null, b.text ? scrubPII(b.text).text : null, b.lang ?? null, now());
   res.json({ ok: true });
 });
@@ -56,9 +57,9 @@ export function susScore(a: number[]): number {
   return a.reduce((s, x, i) => s + (i % 2 === 0 ? x - 1 : 5 - x), 0) * 2.5;
 }
 
-testing.get("/summary", requireOfficer, (_req, res) => {
-  const sessions = db.prepare(`SELECT id, role, place, sus, created_at FROM sessions ORDER BY created_at`).all() as { id: string; role: string; place: string | null; sus: string | null; created_at: string }[];
-  const feedback = db.prepare(`SELECT session_id, role, page, kind, task, rating, text, lang, created_at FROM feedback ORDER BY created_at DESC`).all() as Record<string, string | number | null>[];
+testing.get("/summary", requireOfficer, async (_req, res) => {
+  const sessions = await db.all<{ id: string; role: string; place: string | null; sus: string | null; created_at: string }>(`SELECT id, role, place, sus, created_at FROM sessions ORDER BY created_at`);
+  const feedback = await db.all<Record<string, string | number | null>>(`SELECT session_id, role, page, kind, task, rating, text, lang, created_at FROM feedback ORDER BY created_at DESC`);
   const sus = sessions.filter((s) => s.sus).map((s) => ({ role: s.role, score: susScore(json<number[]>(s.sus, [])) }));
   const tasks = new Map<string, { done: number; total: number }>();
   for (const f of feedback.filter((f) => f.kind === "task")) {

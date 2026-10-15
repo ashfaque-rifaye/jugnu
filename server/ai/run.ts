@@ -32,7 +32,7 @@ export async function runAI<C, T = C>(t: AITask<C, T>): Promise<AIResult<T>> {
   const started = Date.now();
   if (!claudeAvailable()) {
     const value = await t.offline();
-    log(t.task, t.ref, "offline", null, 0, null, [], true, null);
+    await log(t.task, t.ref, "offline", null, 0, null, [], true, null);
     return { value, source: "offline", checks: [] };
   }
   const controller = new AbortController();
@@ -42,21 +42,21 @@ export async function runAI<C, T = C>(t: AITask<C, T>): Promise<AIResult<T>> {
     const { value, checks, accept } = t.guard(res.output);
     const ms = Date.now() - started;
     if (!accept) {
-      log(t.task, t.ref, "claude", res.model, ms, res.usage, checks, false, "rejected by guardrails");
+      await log(t.task, t.ref, "claude", res.model, ms, res.usage, checks, false, "rejected by guardrails");
       return { value: await t.offline(), source: "offline", checks, warning: "Claude's answer failed a guardrail — used the offline engine" };
     }
-    log(t.task, t.ref, "claude", res.model, ms, res.usage, checks, true, null);
+    await log(t.task, t.ref, "claude", res.model, ms, res.usage, checks, true, null);
     return { value, source: "claude", checks };
   } catch (error) {
     const msg = describeError(error);
-    log(t.task, t.ref, "claude", null, Date.now() - started, null, [], false, msg);
+    await log(t.task, t.ref, "claude", null, Date.now() - started, null, [], false, msg);
     return { value: await t.offline(), source: "offline", checks: [], warning: msg };
   } finally {
     clearTimeout(timer);
   }
 }
 
-function log(
+async function log(
   task: string,
   ref: string | null | undefined,
   source: "claude" | "offline",
@@ -67,10 +67,14 @@ function log(
   ok: boolean,
   error: string | null,
 ) {
-  db.prepare(
-    `INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(task, ref ?? null, source, model, ms, usage?.input_tokens ?? null, usage?.output_tokens ?? null, JSON.stringify(checks), ok ? 1 : 0, error, now());
+  // A trace that cannot be written must not break the task itself.
+  await db
+    .run(
+      `INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      task, ref ?? null, source, model, ms, usage?.input_tokens ?? null, usage?.output_tokens ?? null, JSON.stringify(checks), ok ? 1 : 0, error, now(),
+    )
+    .catch((e) => console.error("ai_calls trace failed:", e));
 }
 
 export interface TraceRow {
@@ -88,13 +92,13 @@ export interface TraceRow {
   created_at: string;
 }
 
-export function recentCalls(limit = 100): TraceRow[] {
-  const rows = db.prepare(`SELECT * FROM ai_calls ORDER BY id DESC LIMIT ?`).all(limit) as Record<string, unknown>[];
+export async function recentCalls(limit = 100): Promise<TraceRow[]> {
+  const rows = await db.all(`SELECT * FROM ai_calls ORDER BY id DESC LIMIT ?`, limit);
   return rows.map((r) => ({ ...(r as unknown as TraceRow), checks: JSON.parse(String(r.checks || "[]")), ok: r.ok === 1 }));
 }
 
-export function traceSummary() {
-  const rows = db.prepare(`SELECT task, source, ok, COUNT(*) n, AVG(latency_ms) ms, SUM(input_tokens) tin, SUM(output_tokens) tout FROM ai_calls GROUP BY task, source, ok`).all() as {
+export async function traceSummary() {
+  const rows = await db.all<{
     task: string;
     source: string;
     ok: number;
@@ -102,8 +106,8 @@ export function traceSummary() {
     ms: number;
     tin: number | null;
     tout: number | null;
-  }[];
-  const checks = db.prepare(`SELECT checks FROM ai_calls WHERE checks != '[]'`).all() as { checks: string }[];
+  }>(`SELECT task, source, ok, COUNT(*) n, AVG(latency_ms) ms, SUM(input_tokens) tin, SUM(output_tokens) tout FROM ai_calls GROUP BY task, source, ok`);
+  const checks = await db.all<{ checks: string }>(`SELECT checks FROM ai_calls WHERE checks != '[]'`);
   const byCheck = new Map<string, { passed: number; failed: number }>();
   for (const { checks: c } of checks)
     for (const k of JSON.parse(c) as Check[]) {

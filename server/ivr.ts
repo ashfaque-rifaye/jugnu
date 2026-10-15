@@ -54,8 +54,8 @@ function verified(req: Request): boolean {
 const phoneHash = (n: string) => crypto.createHash("sha256").update(`${process.env.PHONE_SALT ?? "jugnu"}:${n.replace(/\D/g, "").slice(-10)}`).digest("hex").slice(0, 24);
 const gatherUrl = (row: InterviewRow) => `${env().base}/api/ivr/twilio/gather?t=${row.token}`;
 
-function openingTwiml(row: InterviewRow, action: string) {
-  const turns = start(row);
+async function openingTwiml(row: InterviewRow, action: string) {
+  const turns = await start(row);
   return twimlAsk(turns.filter((t) => t.speaker === "jugnu").map((t) => t.text), row.language, action);
 }
 
@@ -71,7 +71,7 @@ ivr.post("/call", requireOfficer, async (req: Request, res: Response) => {
   if (!ivrConfigured()) return res.status(503).json({ error: "Phone line not configured — set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM and PUBLIC_URL. Use the simulator meanwhile." });
   const { to, teacherName, schoolName, group, interviewId } = req.body as { to: string; teacherName?: string; schoolName?: string; group?: Group; interviewId?: string };
   if (!/^\+?\d{10,13}$/.test((to ?? "").replace(/[\s-]/g, ""))) return res.status(400).json({ error: "Enter the phone number with country code, e.g. +91 98xxxxxxxx" });
-  const row = (interviewId && getById(interviewId)) || createInterview({ teacherName, schoolName, group, channel: "phone", phoneHash: phoneHash(to) });
+  const row = (interviewId && (await getById(interviewId))) || (await createInterview({ teacherName, schoolName, group, channel: "phone", phoneHash: phoneHash(to) }));
   const e = env();
   const body = new URLSearchParams({ To: to.replace(/[\s-]/g, ""), From: e.from, Url: `${e.base}/api/ivr/twilio/voice?t=${row.token}`, StatusCallback: `${e.base}/api/ivr/twilio/status?t=${row.token}`, Method: "POST" });
   const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${e.sid}/Calls.json`, {
@@ -81,54 +81,54 @@ ivr.post("/call", requireOfficer, async (req: Request, res: Response) => {
   });
   const data = (await r.json().catch(() => ({}))) as { sid?: string; message?: string };
   if (!r.ok) return res.status(502).json({ error: `Twilio: ${data.message ?? r.statusText}` });
-  db.prepare(`UPDATE interviews SET call_sid = ?, channel = 'phone' WHERE id = ?`).run(data.sid ?? null, row.id);
-  res.json({ interview: getById(row.id), callSid: data.sid });
+  await db.run(`UPDATE interviews SET call_sid = ?, channel = 'phone' WHERE id = ?`, data.sid ?? null, row.id);
+  res.json({ interview: await getById(row.id), callSid: data.sid });
 });
 
 // Twilio webhooks.
-ivr.post("/twilio/voice", (req, res) => {
+ivr.post("/twilio/voice", async (req, res) => {
   if (!verified(req)) return res.status(403).send("bad signature");
-  const row = getByToken(String(req.query.t ?? ""));
+  const row = await getByToken(String(req.query.t ?? ""));
   if (!row) return res.type("text/xml").send(twimlBye(["Sorry, this call link is not valid."], "en"));
-  res.type("text/xml").send(openingTwiml(row, gatherUrl(row)));
+  res.type("text/xml").send(await openingTwiml(row, gatherUrl(row)));
 });
 
-ivr.post("/twilio/incoming", (req, res) => {
+ivr.post("/twilio/incoming", async (req, res) => {
   if (!verified(req)) return res.status(403).send("bad signature");
-  const row = createInterview({ channel: "phone", phoneHash: phoneHash(String(req.body.From ?? "")) });
-  res.type("text/xml").send(openingTwiml(row, gatherUrl(row)));
+  const row = await createInterview({ channel: "phone", phoneHash: phoneHash(String(req.body.From ?? "")) });
+  res.type("text/xml").send(await openingTwiml(row, gatherUrl(row)));
 });
 
 ivr.post("/twilio/gather", async (req, res) => {
   if (!verified(req)) return res.status(403).send("bad signature");
-  const row = getByToken(String(req.query.t ?? ""));
+  const row = await getByToken(String(req.query.t ?? ""));
   if (!row) return res.type("text/xml").send(twimlBye(["Sorry, this call link is not valid."], "en"));
   // Twilio waits ~15 s for a webhook; give Claude 8 s, then the offline interviewer answers.
   const out = await answer(row, String(req.body.SpeechResult ?? ""), { source: "asr", confidence: Number(req.body.Confidence ?? 0) || null, deadlineMs: 8000 });
-  res.type("text/xml").send(replyTwiml(getById(row.id)!, out.reply, gatherUrl(row)));
+  res.type("text/xml").send(replyTwiml((await getById(row.id))!, out.reply, gatherUrl(row)));
 });
 
-ivr.post("/twilio/status", (req, res) => {
+ivr.post("/twilio/status", async (req, res) => {
   if (!verified(req)) return res.status(403).send("bad signature");
   const status = String(req.body.CallStatus ?? "");
-  const row = getByToken(String(req.query.t ?? ""));
+  const row = await getByToken(String(req.query.t ?? ""));
   if (row && ["no-answer", "busy", "failed"].includes(status) && row.status === "in_progress")
-    db.prepare(`UPDATE interviews SET status = 'invited' WHERE id = ?`).run(row.id);
+    await db.run(`UPDATE interviews SET status = 'invited' WHERE id = ?`, row.id);
   res.sendStatus(204);
 });
 
 // Browser simulator: same interview service, returns the TwiML Twilio would receive.
-ivr.post("/sim/:token/start", (req, res) => {
-  const row = getByToken(String(req.params.token));
+ivr.post("/sim/:token/start", async (req, res) => {
+  const row = await getByToken(String(req.params.token));
   if (!row) return res.status(404).json({ error: "Unknown interview" });
-  db.prepare(`UPDATE interviews SET channel = 'phone-sim' WHERE id = ? AND channel = 'web'`).run(row.id);
-  const twiml = openingTwiml(row, "/api/ivr/twilio/gather?t=" + row.token);
-  res.json({ twiml, lines: start(row).filter((t) => t.speaker === "jugnu").map((t) => t.text) });
+  await db.run(`UPDATE interviews SET channel = 'phone-sim' WHERE id = ? AND channel = 'web'`, row.id);
+  const twiml = await openingTwiml(row, "/api/ivr/twilio/gather?t=" + row.token);
+  res.json({ twiml, lines: (await start(row)).filter((t) => t.speaker === "jugnu").map((t) => t.text) });
 });
 
 ivr.post("/sim/:token/say", express.json(), async (req, res) => {
-  const row = getByToken(String(req.params.token));
+  const row = await getByToken(String(req.params.token));
   if (!row) return res.status(404).json({ error: "Unknown interview" });
   const out = await answer(row, String(req.body.text ?? ""), { source: "asr", confidence: req.body.confidence ?? null, deadlineMs: 8000 });
-  res.json({ ...out, twiml: replyTwiml(getById(row.id)!, out.reply, "/api/ivr/twilio/gather?t=" + row.token) });
+  res.json({ ...out, twiml: replyTwiml((await getById(row.id))!, out.reply, "/api/ivr/twilio/gather?t=" + row.token) });
 });

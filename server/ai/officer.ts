@@ -137,12 +137,21 @@ export function officerTools(st: PipelineState) {
       name: "pilot_interviews",
       description: "Real interviews from the live pilot (web voice calls and phone calls): who, status, and the practices coded from them with verbatim quotes.",
       inputSchema: z.object({ limit: z.number().int().min(1).max(30).default(10) }),
-      run: ({ limit }) => {
-        const rows = db.prepare(`SELECT id, school_name, teacher_name, channel, status, created_at FROM interviews ORDER BY created_at DESC LIMIT ?`).all(limit) as Record<string, string>[];
+      run: async ({ limit }) => {
+        const rows = await db.all<Record<string, string>>(`SELECT id, school_name, teacher_name, channel, status, created_at FROM interviews ORDER BY created_at DESC LIMIT ?`, limit);
+        const coded = rows.length
+          ? await db.all<Record<string, string>>(
+              `SELECT interview_id, COALESCE(practice, new_name) practice, quote FROM codings WHERE grounded = 1 AND interview_id IN (${rows.map(() => "?").join(",")}) ORDER BY id`,
+              ...rows.map((r) => r.id),
+            )
+          : [];
         return JSON.stringify(
           rows.map((r) => ({
             ...r,
-            practices: (db.prepare(`SELECT COALESCE(practice, new_name) practice, quote FROM codings WHERE interview_id = ? AND grounded = 1`).all(r.id) as Record<string, string>[]).slice(0, 6),
+            practices: coded
+              .filter((c) => c.interview_id === r.id)
+              .slice(0, 6)
+              .map(({ practice, quote }) => ({ practice, quote })),
           })),
         );
       },
@@ -185,10 +194,14 @@ export function guardAnswer(out: OfficerAnswer, st: PipelineState, toolCalls: nu
 export async function askOfficer(question: string, st: PipelineState) {
   const started = Date.now();
   const log = (source: string, model: string | null, usage: { i: number; o: number } | null, checks: Check[], ok: boolean, error: string | null) =>
-    db.prepare(`INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at) VALUES ('officer.ask', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      question.slice(0, 80), source, model, Date.now() - started, usage?.i ?? null, usage?.o ?? null, JSON.stringify(checks), ok ? 1 : 0, error, now());
+    db
+      .run(
+        `INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at) VALUES ('officer.ask', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        question.slice(0, 80), source, model, Date.now() - started, usage?.i ?? null, usage?.o ?? null, JSON.stringify(checks), ok ? 1 : 0, error, now(),
+      )
+      .catch((e) => console.error("ai_calls trace failed:", e));
   if (!claudeAvailable()) {
-    log("offline", null, null, [], true, null);
+    await log("offline", null, null, [], true, null);
     return { source: "offline" as const, ...offlineAnswer(question, st), checks: [] as Check[], tools: [] as string[] };
   }
   const tools: string[] = [];
@@ -221,12 +234,12 @@ Never shame or rank teachers; suspected inflation means "revisit respectfully".`
     const parsed = AnswerSchema.safeParse(JSON.parse(text));
     if (!parsed.success) throw new Error("Officer answer did not match the schema");
     const { value, checks, accept } = guardAnswer(parsed.data, st, tools.length);
-    log("claude", final.model, { i: final.usage.input_tokens, o: final.usage.output_tokens }, checks, accept, accept ? null : "rejected by guardrails");
+    await log("claude", final.model, { i: final.usage.input_tokens, o: final.usage.output_tokens }, checks, accept, accept ? null : "rejected by guardrails");
     if (!accept) return { source: "offline" as const, ...offlineAnswer(question, st), checks, tools, warning: "Claude answered without looking anything up — used the offline answer" };
     return { source: "claude" as const, ...value, checks, tools };
   } catch (error) {
     const msg = describeError(error);
-    log("claude", null, null, [], false, msg);
+    await log("claude", null, null, [], false, msg);
     return { source: "offline" as const, ...offlineAnswer(question, st), checks: [] as Check[], tools, warning: msg };
   }
 }

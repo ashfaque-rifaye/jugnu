@@ -11,7 +11,9 @@
     "test": "vitest run",
     "typecheck": "tsc",
     "smoke": "node scripts/smoke.mjs",
-    "eval": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/eval.ts"
+    "eval": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/eval.ts",
+    "build:vercel": "node scripts/vercel-build.mjs",
+    "deploy:vercel": "node scripts/vercel-build.mjs && vercel deploy --prebuilt --prod"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
@@ -19,8 +21,10 @@
     "@fontsource/inter": "^5.3.0",
     "@fontsource/noto-sans-devanagari": "^5.3.0",
     "@fontsource/space-grotesk": "^5.3.0",
+    "@libsql/client": "^0.18.0",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
+    "@vercel/functions": "^3.10.1",
     "cross-env": "^10.1.0",
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
@@ -44,6 +48,7 @@
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",

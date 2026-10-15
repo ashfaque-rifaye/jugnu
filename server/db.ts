@@ -1,19 +1,29 @@
 // System of record for the live pilot: interviews (web + phone), transcripts, AI codings, the
 // human review queue, user-testing sessions/feedback, and a trace of every AI call.
-// node:sqlite ships with Node ≥ 22.13 — no native build step, works on Railway and Windows.
+// It is SQLite either way: a local file through node:sqlite (development, tests, one long-running
+// server such as Railway), or Turso — SQLite over HTTPS — when TURSO_DATABASE_URL is set (Vercel,
+// where a function's disk does not survive). Every call is async so both behave the same.
 import fs from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import type { Client, ResultSet } from "@libsql/client/web";
 
-const DB_PATH = process.env.JUGNU_DB || path.resolve("data/runtime/jugnu.db");
-if (DB_PATH !== ":memory:") fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+export type Arg = string | number | null;
+export interface Stmt {
+  sql: string;
+  args?: Arg[];
+}
 
-export const db = new DatabaseSync(DB_PATH);
+type Row = Record<string, unknown>;
 
-db.exec(`
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
+export interface Store {
+  all<T = Row>(sql: string, ...args: Arg[]): Promise<T[]>;
+  get<T = Row>(sql: string, ...args: Arg[]): Promise<T | undefined>;
+  run(sql: string, ...args: Arg[]): Promise<void>;
+  /** Several writes in one transaction — one round trip on Turso. */
+  batch(stmts: Stmt[]): Promise<void>;
+}
 
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS interviews (
   id           TEXT PRIMARY KEY,
   token        TEXT NOT NULL UNIQUE,
@@ -43,6 +53,7 @@ CREATE TABLE IF NOT EXISTS turns (
   confidence   REAL,
   created_at   TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS turns_by_interview ON turns(interview_id, idx);
 
 CREATE TABLE IF NOT EXISTS codings (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,6 +67,7 @@ CREATE TABLE IF NOT EXISTS codings (
   note         TEXT,
   created_at   TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS codings_by_interview ON codings(interview_id);
 
 CREATE TABLE IF NOT EXISTS reviews (
   id           TEXT PRIMARY KEY,
@@ -108,7 +120,77 @@ CREATE TABLE IF NOT EXISTS ai_calls (
   error         TEXT,
   created_at    TEXT NOT NULL
 );
-`);
+`;
+
+/** turso: lasting · sqlite: a local file that lasts · temporary: Vercel without Turso — lost on restart. */
+export const storage = (): "turso" | "sqlite" | "temporary" =>
+  process.env.TURSO_DATABASE_URL ? "turso" : process.env.VERCEL && !process.env.JUGNU_DB ? "temporary" : "sqlite";
+
+async function openSqlite(): Promise<Store> {
+  const { DatabaseSync } = await import("node:sqlite");
+  const file = process.env.JUGNU_DB || (storage() === "temporary" ? "/tmp/jugnu.db" : path.resolve("data/runtime/jugnu.db"));
+  if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
+  const d = new DatabaseSync(file);
+  d.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+  d.exec(SCHEMA);
+  return {
+    all: async (sql, ...args) => d.prepare(sql).all(...args) as never,
+    get: async (sql, ...args) => d.prepare(sql).get(...args) as never,
+    run: async (sql, ...args) => {
+      d.prepare(sql).run(...args);
+    },
+    batch: async (stmts) => {
+      d.exec("BEGIN");
+      try {
+        for (const s of stmts) d.prepare(s.sql).run(...(s.args ?? []));
+        d.exec("COMMIT");
+      } catch (error) {
+        d.exec("ROLLBACK");
+        throw error;
+      }
+    },
+  };
+}
+
+async function openTurso(): Promise<Store> {
+  const { createClient } = await import("@libsql/client/web");
+  return libsqlStore(createClient({ url: process.env.TURSO_DATABASE_URL!, authToken: process.env.TURSO_AUTH_TOKEN }));
+}
+
+/** The Turso adapter, for any libSQL client: HTTPS in production, a local libSQL file in the tests. */
+export async function libsqlStore(c: Pick<Client, "execute" | "batch" | "executeMultiple">): Promise<Store> {
+  await c.executeMultiple(SCHEMA);
+  const objects = (rs: ResultSet) => rs.rows.map((r) => Object.fromEntries(rs.columns.map((col, i) => [col, r[i]])));
+  return {
+    all: async (sql, ...args) => objects(await c.execute({ sql, args })) as never,
+    get: async (sql, ...args) => objects(await c.execute({ sql, args }))[0] as never,
+    run: async (sql, ...args) => {
+      await c.execute({ sql, args });
+    },
+    batch: async (stmts) => {
+      await c.batch(stmts.map((s) => ({ sql: s.sql, args: s.args ?? [] })), "write");
+    },
+  };
+}
+
+let opening: Promise<Store> | null = null;
+const store = () =>
+  (opening ??= (storage() === "turso" ? openTurso() : openSqlite()).catch((error) => {
+    opening = null; // try again on the next request
+    throw error;
+  }));
+
+/** Tests: run everything against the given store. */
+export function useStore(s: Store) {
+  opening = Promise.resolve(s);
+}
+
+export const db: Store = {
+  all: async (sql, ...args) => (await store()).all(sql, ...args),
+  get: async (sql, ...args) => (await store()).get(sql, ...args),
+  run: async (sql, ...args) => (await store()).run(sql, ...args),
+  batch: async (stmts) => (stmts.length ? (await store()).batch(stmts) : undefined),
+};
 
 export const now = () => new Date().toISOString();
 

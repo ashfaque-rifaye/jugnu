@@ -47,7 +47,7 @@ demonstrator + waves), `track.ts` (difference-in-differences, bootstrap interval
 ## Evaluation
 
 ```bash
-npm test        # 21 tests: engine on simulated blocks, guardrails, interview service, IVR signing
+npm test        # 23 tests: engine on simulated blocks, guardrails, interview service (SQLite + Turso), IVR signing
 npm run eval    # coding vs 30 hand-labelled answers + guardrails under attack + interviewer behaviour
 npm run smoke   # end-to-end interview against a running server (consent → 7 topics → coding)
 ```
@@ -95,13 +95,26 @@ npm run build && npm start   # production: one server on $PORT serving the app a
 ```
 
 Optional: `DEMO_PASSCODE` (officer console passcode), `TWILIO_*` + `PUBLIC_URL` (real phone line),
-`JUGNU_DB` (database path — point it at a mounted volume when deployed). `railway.json` is ready for
-Railway (build `npm run build`, start `npm start`, health check `/api/status`).
+`JUGNU_DB` (database path).
+
+### Deploy
+
+- **Vercel (free; live demo):** `npm run deploy:vercel` builds the web app as static files and the
+  whole API as one Node function in Mumbai (`bom1`) with the Build Output API
+  (`scripts/vercel-build.mjs`), then deploys it. Data lives in **Turso** (SQLite over HTTPS, free)
+  when `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` are set — add Turso from the Vercel Marketplace and
+  redeploy. Without Turso the function falls back to a temporary database (`/api/status` →
+  `"storage": "temporary"`). Git-triggered builds are off (`vercel.json`); deploys come from the CLI.
+- **Any long-running Node host (e.g. Railway):** `npm run build && npm start`, with `JUGNU_DB` on a
+  persistent volume. `railway.json` is ready (health check `/api/status`).
+
+Both run the same Express app (`server/app.ts`) and the same SQL; `server/db.ts` picks node:sqlite or
+Turso. `npm test` runs the interview service against both.
 
 ## Repository
 
 ```
-server/            Express API, SQLite (node:sqlite), interview service, phone line, review queue, testing
+server/            Express API (app.ts), SQLite or Turso (db.ts), interview service, phone line, review queue, testing
 server/ai/         run.ts (the five layers) · guardrails · interviewer · coder · writer · followup · officer
 src/engine/        Find / Verify / Contrast / Spread / Track statistics + the block simulator
 src/pages/         Talk (teacher), Find, Ask, What works, Spread, Track, Review, Testing, AI, Method
