@@ -28,6 +28,10 @@ Everything is recorded inside the app (**User testing** in the left menu). No na
   **☾ / ☀** for dark or light mode (light reads better outdoors).
 - On the home page, the tester picks their real role (*Open as BEO*, or a CRP picks their cluster and
   presses *Open my cluster*). Inside the app, *Switch role* on the Today page does the same.
+- The first time the app opens on a device it shows a short welcome and offers a 1-minute guide. For
+  a fair usability test, let the tester decide whether to take it, and note what they chose. The
+  *Your first 10 minutes* card on Today ticks itself off as they work — a quick record of how far
+  they got. To start a device fresh, clear the site data in the browser.
 
 ## 3. During the session (15 minutes)
 

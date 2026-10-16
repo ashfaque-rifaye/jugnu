@@ -1,9 +1,9 @@
-import { ArrowLeft, BadgeCheck, BookOpen, Check, ClipboardList, Footprints, History, Info, Mic, PhoneCall, Quote, Stethoscope, Users, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BookOpen, Check, ClipboardList, Footprints, History, Info, LineChart, Mic, PhoneCall, Quote, Search, Sparkles, Stethoscope, Users, Volume2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ActionRow, FollowUpForm, SpotCheckForm, VoiceNote } from "../components/field";
 import { InviteForSchool } from "../components/Invite";
-import { Card, Empty, PageHeader, StatusChip, useAgo } from "../components/kit";
+import { Card, Empty, PageHeader, StatusChip, Tracker, useAgo, type TrackStep } from "../components/kit";
 import { cx } from "../components/ui";
 import { distanceKm } from "../engine/block";
 import { PRACTICES } from "../engine/practices";
@@ -11,7 +11,9 @@ import { CYCLES, type School } from "../engine/types";
 import { usePoll } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
-import { schoolStatuses, STATUS_INFO } from "../lib/status";
+import { schoolStatuses, STATUS_INFO, type SchoolStatus } from "../lib/status";
+import type { PipelineState } from "../engine/pipeline";
+import type { FollowUp } from "../engine/types";
 import { ActivityFeed } from "../components/ActivityFeed";
 
 interface PilotRow {
@@ -56,6 +58,7 @@ export default function SchoolPage() {
   const group = st === "bright" ? "bright" : state.comparison.includes(s.id) ? "comparison" : "live";
   const hi = lang === "hi" && "font-deva";
   const last = CYCLES.length - 1;
+  const steps = trackerSteps({ t, st, state, schoolId: s.id, interviewed: !!interview, learners: learners.length, follow, spot: v?.spotCheck });
 
   return (
     <div>
@@ -69,8 +72,20 @@ export default function SchoolPage() {
         actions={<StatusChip status={st} />}
       />
 
+      {/* where this school is in the loop */}
+      {steps.length > 0 && (
+        <section className="card mb-5 p-4 md:p-6" data-tour="school-tracker">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="label">{t("Where this school is in the loop", "यह स्कूल चक्र में कहाँ है")}</div>
+            <span className="chip !text-[11px]">{t(`${steps.filter((x) => x.state === "done").length} of ${steps.length} done`, `${steps.length} में से ${steps.filter((x) => x.state === "done").length} पूरे`)}</span>
+          </div>
+          <Tracker steps={steps} />
+        </section>
+      )}
+
       {/* what to do next */}
-      <section className="card mb-5 border-l-4 p-4 md:p-5" style={{ borderLeftColor: STATUS_INFO[st].color }}>
+      <section className="card mb-5 overflow-hidden p-4 md:p-6" data-tour="school-next">
+        <span className="absolute inset-y-4 left-0 w-1 rounded-r-full" style={{ background: STATUS_INFO[st].color }} aria-hidden />
         <div className="label mb-1">{t("What to do next", "अगला कदम")}</div>
         <div className={cx("text-lg font-semibold", hi)}>{t(...STATUS_INFO[st].next)}</div>
         <div className="mt-3">
@@ -378,4 +393,83 @@ function ResultsChart({ school, expected }: { school: School; expected: { readin
       ))}
     </svg>
   );
+}
+
+type T = (en: string, hi: string) => string;
+
+/** The school's journey through the loop, step by step — depends on what kind of school it is. */
+function trackerSteps({
+  t,
+  st,
+  state,
+  schoolId,
+  interviewed,
+  learners,
+  follow,
+  spot,
+}: {
+  t: T;
+  st: SchoolStatus;
+  state: PipelineState;
+  schoolId: string;
+  interviewed: boolean;
+  learners: number;
+  follow?: FollowUp;
+  spot?: { sampled: number; proficient: number; numeracyProficient: number };
+}): TrackStep[] {
+  const above = state.find.z[schoolId]?.filter((z) => z >= 0.9).length ?? 0;
+  const found: TrackStep = { key: "found", icon: Search, state: "done", label: t("Beat its context", "हालात से आगे"), sub: t(`${above} of 3 years above expected`, `3 में से ${above} साल अपेक्षा से ऊपर`) };
+  const checked = spot && spot.sampled > 0;
+  if (st === "bright" || st === "check_due")
+    return [
+      found,
+      { key: "check", icon: Stethoscope, state: checked ? "done" : "current", label: t("Spot check", "मौके की जाँच"), sub: checked ? t(`${spot!.proficient}/${spot!.sampled} read · ${spot!.numeracyProficient}/${spot!.sampled} maths`, `पढ़ना ${spot!.proficient}/${spot!.sampled} · गणित ${spot!.numeracyProficient}/${spot!.sampled}`) : t("15 children, 15 minutes", "15 बच्चे, 15 मिनट") },
+      { key: "listen", icon: Mic, state: interviewed ? "done" : checked ? "current" : "todo", label: t("Interview", "बातचीत"), sub: interviewed ? t("Routines described", "तरीके बताए") : t("12-minute voice call", "12 मिनट की कॉल") },
+      { key: "learn", icon: Sparkles, state: interviewed && learners > 0 ? "done" : "todo", label: t("Practice proven", "तरीका साबित"), sub: t("Only bright spots do it", "सिर्फ़ अच्छे स्कूल करते हैं") },
+      { key: "share", icon: Users, state: learners > 0 ? "done" : "todo", label: learners > 0 ? t(`Helping ${learners} schools`, `${learners} स्कूलों की मदद`) : t("Shared nearby", "पास में पहुँचा"), sub: t("Teacher to teacher", "शिक्षक से शिक्षक") },
+    ];
+  if (st === "check_data")
+    return [
+      found,
+      { key: "check", icon: Stethoscope, state: "bad", label: t("Spot check disagreed", "जाँच में अंतर"), sub: checked ? t(`${spot!.proficient}/${spot!.sampled} read — far below reported`, `${spot!.sampled} में से ${spot!.proficient} — दर्ज से बहुत कम`) : undefined },
+      { key: "revisit", icon: Footprints, state: "current", label: t("Respectful revisit", "सम्मान से दोबारा"), sub: t("A conversation, not a penalty", "बातचीत, सज़ा नहीं") },
+    ];
+  if (st === "revisit")
+    return [
+      found,
+      { key: "check", icon: Stethoscope, state: "done", label: t("Spot check", "मौके की जाँच"), sub: t("Matches the reported results", "दर्ज परिणाम से मेल") },
+      { key: "talk", icon: Mic, state: "current", label: t("Ask what changed", "पूछें क्या बदला"), sub: t("Results move a lot between years", "सालों में बहुत बदलाव") },
+      { key: "next", icon: LineChart, state: "todo", label: t("Look again next cycle", "अगले चक्र में फिर देखें") },
+    ];
+  const rec = state.recs.find((r) => r.schoolId === schoolId);
+  if (!rec) return [];
+  const demo = state.block.schools.find((x) => x.id === rec.demonstratorId);
+  const action = (suffix: string) => rec.actions.find((a) => a.id.endsWith(suffix));
+  const note = action("-note");
+  const visit = action("-visit");
+  const matched: TrackStep = { key: "match", icon: Users, state: "done", label: t("Matched with a teacher", "शिक्षक से जोड़ा"), sub: demo ? `${demo.teacher.split(" ")[0]} · ${rec.distanceKm} km` : undefined };
+  if (rec.wave === 2)
+    return [
+      matched,
+      { key: "wait", icon: History, state: "current", label: t("Wave 2: starts next term", "लहर 2: अगले सत्र"), sub: t("The fair comparison for wave 1", "लहर 1 की सही तुलना") },
+      { key: "note", icon: Volume2, state: "todo", label: t("Voice note", "वॉइस नोट") },
+      { key: "visit", icon: Footprints, state: "todo", label: t("Peer visit", "साथी-दौरा") },
+      { key: "call", icon: PhoneCall, state: "todo", label: t("Day-14 call", "14वें दिन कॉल") },
+    ];
+  const noteDone = note?.status === "done";
+  const visitDone = visit?.status === "done";
+  const tracked = !!state.track;
+  return [
+    matched,
+    { key: "note", icon: Volume2, state: noteDone ? "done" : "current", label: t("Voice note sent", "वॉइस नोट भेजा"), sub: t("60 seconds, a peer's own words", "60 सेकंड, साथी के शब्द") },
+    { key: "visit", icon: Footprints, state: visit?.status === "stuck" ? "bad" : visitDone ? "done" : noteDone ? "current" : "todo", label: t("Peer visit", "साथी-दौरा"), sub: visit?.status === "stuck" ? t("Stuck — escalated", "अटका — ऊपर भेजा") : demo ? t(`Watch ${demo.teacher.split(" ")[0]} teach`, `${demo.teacher.split(" ")[0]} को पढ़ाते देखें`) : undefined },
+    {
+      key: "call",
+      icon: PhoneCall,
+      state: follow ? (follow.outcome === "barrier" ? "bad" : "done") : visitDone ? "current" : "todo",
+      label: t("Day-14 call", "14वें दिन कॉल"),
+      sub: follow ? { adopted: t("Doing it regularly", "नियमित कर रहे हैं"), trying: t("Trying it", "आज़मा रहे हैं"), barrier: t("Something is in the way", "रुकावट"), no_answer: t("No answer yet", "अभी जवाब नहीं") }[follow.outcome] : t("“Did you try it?”", "“क्या आज़माया?”"),
+    },
+    { key: "assess", icon: LineChart, state: tracked ? "done" : follow ? "current" : "todo", label: t("Next assessment", "अगली परीक्षा"), sub: tracked ? t("Wave 1 vs wave 2 — see Results", "लहर 1 बनाम 2 — नतीजे देखें") : t("Did it work?", "क्या असर हुआ?") },
+  ];
 }

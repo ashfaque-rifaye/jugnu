@@ -1,7 +1,7 @@
 // The console's state: the block (simulated demo or imported data) + everything people did in the
 // field — action updates, spot checks, follow-up calls (the shared activity log on the server) and
 // real teacher interviews. Every page reads the same derived state, so the loop stays connected.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { generateBlock } from "../engine/block";
 import { runFind } from "../engine/find";
 import { evaluate, runPipeline, runTrackStage, type Evaluation, type FieldData, type PipelineState } from "../engine/pipeline";
@@ -9,6 +9,7 @@ import { PRACTICE_IDS, type PracticeId } from "../engine/practices";
 import type { Action, Block, FollowUp, Interview } from "../engine/types";
 import { runVerify } from "../engine/verify";
 import { delJSON, getJSON, postJSON } from "./api";
+import type { DemoEvent } from "./demo";
 import { roleName, useRole } from "./role";
 
 export type EventKind = "action" | "spotcheck" | "followup" | "note";
@@ -20,9 +21,11 @@ export interface BlockEvent {
   actor: string | null;
   created_at: string;
   pending?: boolean;
+  /** played back by "Play the term" on this screen only — never saved */
+  demo?: boolean;
 }
 
-interface CodedRow {
+export interface CodedRow {
   id: string;
   school_id: string;
   grp: "bright" | "comparison" | "live";
@@ -47,8 +50,17 @@ interface Store {
   importBlock: (block: Block) => void;
   selected: string | null;
   select: (id: string | null) => void;
-  /** Shared activity log for this block. */
+  /** Shared activity log for this block (plus any playback on this screen). */
   events: BlockEvent[];
+  /** Events that just arrived from other people's devices (seq changes on each arrival). */
+  incoming: { seq: number; events: BlockEvent[]; interviews: CodedRow[] };
+  /** When the log was last fetched (ms), for the "Live" indicator. */
+  lastSync: number | null;
+  /** "Play the term": events shown on this screen only. */
+  demoEvents: BlockEvent[];
+  addDemoEvents: (evts: DemoEvent[]) => void;
+  clearDemo: () => void;
+  tracked: boolean;
   record: (kind: EventKind, ref: string, payload: Record<string, unknown>) => Promise<void>;
   resetBlock: () => Promise<void>;
   syncError: string | null;
@@ -94,25 +106,71 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<BlockEvent[]>([]);
   const [live, setLive] = useState<CodedRow[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<number | null>(null);
+  const [incoming, setIncoming] = useState<Store["incoming"]>({ seq: 0, events: [], interviews: [] });
+  const [demoEvents, setDemoEvents] = useState<BlockEvent[]>([]);
   const blockKey = block.source === "simulated" ? `seed:${block.seed}` : `import:${block.name}:${block.schools.length}`;
+  // What this screen has already seen, so only other people's new work is announced.
+  const known = useRef<{ key: string; events: Set<string>; interviews: Set<string> } | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const [ev, coded] = await Promise.all([getJSON<BlockEvent[]>(`/api/events?block=${encodeURIComponent(blockKey)}`), getJSON<CodedRow[]>("/api/interviews/coded")]);
-      setEvents((cur) => [...ev, ...cur.filter((e) => e.pending)]);
-      setLive(coded);
-      setSyncError(null);
-    } catch (e) {
-      setSyncError((e as Error).message);
-    }
-  }, [blockKey]);
+  const load = useCallback(
+    async (withInterviews = true) => {
+      try {
+        const [ev, coded] = await Promise.all([
+          getJSON<BlockEvent[]>(`/api/events?block=${encodeURIComponent(blockKey)}`),
+          withInterviews ? getJSON<CodedRow[]>("/api/interviews/coded") : Promise.resolve(null),
+        ]);
+        setEvents((cur) => [...ev, ...cur.filter((e) => e.pending)]);
+        if (coded) setLive(coded);
+        setSyncError(null);
+        setLastSync(Date.now());
+        const seen = known.current;
+        if (!seen || seen.key !== blockKey) {
+          known.current = { key: blockKey, events: new Set(ev.map((e) => String(e.id))), interviews: new Set((coded ?? []).map((r) => r.id)) };
+        } else {
+          const fresh = ev.filter((e) => !seen.events.has(String(e.id)));
+          const freshIv = (coded ?? []).filter((r) => !seen.interviews.has(r.id));
+          fresh.forEach((e) => seen.events.add(String(e.id)));
+          freshIv.forEach((r) => seen.interviews.add(r.id));
+          if (fresh.length || freshIv.length) setIncoming((cur) => ({ seq: cur.seq + 1, events: fresh, interviews: freshIv }));
+        }
+      } catch (e) {
+        setSyncError((e as Error).message);
+      }
+    },
+    [blockKey],
+  );
 
+  // Live: every 4 s while someone is using this screen, every 15 s when idle, paused when hidden.
+  // (No reload on a passcode request: that request fails again and would loop. The passcode
+  // prompt reloads the page once the right passcode is entered.)
   useEffect(() => {
-    void load();
-    // (No reload on a passcode request: that request fails again and would loop. The passcode
-    // prompt reloads the page once the right passcode is entered.)
-    const t = setInterval(load, 12000);
-    return () => clearInterval(t);
+    let timer = 0;
+    let stopped = false;
+    let n = 0;
+    let lastInput = Date.now();
+    const onInput = () => (lastInput = Date.now());
+    const tick = async () => {
+      window.clearTimeout(timer);
+      if (stopped) return;
+      const shown = document.visibilityState === "visible";
+      if (shown) await load(n++ % 3 === 0);
+      if (stopped) return;
+      const active = Date.now() - lastInput < 120_000;
+      timer = window.setTimeout(tick, !shown ? 30_000 : active ? 4_000 : 15_000);
+    };
+    const onVisible = () => document.visibilityState === "visible" && void tick();
+    void tick();
+    window.addEventListener("pointerdown", onInput);
+    window.addEventListener("keydown", onInput);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", onInput);
+      window.removeEventListener("keydown", onInput);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [load]);
 
   const record = useCallback(
@@ -121,6 +179,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       setEvents((cur) => [...cur, temp]);
       try {
         const saved = await postJSON<{ id: number; created_at: string; payload: Record<string, unknown> }>("/api/events", { block: blockKey, kind, ref, payload, actor: temp.actor ?? undefined });
+        known.current?.events.add(String(saved.id));
         setEvents((cur) => cur.map((e) => (e.id === temp.id ? { ...temp, id: saved.id, created_at: saved.created_at, payload: saved.payload, pending: false } : e)));
       } catch (e) {
         setEvents((cur) => cur.filter((x) => x.id !== temp.id));
@@ -133,18 +192,31 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const resetBlock = useCallback(async () => {
     await delJSON(`/api/events?block=${encodeURIComponent(blockKey)}`);
     setEvents([]);
+    setDemoEvents([]);
     setTracked(false);
   }, [blockKey]);
+
+  const addDemoEvents = useCallback((evts: DemoEvent[]) => {
+    const at = new Date().toISOString();
+    setDemoEvents((cur) => [...cur, ...evts.map((e, i) => ({ ...e, id: `demo-${cur.length + i}-${e.ref}`, created_at: at, demo: true }))]);
+  }, []);
+  const clearDemo = useCallback(() => {
+    setDemoEvents([]);
+    setTracked(false);
+  }, []);
+
+  // The shared log, with this screen's playback on top.
+  const allEvents = useMemo(() => (demoEvents.length ? [...events, ...demoEvents] : events), [events, demoEvents]);
 
   // ---- field data from events + live interviews
   const spotChecks = useMemo(() => {
     const out: Store["spotChecks"] = {};
-    for (const e of events.filter((x) => x.kind === "spotcheck")) {
+    for (const e of allEvents.filter((x) => x.kind === "spotcheck")) {
       const p = e.payload as { sampled: number; proficient: number; numeracyProficient: number };
       out[e.ref] = { sampled: p.sampled, proficient: p.proficient, numeracyProficient: p.numeracyProficient, by: e.actor, at: e.created_at };
     }
     return out;
-  }, [events]);
+  }, [allEvents]);
 
   const liveInterviews = useMemo<Interview[]>(
     () =>
@@ -170,20 +242,20 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   // ---- action updates + recorded follow-ups on top
   const followUps = useMemo<RecordedFollowUp[]>(() => {
     const latest = new Map<string, RecordedFollowUp>();
-    for (const e of events.filter((x) => x.kind === "followup")) {
+    for (const e of allEvents.filter((x) => x.kind === "followup")) {
       const p = e.payload as { outcome: FollowUp["outcome"]; said?: string; barrierOwner?: string };
       latest.set(e.ref, { schoolId: e.ref, day: 14, outcome: p.outcome, said: p.said ?? "", saidEn: "", by: e.actor, at: e.created_at, barrierOwner: p.barrierOwner });
     }
     return [...latest.values()];
-  }, [events]);
+  }, [allEvents]);
 
   const state = useMemo<PipelineState>(() => {
     const updates = new Map<string, { status: Action["status"]; note?: string }>();
-    for (const e of events.filter((x) => x.kind === "action")) updates.set(e.ref, e.payload as { status: Action["status"]; note?: string });
+    for (const e of allEvents.filter((x) => x.kind === "action")) updates.set(e.ref, e.payload as { status: Action["status"]; note?: string });
     // A recorded follow-up call closes (or escalates) the call action of that school.
     for (const f of followUps) {
       const id = `${f.schoolId}-call`;
-      if (!updates.has(id) || events.findLastIndex((e) => e.kind === "followup" && e.ref === f.schoolId) > events.findLastIndex((e) => e.kind === "action" && e.ref === id))
+      if (!updates.has(id) || allEvents.findLastIndex((e) => e.kind === "followup" && e.ref === f.schoolId) > allEvents.findLastIndex((e) => e.kind === "action" && e.ref === id))
         updates.set(
           id,
           f.outcome === "barrier" ? { status: "stuck", note: f.said } : f.outcome === "no_answer" ? { status: "scheduled", note: "No answer — call again" } : { status: "done", note: f.said },
@@ -196,7 +268,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       track = { ...track, followUps: track.followUps.map((f) => mine.get(f.schoolId) ?? f) };
     }
     return { ...base, recs, track };
-  }, [base, events, followUps]);
+  }, [base, allEvents, followUps]);
 
   const regenerate = useCallback((s?: number) => {
     const next = s ?? Math.floor(Math.random() * 100000);
@@ -204,14 +276,17 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
     setBlock(generateBlock(next));
     setTracked(false);
     setEvents([]);
+    setDemoEvents([]);
     select(null);
   }, []);
   const importBlock = useCallback((b: Block) => {
     setBlock(b);
     setTracked(false);
     setEvents([]);
+    setDemoEvents([]);
     select(null);
   }, []);
+  const runTrack = useCallback(() => setTracked(true), []);
   const evaluation = useMemo(() => evaluate(state), [state]);
   const allActions = useMemo(() => state.recs.flatMap((r) => r.actions), [state]);
 
@@ -223,16 +298,22 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         seed,
         blockKey,
         regenerate,
-        runTrack: () => setTracked(true),
+        runTrack,
         importBlock,
         selected,
         select,
-        events,
+        events: allEvents,
+        incoming,
+        lastSync,
+        demoEvents,
+        addDemoEvents,
+        clearDemo,
+        tracked,
         record,
         resetBlock,
         syncError,
         live,
-        refreshLive: load,
+        refreshLive: () => void load(true),
         followUps,
         spotChecks,
         allActions,

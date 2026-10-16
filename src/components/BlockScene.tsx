@@ -2,12 +2,12 @@
 // windows, the more its children read and count above what its context predicts. Verified bright
 // spots are circled by fireflies; the support plan shows as arcs of light, with a spark travelling
 // from the demonstrator's school to the school learning from it. Built from the live data.
-import { Html, OrbitControls, Stars } from "@react-three/drei";
+import { OrbitControls, Stars } from "@react-three/drei";
 import { Minus, Plus } from "lucide-react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
-import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 import { mulberry32 } from "../engine/rng";
 import type { School } from "../engine/types";
@@ -321,8 +321,48 @@ function SelectedRing({ at }: { at: Placed }) {
   );
 }
 
-function Scene({ schools, status, selected, onSelect, links = [], z = {}, autoRotate, highlight, controls }: MapProps & { autoRotate?: boolean; controls: RefObject<OrbitControlsImpl | null> }) {
-  const t = useT();
+type HoverInfo = { name: string; teacher: string; cluster: string; status: SchoolStatus };
+
+/** Keeps plain DOM labels (in the overlay next to the canvas) on their 3D positions, every frame. */
+function LabelProjector({ overlay, items }: { overlay: RefObject<HTMLDivElement | null>; items: { key: string; pos: THREE.Vector3 }[] }) {
+  const { camera, size } = useThree();
+  const v = useMemo(() => new THREE.Vector3(), []);
+  useFrame(() => {
+    const box = overlay.current;
+    if (!box) return;
+    for (const it of items) {
+      const el = box.querySelector<HTMLElement>(`[data-k="${CSS.escape(it.key)}"]`);
+      if (!el) continue;
+      v.copy(it.pos).project(camera);
+      const x = (v.x * 0.5 + 0.5) * size.width;
+      const y = (-v.y * 0.5 + 0.5) * size.height;
+      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, ${it.key === "__hover" ? "-110%" : "-50%"})`;
+      el.style.visibility = v.z < 1 ? "visible" : "hidden";
+    }
+  });
+  return null;
+}
+
+function Scene({
+  schools,
+  status,
+  selected,
+  onSelect,
+  links = [],
+  z = {},
+  autoRotate,
+  highlight,
+  controls,
+  overlay,
+  onLabels,
+  onHoverInfo,
+}: MapProps & {
+  autoRotate?: boolean;
+  controls: RefObject<OrbitControlsImpl | null>;
+  overlay: RefObject<HTMLDivElement | null>;
+  onLabels: (names: string[]) => void;
+  onHoverInfo: (h: HoverInfo | null) => void;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const placed = useMemo<Placed[]>(
     () =>
@@ -368,6 +408,13 @@ function Scene({ schools, status, selected, onSelect, links = [], z = {}, autoRo
     return [pts.reduce((a, p) => a + p.x, 0) / pts.length, 0, pts.reduce((a, p) => a + p.z, 0) / pts.length];
   }, [highlight, placed]);
   const hov = hover !== null ? placed[hover] : null;
+  useEffect(() => onLabels(clusters.map((c) => c.name)), [clusters, onLabels]);
+  useEffect(() => onHoverInfo(hov ? { name: hov.s.name, teacher: hov.s.teacher, cluster: hov.s.clusterName, status: hov.status } : null), [hov, onHoverInfo]);
+  const items = useMemo(() => {
+    const out = clusters.map((c) => ({ key: c.name, pos: new THREE.Vector3(c.x, ground(c.x, c.z) + 1.5, c.z) }));
+    if (hov) out.push({ key: "__hover", pos: new THREE.Vector3(hov.x, hov.y + 0.6, hov.z) });
+    return out;
+  }, [clusters, hov]);
 
   return (
     <>
@@ -384,22 +431,7 @@ function Scene({ schools, status, selected, onSelect, links = [], z = {}, autoRo
       <Fireflies homes={bright} />
       <Links curves={curves} />
       {sel && <SelectedRing at={sel} />}
-      {clusters.map((c) => (
-        <Html key={c.name} position={[c.x, ground(c.x, c.z) + 1.5, c.z]} center style={{ pointerEvents: "none" }} zIndexRange={[5, 0]}>
-          <div className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">{c.name}</div>
-        </Html>
-      ))}
-      {hov && (
-        <Html position={[hov.x, hov.y + 0.9, hov.z]} center style={{ pointerEvents: "none" }} zIndexRange={[20, 10]}>
-          <div className="whitespace-nowrap rounded-xl border border-white/15 bg-black/80 px-3 py-1.5 text-xs text-white backdrop-blur">
-            <div className="font-semibold">{hov.s.name}</div>
-            <div className="text-white/70">
-              {hov.s.teacher} · {hov.s.clusterName}
-            </div>
-            <div style={{ color: STATUS_INFO[hov.status].color }}>{t(STATUS_INFO[hov.status].en, STATUS_INFO[hov.status].hi)}</div>
-          </div>
-        </Html>
-      )}
+      <LabelProjector overlay={overlay} items={items} />
       <OrbitControls
         ref={controls}
         target={focusTarget}
@@ -432,7 +464,10 @@ export default function BlockScene(props: MapProps & { autoRotate?: boolean }) {
     c.object.position.copy(c.target.clone().add(dir.setLength(THREE.MathUtils.clamp(dir.length() * k, 4, 34))));
     c.update();
   };
-  const btn = "grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white backdrop-blur hover:bg-black/75";
+  const btn = "grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-black/45 text-white backdrop-blur-md hover:bg-black/70";
+  const overlay = useRef<HTMLDivElement>(null);
+  const [labels, setLabels] = useState<string[]>([]);
+  const [hov, setHov] = useState<HoverInfo | null>(null);
   return (
     <div
       className={cx("relative", props.className ?? "overflow-hidden rounded-2xl")}
@@ -444,8 +479,25 @@ export default function BlockScene(props: MapProps & { autoRotate?: boolean }) {
       )}
     >
       <Canvas dpr={[1, 1.6]} camera={{ position: focused ? [0, 8, 11] : [0, 12, 17], fov: 38 }} gl={{ antialias: true, powerPreference: "high-performance" }}>
-        <Scene {...props} controls={controls} />
+        <Scene {...props} controls={controls} overlay={overlay} onLabels={setLabels} onHoverInfo={setHov} />
       </Canvas>
+      {/* labels as plain DOM, positioned from the 3D scene (no extra React roots inside the canvas) */}
+      <div ref={overlay} className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        {labels.map((name) => (
+          <div key={name} data-k={name} className="invisible absolute left-0 top-0 whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
+            {name}
+          </div>
+        ))}
+        {hov && (
+          <div data-k="__hover" className="invisible absolute left-0 top-0 z-10 whitespace-nowrap rounded-2xl border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-white backdrop-blur-xl">
+            <div className="font-semibold">{hov.name}</div>
+            <div className="text-white/70">
+              {hov.teacher} · {hov.cluster}
+            </div>
+            <div style={{ color: STATUS_INFO[hov.status].color }}>{t(STATUS_INFO[hov.status].en, STATUS_INFO[hov.status].hi)}</div>
+          </div>
+        )}
+      </div>
       <div className="absolute bottom-2 right-2 flex flex-col gap-1">
         <button className={btn} onClick={() => zoom(0.8)} aria-label={t("Zoom in", "पास करें")}>
           <Plus size={15} />

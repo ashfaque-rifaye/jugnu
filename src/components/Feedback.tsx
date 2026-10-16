@@ -82,10 +82,10 @@ export function FeedbackButton() {
     window.setTimeout(() => (setOpen(false), setState("idle"), setRating(null), setText("")), 1400);
   };
   return (
-    <div className={`no-print fixed right-4 z-50 ${location.pathname.startsWith("/talk") ? "bottom-4" : "bottom-20 lg:bottom-4"}`}>
+    <div className={`no-print fixed right-4 z-50 ${location.pathname.startsWith("/talk") ? "bottom-4" : "bottom-[92px] lg:bottom-5"}`}>
       <AnimatePresence>
         {open && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="glass-strong mb-3 w-[320px] p-4">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="sheet mb-3 w-[320px] rounded-[1.6rem] p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="font-semibold">{t("How is this page?", "यह पेज कैसा लगा?")}</span>
               <button onClick={() => setOpen(false)} aria-label="close">
@@ -112,7 +112,7 @@ export function FeedbackButton() {
           </motion.div>
         )}
       </AnimatePresence>
-      <button className="btn btn-primary ml-auto shadow-xl max-sm:!p-3" onClick={() => setOpen((v) => !v)} aria-label={t("Feedback", "राय दें")}>
+      <button className="btn btn-glass ml-auto shadow-xl max-sm:!p-3" onClick={() => setOpen((v) => !v)} aria-label={t("Feedback", "राय दें")}>
         <MessageSquareHeart size={16} /> <span className="max-sm:hidden">{t("Feedback", "राय दें")}</span>
       </button>
     </div>

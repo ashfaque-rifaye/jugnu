@@ -1,22 +1,55 @@
-// Building blocks of the working app: page headers, cards, status chips, segmented controls and
-// form fields — plain, readable, the same on every page.
-import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+// Building blocks of the working app: page headers, glass cards, status chips, an iOS-style
+// segmented control, progress rings and a step tracker — the same on every page.
+import { motion } from "framer-motion";
+import { Check, CircleHelp, X, type LucideIcon } from "lucide-react";
+import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
 import { usePrefs, useT } from "../lib/prefs";
 import { cx } from "./ui";
 
-export function PageHeader({ title, sub, actions, eyebrow }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
+export const SPRING = { type: "spring", stiffness: 420, damping: 34, mass: 0.8 } as const;
+export const SOFT = { type: "spring", stiffness: 190, damping: 26 } as const;
+
+export function PageHeader({ title, sub, actions, eyebrow, hint }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; hint?: ReactNode }) {
   const { lang } = usePrefs();
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        {eyebrow && <div className="label mb-1">{eyebrow}</div>}
-        <h1 className={cx("text-2xl font-bold tracking-tight md:text-[1.75rem]", lang === "hi" && "font-deva")}>{title}</h1>
-        {sub && <p className={cx("mt-1 max-w-3xl text-[15px] text-[var(--color-ink-2)]", lang === "hi" && "font-deva")}>{sub}</p>}
+        {eyebrow && <div className="label mb-2">{eyebrow}</div>}
+        <h1 className={cx("flex items-center gap-2 text-[1.9rem] font-semibold leading-tight tracking-[-0.035em] md:text-[2.35rem]", lang === "hi" && "font-deva")}>
+          {title}
+          {hint && <Hint>{hint}</Hint>}
+        </h1>
+        {sub && <p className={cx("mt-1.5 max-w-3xl text-[15px] leading-relaxed text-[var(--color-ink-2)]", lang === "hi" && "font-deva")}>{sub}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
+  );
+}
+
+/** A "?" that opens one plain sentence about the page. */
+export function Hint({ children }: { children: ReactNode }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex font-sans">
+      <button className="btn btn-ghost btn-icon !p-1 text-[var(--color-ink-3)]" onClick={() => setOpen((v) => !v)} aria-label={t("What is this page?", "यह पेज क्या है?")} aria-expanded={open}>
+        <CircleHelp size={18} />
+      </button>
+      {open && (
+        <motion.span
+          initial={{ opacity: 0, y: -4, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={SPRING}
+          className="sheet absolute left-0 top-9 z-40 w-[min(320px,80vw)] rounded-2xl p-3.5 text-left text-sm font-normal leading-relaxed tracking-normal text-[var(--color-ink-2)]"
+        >
+          <button className="float-right ml-2 text-[var(--color-ink-3)]" onClick={() => setOpen(false)} aria-label={t("Close", "बंद करें")}>
+            <X size={14} />
+          </button>
+          {children}
+        </motion.span>
+      )}
+    </span>
   );
 }
 
@@ -27,6 +60,10 @@ export function Card({
   children,
   className,
   pad = true,
+  tone,
+  tour,
+  accent,
+  style,
 }: {
   title?: ReactNode;
   icon?: LucideIcon;
@@ -34,14 +71,26 @@ export function Card({
   children: ReactNode;
   className?: string;
   pad?: boolean;
+  /** colour of the icon tile */
+  tone?: string;
+  /** anchor for the guided tour */
+  tour?: string;
+  /** gradient hairline on the top edge */
+  accent?: boolean;
+  style?: CSSProperties;
 }) {
   return (
-    <section className={cx("card", pad && "p-4 md:p-5", className)}>
+    <section className={cx("card", accent && "edge-top", pad && "p-4 md:p-5", className)} data-tour={tour} style={style}>
       {(title || right) && (
-        <div className={cx("mb-3 flex items-center justify-between gap-2", !pad && "px-4 pt-4 md:px-5")}>
+        <div className={cx("mb-4 flex items-center justify-between gap-2", !pad && "px-4 pt-4 md:px-5")}>
           {title && (
-            <h2 className="flex items-center gap-2 text-base font-semibold">
-              {Icon && <Icon size={17} className="text-[var(--a2)]" aria-hidden />} {title}
+            <h2 className="flex min-w-0 items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]">
+              {Icon && (
+                <span className="icon-tile h-8 w-8" style={{ "--tile": tone ?? "var(--st-bright)" } as CSSProperties}>
+                  <Icon size={16} aria-hidden />
+                </span>
+              )}
+              <span className="truncate">{title}</span>
             </h2>
           )}
           {right}
@@ -56,49 +105,60 @@ export function StatusChip({ status, size = "md" }: { status: SchoolStatus; size
   const t = useT();
   const s = STATUS_INFO[status];
   return (
-    <span className={cx("chip", size === "sm" && "!px-2 !py-0.5 !text-[11px]")} style={{ borderColor: tint(s.color, 50), background: tint(s.color, 11), color: s.color }}>
+    <span className={cx("chip", size === "sm" && "!px-2 !py-0.5 !text-[11px]")} style={{ borderColor: tint(s.color, 45), background: tint(s.color, 12), color: s.color }}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} aria-hidden />
       {t(s.en, s.hi)}
     </span>
   );
 }
 
+/** iOS-style segmented control: the selected thumb glides between options. */
 export function Segmented<T extends string | number>({
   value,
   onChange,
   options,
   className,
+  size = "md",
 }: {
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: ReactNode; count?: number }[];
   className?: string;
+  size?: "sm" | "md";
 }) {
+  const id = useId();
   return (
-    <div className={cx("inline-flex flex-wrap rounded-full border border-[var(--chip-line)] bg-[var(--chip)] p-1", className)} role="tablist">
-      {options.map((o) => (
-        <button
-          key={String(o.value)}
-          role="tab"
-          aria-selected={value === o.value}
-          className={cx(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition",
-            value === o.value ? "seg-on" : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]",
-          )}
-          onClick={() => onChange(o.value)}
-        >
-          {o.label}
-          {o.count !== undefined && <span className="rounded-full bg-white/10 px-1.5 text-[11px] tabular-nums">{o.count}</span>}
-        </button>
-      ))}
+    <div className={cx("no-scrollbar inline-flex max-w-full shrink-0 overflow-x-auto rounded-full border border-[var(--chip-line)] bg-[var(--chip)] p-1 backdrop-blur-md", className)} role="tablist">
+      {options.map((o) => {
+        const on = value === o.value;
+        return (
+          <button
+            key={String(o.value)}
+            role="tab"
+            aria-selected={on}
+            className={cx(
+              "relative isolate flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full font-medium transition-colors",
+              size === "sm" ? "px-2.5 py-1 text-[13px]" : "px-3.5 py-1.5 text-sm",
+              on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]",
+            )}
+            onClick={() => onChange(o.value)}
+          >
+            {on && <motion.span layoutId={`seg-${id}`} className="seg-on absolute inset-0 -z-10 rounded-full" transition={SPRING} />}
+            {o.label}
+            {o.count !== undefined && <span className="rounded-full bg-[rgb(var(--fg)/0.08)] px-1.5 text-[11px] tabular-nums">{o.count}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 export function Empty({ icon: Icon, title, children }: { icon: LucideIcon; title: ReactNode; children?: ReactNode }) {
   return (
-    <div className="grid place-items-center gap-2 rounded-2xl border border-dashed border-white/15 px-6 py-10 text-center">
-      <Icon size={26} className="text-[var(--color-ink-3)]" aria-hidden />
+    <div className="card-inset grid place-items-center gap-2 border-dashed px-6 py-10 text-center">
+      <span className="icon-tile h-12 w-12 rounded-2xl" style={{ "--tile": "var(--tone-teal)" } as CSSProperties}>
+        <Icon size={22} aria-hidden />
+      </span>
       <div className="font-semibold">{title}</div>
       {children && <div className="max-w-md text-sm text-[var(--color-ink-2)]">{children}</div>}
     </div>
@@ -107,23 +167,24 @@ export function Empty({ icon: Icon, title, children }: { icon: LucideIcon; title
 
 export function Stat({ label, value, hint, tone }: { label: ReactNode; value: ReactNode; hint?: ReactNode; tone?: string }) {
   return (
-    <div className="card-inset px-4 py-3">
+    <div className="card-inset px-4 py-3.5">
       <div className="text-[13px] text-[var(--color-ink-2)]">{label}</div>
-      <div className="mt-0.5 font-display text-2xl font-bold tabular-nums" style={tone ? { color: tone } : undefined}>
+      <div className="mt-1 font-display text-[1.7rem] font-bold leading-none tabular-nums" style={tone ? { color: tone } : undefined}>
         {value}
       </div>
-      {hint && <div className="mt-0.5 text-xs text-[var(--color-ink-3)]">{hint}</div>}
+      {hint && <div className="mt-1 text-xs text-[var(--color-ink-3)]">{hint}</div>}
     </div>
   );
 }
 
-export const fieldBase = "rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-[15px] outline-none transition focus:border-amber-200/70 focus:bg-black/40";
+export const fieldBase =
+  "rounded-2xl border border-[var(--chip-line)] bg-[var(--inset-bg)] px-3.5 py-2.5 text-[15px] outline-none transition backdrop-blur-md focus:border-[color-mix(in_srgb,var(--st-bright)_70%,transparent)] focus:bg-[var(--hover)]";
 export const fieldClass = `w-full ${fieldBase}`;
 
 export function Field({ label, children, hint }: { label: ReactNode; children: ReactNode; hint?: ReactNode }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1 block font-medium text-[var(--color-ink-2)]">{label}</span>
+      <span className="mb-1.5 block font-medium text-[var(--color-ink-2)]">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs text-[var(--color-ink-3)]">{hint}</span>}
     </label>
@@ -134,18 +195,29 @@ export function Field({ label, children, hint }: { label: ReactNode; children: R
 export function MediaHeader({ video, poster, children }: { video: string; poster: string; children: ReactNode }) {
   const { lite } = usePrefs();
   return (
-    <section className="card on-dark relative mb-5 overflow-hidden">
+    <section className="card on-dark relative mb-6 overflow-hidden">
       {lite ? <img className="welcome-video" src={poster} alt="" aria-hidden /> : <video className="welcome-video" src={video} poster={poster} autoPlay muted loop playsInline aria-hidden />}
       <div className="welcome-shade" />
-      <AIVideoLabel className="absolute bottom-2 right-2" />
-      <div className="relative p-5 md:p-7">{children}</div>
+      <AIVideoLabel className="absolute bottom-3 right-3" />
+      <div className="relative p-5 md:p-8">{children}</div>
     </section>
+  );
+}
+
+/** The slow aurora behind the glass (deck palette). */
+export function AppBackground() {
+  return (
+    <div className="app-bg" aria-hidden>
+      <i className="orb o1" />
+      <i className="orb o2" />
+      <i className="orb o3" />
+    </div>
   );
 }
 
 /** Visible label for AI-generated video, wherever one plays. */
 export function AIVideoLabel({ className }: { className?: string }) {
-  return <span className={cx("on-dark pointer-events-none rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/70 backdrop-blur", className)}>AI video · Veo</span>;
+  return <span className={cx("on-dark pointer-events-none rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-medium text-white/70 backdrop-blur-md", className)}>AI video · Veo</span>;
 }
 
 /** "3 days ago" in the user's language. */
@@ -158,4 +230,126 @@ export function useAgo() {
     if (s < 86400) return t(`${Math.round(s / 3600)} h ago`, `${Math.round(s / 3600)} घंटे पहले`);
     return t(`${Math.round(s / 86400)} days ago`, `${Math.round(s / 86400)} दिन पहले`);
   };
+}
+
+/* ------------------------------------------------------------------ progress */
+
+export interface RingSpec {
+  value: number; // 0..1
+  color: string;
+}
+
+/** Concentric progress rings (outermost first), drawn like activity rings: rounded ends, soft track. */
+export function Rings({ rings, size = 168, stroke = 16, gap = 4, children }: { rings: RingSpec[]; size?: number; stroke?: number; gap?: number; children?: ReactNode }) {
+  const c = size / 2;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
+        {rings.map((r, i) => {
+          const radius = c - stroke / 2 - i * (stroke + gap);
+          const len = 2 * Math.PI * radius;
+          const v = Math.max(0, Math.min(1, r.value));
+          return (
+            <g key={i}>
+              <circle cx={c} cy={c} r={radius} fill="none" stroke={r.color} strokeOpacity={0.16} strokeWidth={stroke} />
+              <motion.circle
+                cx={c}
+                cy={c}
+                r={radius}
+                fill="none"
+                stroke={r.color}
+                strokeWidth={stroke}
+                strokeLinecap="round"
+                strokeDasharray={len}
+                initial={{ strokeDashoffset: len }}
+                animate={{ strokeDashoffset: len * (1 - (v === 0 ? 0.0001 : v)) }}
+                transition={{ type: "spring", stiffness: 60, damping: 18 }}
+                style={{ filter: `drop-shadow(0 0 6px color-mix(in srgb, ${r.color} 45%, transparent))` }}
+              />
+            </g>
+          );
+        })}
+      </svg>
+      {children && <div className="absolute inset-0 grid place-items-center text-center">{children}</div>}
+    </div>
+  );
+}
+
+/** A thin rounded bar that grows with a spring. */
+export function Meter({ value, color = "var(--st-bright)", className, height = 6 }: { value: number; color?: string; className?: string; height?: number }) {
+  return (
+    <div className={cx("overflow-hidden rounded-full bg-[var(--ring-track)]", className)} style={{ height }}>
+      <motion.div
+        className="h-full rounded-full"
+        style={{ background: color }}
+        initial={{ width: 0 }}
+        animate={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }}
+        transition={{ type: "spring", stiffness: 70, damping: 18 }}
+      />
+    </div>
+  );
+}
+
+export type StepState = "done" | "current" | "todo" | "bad" | "skip";
+export interface TrackStep {
+  key: string;
+  label: ReactNode;
+  sub?: ReactNode;
+  state: StepState;
+  icon?: LucideIcon;
+}
+
+const STEP_TONE: Record<StepState, string> = {
+  done: "var(--tone-lime)",
+  current: "var(--st-bright)",
+  todo: "var(--tone-muted)",
+  bad: "var(--tone-bad)",
+  skip: "var(--tone-muted)",
+};
+
+/** Where something is on its way — like a parcel tracker: done steps filled, the current one pulsing. */
+export function Tracker({ steps, className }: { steps: TrackStep[]; className?: string }) {
+  const { lang } = usePrefs();
+  const reached = steps.reduce((acc, s, i) => (s.state === "done" || s.state === "current" || s.state === "bad" ? i : acc), 0);
+  const fill = `${(steps.length > 1 ? reached / (steps.length - 1) : 1) * 100}%`;
+  const n = { "--n": steps.length } as CSSProperties;
+  return (
+    <div className={cx("relative", className)} style={n}>
+      {/* the rail: vertical on phones, horizontal from md */}
+      <div className="absolute bottom-[18px] left-[17px] top-[18px] w-[3px] rounded-full bg-[var(--ring-track)] md:hidden">
+        <motion.div className="w-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ height: 0 }} animate={{ height: fill }} transition={SOFT} />
+      </div>
+      <div className="absolute left-[calc(100%/var(--n)/2)] right-[calc(100%/var(--n)/2)] top-[17px] hidden h-[3px] rounded-full bg-[var(--ring-track)] md:block">
+        <motion.div className="h-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ width: 0 }} animate={{ width: fill }} transition={SOFT} />
+      </div>
+      <ol className="relative grid gap-4 md:gap-2 md:[grid-template-columns:repeat(var(--n),minmax(0,1fr))]">
+        {steps.map((s) => {
+          const tone = STEP_TONE[s.state];
+          const Icon = s.state === "done" ? Check : s.state === "bad" ? X : s.icon;
+          const quiet = s.state === "todo" || s.state === "skip";
+          return (
+            <li key={s.key} className="flex items-start gap-3 md:flex-col md:items-center md:text-center">
+              <span
+                className="relative grid h-[37px] w-[37px] shrink-0 place-items-center rounded-full border"
+                style={
+                  s.state === "done"
+                    ? { background: "var(--grad-flat)", borderColor: "transparent", color: "#0b1308" }
+                    : quiet
+                      ? { background: "var(--chrome-solid)", borderColor: "var(--chip-line)", color: "var(--color-ink-3)" }
+                      : { background: `color-mix(in srgb, ${tone} 18%, var(--chrome-solid))`, borderColor: tint(tone, 70), color: tone }
+                }
+              >
+                {s.state === "current" && <span className="absolute inset-0 rounded-full" style={{ color: tone, animation: "pulse-dot 2s infinite" }} aria-hidden />}
+                {Icon ? <Icon size={16} strokeWidth={2.4} /> : <span className="h-2 w-2 rounded-full bg-current" />}
+              </span>
+              <span className="min-w-0 pt-1 md:pt-0">
+                <span className={cx("block text-[13.5px] font-semibold leading-snug", quiet && "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{s.label}</span>
+                {s.sub && <span className={cx("mt-0.5 block text-xs leading-snug text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{s.sub}</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
 }

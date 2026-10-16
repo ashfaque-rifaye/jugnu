@@ -15,10 +15,20 @@ actions, and checks whether it worked.
 |---|---|---|
 | Everyone | `/` | **Home page** — one real practice followed from a bright spot to the school next door, the whole block as one flow from data to action, and a door for each role |
 | Teacher | `/talk` | A 12-minute Hindi voice interview on any Android phone — no app, no login |
-| Officer / CRP | `/today` | **Today** (my tasks, the block's 3D night map, activity) · **Schools** (list, map, a page per school) · **Interviews** · **What works** · **Support plan** (action board) · **Results** · **Review** · **Ask Jugnu** |
+| Officer / CRP | `/today` | **Today** (the next step, term rings, my first 10 minutes, live activity, tasks, the block's 3D night map) · the loop in order: **Find & check** (schools, a page per school with its tracker) → **Listen** (interviews) → **What works** → **Share** (support plan) → **Follow up** (results) · **Approvals** · **Ask Jugnu** |
 | Phone line | `/ask` → *Phone line* | The same interview on a basic phone (Twilio), or its simulator with the TwiML of each step |
 | Judges | `/ai` | Where AI is used, layer by layer, the live trace of every call, and the evaluation |
 | Testers | `/testing` | Consented sessions, role tasks, Hindi/English SUS, results and the change log |
+
+**First time in the app?** A short welcome (what Jugnu does in three screens, then *who is using it*)
+offers a 1-minute **guide**: a spotlight walks over the real screens — the next step, the term rings,
+a school's tracker, the live indicator. **Guide** in the top bar replays it. **Play the term**
+(Today, the menu, or the home page) replays one term of the demo block in about 40 seconds — spot
+checks, voice notes, peer visits, day-14 calls, then the next assessment — while the rings, map,
+tasks and activity update. Playback is labelled, stays on that screen and is never saved.
+
+**Live:** anything someone records (a spot check on a phone in the field, a visit marked done, a
+follow-up call, a finished interview) reaches every open screen within seconds, with a notification.
 
 ## Where AI is used (read the code here)
 
@@ -48,7 +58,7 @@ demonstrator + waves), `track.ts` (difference-in-differences, bootstrap interval
 ## Evaluation
 
 ```bash
-npm test        # 23 tests: engine on simulated blocks, guardrails, interview service (SQLite + Turso), IVR signing
+npm test        # 30 tests: engine on simulated blocks, the home story, term playback, guardrails, interview service (SQLite + Turso), IVR signing
 npm run eval    # coding vs 30 hand-labelled answers + guardrails under attack + interviewer behaviour
 npm run smoke   # end-to-end interview against a running server (consent → 7 topics → coding)
 ```
@@ -68,7 +78,8 @@ alarms on good outputs. With a Claude key it also scores the Claude coder agains
 - **Low-cost phones:** low-data mode (auto on data-saver, 2G/3G or ≤ 2 GB RAM) removes video, 3D
   and blur; basic phones are reached by an ordinary call.
 - **Bright sunlight, projectors:** light and dark mode (☾ / ☀ in the menu and on the home page);
-  dark is the default, and videos and the 3D night map stay dark in both.
+  dark is the default, and videos and the 3D night map stay dark in both. Panels are frosted glass;
+  low-data mode turns the blur off.
 - **Claude down or slow:** every task degrades to the offline engine; on the phone Claude gets
   8 s per turn so the caller never waits.
 

@@ -49,9 +49,9 @@ export default function ResultsPage() {
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label={t("Follow-up calls", "फ़ॉलो-अप कॉल")} value={`${rows.filter((x) => x.f).length}/${rows.length}`} hint={t("wave 1 schools", "लहर 1 के स्कूल")} />
-        <Stat label={t("Doing it regularly", "नियमित कर रहे")} value={count("adopted")} tone="#4ade80" />
-        <Stat label={t("Trying it", "आज़मा रहे")} value={count("trying")} tone="#facc15" />
-        <Stat label={t("Stuck — escalated", "अटके — ऊपर भेजे")} value={count("barrier")} tone="#f87171" />
+        <Stat label={t("Doing it regularly", "नियमित कर रहे")} value={count("adopted")} tone="var(--tone-good)" />
+        <Stat label={t("Trying it", "आज़मा रहे")} value={count("trying")} tone="var(--tone-warn)" />
+        <Stat label={t("Stuck — escalated", "अटके — ऊपर भेजे")} value={count("barrier")} tone="var(--tone-bad)" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.25fr_1fr]">
@@ -60,6 +60,7 @@ export default function ResultsPage() {
           icon={PhoneCall}
           right={
             <Segmented
+              size="sm"
               value={filter}
               onChange={setFilter}
               options={[

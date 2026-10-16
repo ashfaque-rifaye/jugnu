@@ -30,9 +30,9 @@ export function PasscodeGate() {
     window.location.reload();
   };
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+    <div className="scrim fixed inset-0 z-[95] grid place-items-center p-4">
       <form
-        className="glass-strong w-full max-w-sm p-6"
+        className="sheet w-full max-w-sm rounded-[2rem] p-6"
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
@@ -41,7 +41,7 @@ export function PasscodeGate() {
         <KeyRound className="mb-3 text-amber-200" />
         <h2 className="text-lg font-bold">{t("Officer console", "अधिकारी कंसोल")}</h2>
         <p className="mt-1 text-sm text-[var(--color-ink-2)]">{t("Enter the passcode shared with you. Teachers don't need one — they join from their interview link.", "आपको दिया गया पासकोड डालें। शिक्षकों को इसकी ज़रूरत नहीं — वे अपने लिंक से जुड़ते हैं।")}</p>
-        <input autoFocus type="password" value={value} onChange={(e) => (setValue(e.target.value), setWrong(false))} className="mt-4 w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 outline-none" />
+        <input autoFocus type="password" value={value} onChange={(e) => (setValue(e.target.value), setWrong(false))} className="mt-4 w-full rounded-2xl border border-[var(--chip-line)] bg-[var(--inset-bg)] px-3.5 py-2.5 outline-none" />
         {wrong && <p className="mt-2 text-sm text-red-300">{t("That passcode is not right.", "पासकोड सही नहीं है।")}</p>}
         <button className="btn btn-primary mt-4 w-full justify-center" disabled={busy || !value}>
           {busy && <Loader2 size={15} className="animate-spin" />} {t("Open", "खोलें")}

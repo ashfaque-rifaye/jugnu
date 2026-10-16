@@ -13,6 +13,7 @@ import {
   MapPinned,
   Mic,
   PhoneCall,
+  Play,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -20,10 +21,11 @@ import {
   UserCheck,
   Volume2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ActivityFeed } from "../components/ActivityFeed";
-import { AIVideoLabel } from "../components/kit";
+import { useDemo } from "../components/Demo";
+import { AIVideoLabel, AppBackground } from "../components/kit";
 import { LogoMark, Wordmark } from "../components/Logo";
 import { LoopFlow } from "../components/LoopFlow";
 import { LivingMap } from "../components/maps";
@@ -31,6 +33,7 @@ import { cx } from "../components/ui";
 import { PRACTICES } from "../engine/practices";
 import { MEDIA } from "../lib/clips";
 import { usePrefs, useT } from "../lib/prefs";
+import { setWelcomed } from "../lib/journey";
 import { useRole, type Role } from "../lib/role";
 import { meanZ, schoolStatuses } from "../lib/status";
 import { usePipeline } from "../lib/store";
@@ -47,6 +50,13 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
   const { state, followUps, events } = usePipeline();
   const story = useMemo(() => pickStory(state, followUps), [state, followUps]);
   const hi = lang === "hi" && "font-deva";
+  const demo = useDemo();
+  /** Straight into the playback: a visitor who asked for it skips the welcome. */
+  const play = () => {
+    if (!role) setRole({ kind: "guest" });
+    setWelcomed(true);
+    demo.start();
+  };
 
   /** Open the app; a visitor arriving from here is a guest until they pick a role. */
   const enter = (to: string, as?: Role) => {
@@ -60,11 +70,11 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
 
   return (
     <div className="min-h-dvh">
-      <div className="app-bg" aria-hidden />
+      <AppBackground />
 
-      {/* top bar */}
-      <header className="chrome sticky top-0 z-40 border-b">
-        <div className="mx-auto flex max-w-[1240px] items-center gap-3 px-4 py-2.5 md:px-6">
+      {/* top bar: a floating glass pill over the hero */}
+      <header className="sticky top-0 z-40 px-3 pt-3 md:px-5">
+        <div className="chrome mx-auto flex max-w-[1240px] items-center gap-3 rounded-full py-1.5 pl-2.5 pr-1.5 md:pl-4">
           <Link to="/" aria-label="Jugnu">
             <LogoMark size={34} className="sm:hidden" />
             <span className="hidden sm:block">
@@ -95,12 +105,14 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
         </div>
       </header>
 
-      {/* hero: dusk in dark mode, dawn in light mode */}
-      <section className="relative isolate overflow-hidden">
+      {/* hero: a framed, cinematic window — dusk in dark mode, dawn in light mode */}
+      <div className="-mt-[66px] px-2 md:px-3">
+      <section className="relative isolate overflow-hidden rounded-b-[2.4rem] md:rounded-[2.4rem]">
         {lite ? <img className="welcome-video" src={poster} alt="" aria-hidden /> : <video key={video} className="welcome-video" src={video} poster={poster} autoPlay muted loop playsInline aria-hidden />}
         <div className={cx("home-shade", mode === "light" ? "home-shade-light" : "home-shade-dark")} />
-        <AIVideoLabel className="absolute bottom-3 right-3" />
-        <div className="relative mx-auto grid min-h-[min(86svh,760px)] max-w-[1240px] items-center gap-10 px-4 pb-16 pt-12 md:px-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="pointer-events-none absolute inset-3 hidden rounded-[2rem] border border-white/12 md:block" aria-hidden />
+        <AIVideoLabel className="absolute bottom-5 right-6" />
+        <div className="relative mx-auto grid min-h-[min(92svh,820px)] max-w-[1240px] items-center gap-10 px-5 pb-20 pt-28 md:px-8 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="chip mb-5 w-fit !bg-[var(--chrome)] backdrop-blur">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--st-bright-fill)]" />
@@ -110,10 +122,10 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className={cx("max-w-[15ch] text-[2.6rem] font-bold leading-[1.02] md:text-6xl lg:text-[4.2rem]", hi && "!max-w-[18ch] !leading-[1.2]")}
+              className={cx("display-xl max-w-[15ch] text-[2.9rem] md:text-[4.2rem] lg:text-[5.1rem]", hi && "!max-w-[18ch] !leading-[1.2]")}
             >
               {t("Somewhere in your block, a teacher has ", "आपके ब्लॉक में कहीं, कोई शिक्षक ")}
-              <span className="gradient-text">{t("already cracked it.", "यह कर दिखा चुका है।")}</span>
+              <span className="gradient-text font-semibold">{t("already cracked it.", "यह कर दिखा चुका है।")}</span>
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className={cx("mt-6 max-w-xl text-[17px] leading-relaxed text-[var(--color-ink-2)] md:text-lg", hi)}>
               {t(
@@ -125,8 +137,13 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               <a href="#start" className="btn btn-primary !px-5 !py-3 text-base">
                 {t("Find your way in", "अपनी भूमिका चुनें")} <ArrowRight size={17} />
               </a>
-              <button className="btn btn-glass !px-5 !py-3 text-base" onClick={onTour}>
-                <Clapperboard size={17} /> {t("Watch the 2-minute tour", "2 मिनट का टूर")}
+              {demo.available && (
+                <button className="btn btn-glass !px-5 !py-3 text-base" onClick={play}>
+                  <Play size={17} /> {t("Play a whole term · 40 s", "पूरा सत्र चलाएँ · 40 से.")}
+                </button>
+              )}
+              <button className="btn btn-ghost !px-4 !py-3 text-base" onClick={onTour}>
+                <Clapperboard size={17} /> {t("2-minute film", "2 मिनट की फ़िल्म")}
               </button>
             </motion.div>
             <ul className={cx("mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--color-ink-2)]", hi)}>
@@ -147,10 +164,11 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
           {story && <HeroMoments story={story} />}
         </div>
       </section>
+      </div>
 
-      <main className="mx-auto max-w-[1240px] space-y-24 px-4 pb-16 md:px-6">
+      <main className="mx-auto max-w-[1240px] space-y-24 px-4 pb-16 pt-16 md:px-6">
         {/* who it is for */}
-        <section id="start" className="-mt-6 scroll-mt-24">
+        <section id="start" className="scroll-mt-24">
           <SectionHead
             eyebrow={t("Start where you are", "जहाँ आप हैं, वहीं से")}
             title={t("One block, three people, one loop", "एक ब्लॉक, तीन लोग, एक चक्र")}
@@ -207,9 +225,16 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
                   )}
                 </p>
               )}
-              <button className="btn btn-glass mt-4" onClick={() => enter("/today")}>
-                {t("Open today's work", "आज का काम खोलें")} <ArrowRight size={15} />
-              </button>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {demo.available && (
+                  <button className="btn btn-primary" onClick={play}>
+                    <Play size={15} /> {t("Play the term", "सत्र चलाकर देखें")}
+                  </button>
+                )}
+                <button className="btn btn-glass" onClick={() => enter("/today")}>
+                  {t("Open today's work", "आज का काम खोलें")} <ArrowRight size={15} />
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -227,7 +252,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               ] as const
             ).map(([Icon, title, text, to]) => (
               <button key={to} onClick={() => enter(to)} className="card card-hover p-5 text-left">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--chip)] text-[var(--st-bright)]">
+                <span className="icon-tile h-10 w-10 rounded-[0.9rem]">
                   <Icon size={19} aria-hidden />
                 </span>
                 <h3 className={cx("mt-3 font-semibold", hi)}>{title}</h3>
@@ -260,7 +285,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--chrome-line)]">
+      <footer className="border-t border-[var(--line)]">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-4 py-8 text-sm text-[var(--color-ink-3)] md:flex-row md:items-start md:justify-between md:px-6">
           <div className="max-w-xl">
             <Wordmark size={26} />
@@ -340,7 +365,7 @@ function HeroMoments({ story }: { story: Story }) {
           initial={{ opacity: 0, y: 24, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ delay: 0.35 + i * 0.45, duration: 0.5 }}
-          className="glass absolute w-[360px] p-4"
+          className="glass absolute w-[360px] !rounded-[1.4rem] p-4"
           style={{ top: 18 + i * 128, left: i === 1 ? 48 : i === 2 ? 12 : 0 }}
         >
           <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut" }} className="flex gap-3">
@@ -442,7 +467,7 @@ function DoorHead({ icon: Icon, tone, who }: { icon: typeof Mic; tone: string; w
   const { lang } = usePrefs();
   return (
     <div className="flex items-center gap-3">
-      <span className="grid h-11 w-11 place-items-center rounded-2xl" style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}>
+      <span className="icon-tile h-11 w-11 rounded-[1rem]" style={{ "--tile": tone } as CSSProperties}>
         <Icon size={20} />
       </span>
       <h3 className={cx("text-lg font-bold", lang === "hi" && "font-deva")}>{who}</h3>

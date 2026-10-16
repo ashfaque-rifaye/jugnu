@@ -6,6 +6,7 @@ import type { School } from "../engine/types";
 import { postJSON, useStatus } from "../lib/api";
 import { useT } from "../lib/prefs";
 import { Glass } from "./ui";
+import { markJourney } from "../lib/journey";
 
 export interface PilotRow {
   id: string;
@@ -105,6 +106,7 @@ export function InviteForSchool({ school, group, onCreated }: { school: School; 
     try {
       const r = await postJSON<{ interview: PilotRow; link: string }>("/api/interviews", { teacherName: school.teacher, schoolName: school.name, schoolId: school.id, group, language });
       setMade({ link: `${location.origin}${r.link}`, row: r.interview });
+      markJourney("invite");
       onCreated?.();
     } catch (e) {
       setError((e as Error).message);

@@ -3,37 +3,49 @@ import {
   BookOpen,
   BrainCircuit,
   CalendarCheck2,
+  ChevronRight,
   ClipboardCheck,
   Clapperboard,
+  Compass,
+  Ellipsis,
   FlaskConical,
   Handshake,
   House,
   Info,
   LineChart,
-  Menu,
   MessageCircleQuestion,
   Mic,
+  Play,
   School as SchoolIcon,
   Search,
   Stars,
-  UserRound,
+  Stethoscope,
   X,
   Zap,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Navigate, NavLink, Route, Routes, useLocation, useMatch, useNavigate, useSearchParams } from "react-router-dom";
 import { AskJugnu } from "./components/AskJugnu";
+import { describeEvent } from "./components/ActivityFeed";
+import { DemoProvider, useDemo } from "./components/Demo";
 import { FeedbackButton, useSession } from "./components/Feedback";
-import { Wordmark } from "./components/Logo";
+import { AppBackground, SPRING } from "./components/kit";
+import { LogoMark, Wordmark } from "./components/Logo";
 import { TutorialPlayer } from "./components/media";
 import { PasscodeGate } from "./components/Passcode";
 import { AIStatus, cx } from "./components/ui";
+import { Welcome } from "./components/Welcome";
 import { usePoll } from "./lib/api";
 import { TOUR } from "./lib/clips";
+import { markJourney, setWelcomed, useWelcomed } from "./lib/journey";
 import { usePrefs, useT } from "./lib/prefs";
 import { roleName, useRole, type Role } from "./lib/role";
+import { schoolStatuses, STATUS_INFO } from "./lib/status";
 import { PipelineProvider, usePipeline } from "./lib/store";
+import { loopCounts, pickStory } from "./lib/story";
 import { ThemeToggle } from "./lib/theme";
+import { ToastProvider, useToast } from "./lib/toast";
+import { TourProvider, useTour, type TourStep } from "./lib/tour";
 
 const HomePage = lazy(() => import("./pages/Home"));
 const TodayPage = lazy(() => import("./pages/Today"));
@@ -54,7 +66,15 @@ const Loading = () => <div className="grid min-h-[40vh] place-items-center text-
 /** The officer / CRP console. The block is computed only here, never for teachers. */
 export default function ConsoleRoot() {
   const { pathname } = useLocation();
-  return <PipelineProvider>{pathname === "/" ? <Home /> : <Console />}</PipelineProvider>;
+  return (
+    <ToastProvider>
+      <PipelineProvider>
+        <TourProvider>
+          <DemoProvider>{pathname === "/" ? <Home /> : <Console />}</DemoProvider>
+        </TourProvider>
+      </PipelineProvider>
+    </ToastProvider>
+  );
 }
 
 /** The front door: a page of its own, without the app's menus. */
@@ -73,21 +93,28 @@ function Home() {
   );
 }
 
-type NavItem = { to: string; label: string; icon: typeof Stars; badge?: number };
+type NavItem = { to: string; label: string; icon: typeof Stars; badge?: number; n?: string; meta?: string };
 
 function Console() {
   const t = useT();
+  const { lang } = usePrefs();
   const location = useLocation();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [tour, setTour] = useState(false);
+  const [film, setFilm] = useState(false);
   const [ask, setAsk] = useState(false);
-  const [drawer, setDrawer] = useState(false);
-  const [role, setRole] = useRole();
-  const [chooseRole, setChooseRole] = useState(false);
-  const { state, select } = usePipeline();
+  const [more, setMore] = useState(false);
+  const [role] = useRole();
+  const [roleSheet, setRoleSheet] = useState(false);
+  const welcomed = useWelcomed();
+  const { state, select, followUps } = usePipeline();
   const session = useSession();
+  const tour = useTour();
+  const demo = useDemo();
   const [pending] = usePoll<unknown[]>("/api/reviews?status=pending", 15000);
+  const c = loopCounts(state, followUps);
+  const tourSteps = useTourSteps();
+  const startTour = () => (setMore(false), tour.start(tourSteps));
 
   useEffect(() => {
     if (params.get("ask") === "1") {
@@ -96,93 +123,106 @@ function Console() {
       setParams(params, { replace: true });
     }
   }, [params, setParams]);
-  useEffect(() => setDrawer(false), [location.pathname]);
+  useEffect(() => setMore(false), [location.pathname]);
+  useJourneyMarks();
 
-  const MAIN: NavItem[] = [
+  const wave1 = state.recs.filter((r) => r.wave === 1).length;
+  const LOOP: NavItem[] = [
+    { to: "/schools", n: "1", label: t("Find & check", "ढूँढें व जाँचें"), icon: SchoolIcon, meta: c.checksDue ? t(`${c.checksDue} due`, `${c.checksDue} बाकी`) : String(c.bright) },
+    { to: "/interviews", n: "2", label: t("Listen", "सुनें"), icon: Mic, meta: String(c.heard) },
+    { to: "/practices", n: "3", label: t("What works", "क्या काम करता है"), icon: Stars, meta: String(c.practices) },
+    { to: "/plan", n: "4", label: t("Share", "पहुँचाएँ"), icon: Handshake, meta: `${c.reached}/${wave1}` },
+    { to: "/results", n: "5", label: t("Follow up", "फ़ॉलो-अप"), icon: LineChart, meta: `${c.calls}/${wave1}` },
+  ];
+  const TOP: NavItem[] = [
     { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
-    { to: "/schools", label: t("Schools", "स्कूल"), icon: SchoolIcon },
-    { to: "/interviews", label: t("Interviews", "बातचीत"), icon: Mic },
-    { to: "/practices", label: t("What works", "क्या काम करता है"), icon: Stars },
-    { to: "/plan", label: t("Support plan", "मदद की योजना"), icon: Handshake },
-    { to: "/results", label: t("Results", "नतीजे"), icon: LineChart },
-    { to: "/review", label: t("Review", "समीक्षा"), icon: ClipboardCheck, badge: pending?.length ?? 0 },
+    { to: "/review", label: t("Approvals", "मंज़ूरी"), icon: ClipboardCheck, badge: pending?.length ?? 0 },
   ];
   const TOOLS: NavItem[] = [
+    { to: "/", label: t("Home page", "होम पेज"), icon: House },
     { to: "/testing", label: t("User testing", "उपयोगकर्ता परीक्षण"), icon: FlaskConical },
     { to: "/ai", label: t("AI & safety checks", "AI व सुरक्षा जाँच"), icon: BrainCircuit },
     { to: "/method", label: t("Data & method", "डेटा व पद्धति"), icon: BookOpen },
     { to: "/about", label: t("About Jugnu", "जुगनू के बारे में"), icon: Info },
   ];
 
-  const nav = (items: NavItem[]) =>
-    items.map(({ to, label, icon: Icon, badge }) => (
-      <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("nav-item", isActive && "active")}>
-        <Icon size={18} aria-hidden />
-        <span className="flex-1">{label}</span>
-        {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#fcd34d] px-1.5 text-[11px] font-bold text-[#0b1308]">{badge}</span>}
-      </NavLink>
-    ));
+  const navLink = ({ to, label, icon: Icon, badge, n, meta }: NavItem, group: string) => (
+    <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("nav-item", isActive && to !== "/" && "active")}>
+      {({ isActive }) => (
+        <>
+          {isActive && to !== "/" && <motion.span layoutId={`nav-${group}`} className="nav-pill" transition={SPRING} />}
+          {n ? (
+            <span className={cx("grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-[11px] font-bold", isActive ? "text-[#0b1308]" : "text-[var(--color-ink-2)]")} style={{ background: isActive ? "var(--grad-flat)" : "var(--chip)" }}>
+              {n}
+            </span>
+          ) : (
+            <Icon size={18} aria-hidden />
+          )}
+          <span className={cx("flex-1 truncate", lang === "hi" && "font-deva")}>{label}</span>
+          {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#fcd34d] px-1.5 text-[11px] font-bold text-[#0b1308]">{badge}</span>}
+          {meta && <span className="text-[11px] font-medium tabular-nums text-[var(--color-ink-3)]">{meta}</span>}
+        </>
+      )}
+    </NavLink>
+  );
 
   const sidebar = (
-    <div className="flex h-full flex-col gap-4 p-4">
-      <NavLink to="/" className="px-1" title={t("Home page", "होम पेज")}>
+    <div className="flex h-full flex-col gap-3 p-3">
+      <NavLink to="/" className="px-1.5 pt-1" title={t("Home page", "होम पेज")}>
         <Wordmark sub={`${state.block.name} · ${state.block.source === "simulated" ? t("demo data", "डेमो डेटा") : t("your data", "आपका डेटा")}`} />
       </NavLink>
       <nav className="space-y-0.5" aria-label={t("Main", "मुख्य")}>
-        {nav(MAIN)}
+        {TOP.map((x) => navLink(x, "main"))}
       </nav>
+      <div data-tour="nav-loop">
+        <div className="label mb-1.5 flex items-center justify-between px-3">
+          <span>{t("The loop", "चक्र")}</span>
+          <span className="normal-case tracking-normal">{t("this term", "इस सत्र")}</span>
+        </div>
+        <nav className="space-y-0.5" aria-label={t("The loop", "चक्र")}>
+          {LOOP.map((x) => navLink(x, "main"))}
+        </nav>
+      </div>
       <button className="btn btn-primary justify-center" onClick={() => setAsk(true)}>
         <MessageCircleQuestion size={16} /> {t("Ask Jugnu", "जुगनू से पूछें")}
       </button>
-      <nav className="space-y-0.5 border-t border-[var(--chrome-line)] pt-3" aria-label={t("More", "और")}>
-        <NavLink to="/" end className="nav-item">
-          <House size={18} aria-hidden /> <span className="flex-1">{t("Home page", "होम पेज")}</span>
-        </NavLink>
-        {nav(TOOLS)}
-        <button className="nav-item w-full" onClick={() => setTour(true)}>
-          <Clapperboard size={18} aria-hidden /> <span className="flex-1 text-left">{t("Watch the 2-minute tour", "2 मिनट का टूर देखें")}</span>
+      <nav className="space-y-0.5 border-t border-[var(--line)] pt-3" aria-label={t("More", "और")}>
+        <button className="nav-item w-full" onClick={startTour}>
+          <Compass size={18} aria-hidden /> <span className="flex-1 text-left">{t("Guide me", "गाइड करें")}</span>
         </button>
+        {demo.available && (
+          <button className="nav-item w-full" onClick={demo.start}>
+            <Play size={18} aria-hidden /> <span className="flex-1 text-left">{t("Play the term", "सत्र चलाकर देखें")}</span>
+          </button>
+        )}
+        {TOOLS.map((x) => navLink(x, "tools"))}
       </nav>
-      <div className="mt-auto space-y-3">
-        <RoleCard role={role} onChange={() => setChooseRole(true)} />
+      <div className="mt-auto space-y-2.5">
+        <RoleBadge role={role} onChange={() => setRoleSheet(true)} />
         <PrefsRow />
       </div>
     </div>
   );
 
-  const BOTTOM: NavItem[] = [MAIN[0], MAIN[1], MAIN[4], MAIN[2]];
+  const TABS: NavItem[] = [
+    { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
+    { to: "/schools", label: t("Schools", "स्कूल"), icon: SchoolIcon },
+    { to: "/plan", label: t("Share", "पहुँचाएँ"), icon: Handshake },
+    { to: "/results", label: t("Results", "नतीजे"), icon: LineChart },
+  ];
+  const tabMatch = TABS.find((x) => location.pathname === x.to || location.pathname.startsWith(`${x.to}/`));
 
   return (
     <>
-      <div className="app-bg" aria-hidden />
-      {/* desktop sidebar */}
-      <aside className="chrome no-print fixed inset-y-0 left-0 z-30 hidden w-[264px] overflow-y-auto border-r lg:block">{sidebar}</aside>
-      {/* mobile drawer */}
-      <AnimatePresence>
-        {drawer && (
-          <>
-            <motion.div className="fixed inset-0 z-40 bg-[#020617]/60 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawer(false)} />
-            <motion.aside
-              className="chrome-solid fixed inset-y-0 left-0 z-50 w-[290px] overflow-y-auto border-r lg:hidden"
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: "tween", duration: 0.2 }}
-            >
-              {sidebar}
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      <AppBackground />
+      {/* desktop: floating glass sidebar */}
+      <aside className="chrome no-print scroll-thin fixed bottom-3 left-3 top-3 z-30 hidden w-[256px] overflow-y-auto rounded-[1.9rem] lg:block">{sidebar}</aside>
 
-      <div className="lg:pl-[264px]">
-        <header className="chrome no-print sticky top-0 z-20 border-b">
-          <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-3 py-2.5 md:px-6">
-            <button className="btn btn-glass !p-2 lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Menu", "मेनू")}>
-              <Menu size={18} />
-            </button>
-            <NavLink to="/" className="lg:hidden" title={t("Home page", "होम पेज")}>
-              <Wordmark size={28} />
+      <div className="lg:pl-[268px]">
+        <header className="no-print sticky top-0 z-20 px-3 pt-3 md:px-5">
+          <div className="chrome mx-auto flex max-w-[1400px] items-center gap-2 rounded-full py-1.5 pl-2 pr-1.5">
+            <NavLink to="/" className="shrink-0 lg:hidden" title={t("Home page", "होम पेज")}>
+              <LogoMark size={34} />
             </NavLink>
             <SchoolSearch
               onPick={(id) => {
@@ -190,28 +230,34 @@ function Console() {
                 navigate(`/schools/${id}`);
               }}
             />
-            <button className="btn btn-glass hidden !py-2 md:inline-flex lg:hidden" onClick={() => setAsk(true)}>
-              <MessageCircleQuestion size={16} /> {t("Ask", "पूछें")}
+            <LiveIndicator />
+            <span className="hidden md:inline-flex">
+              <AIStatus />
+            </span>
+            <button className="btn btn-glass !px-3 !py-2" onClick={startTour} data-tour="guide" title={t("Show me around", "मुझे घुमाएँ")}>
+              <Compass size={16} /> <span className="hidden sm:inline">{t("Guide", "गाइड")}</span>
             </button>
-            <AIStatus />
+            <button className="btn btn-glass btn-icon !p-2 lg:hidden" onClick={() => setAsk(true)} aria-label={t("Ask Jugnu", "जुगनू से पूछें")}>
+              <MessageCircleQuestion size={17} />
+            </button>
           </div>
           {session.id && (
-            <div className="flex items-center justify-between gap-2 border-t border-amber-200/20 bg-amber-200/10 px-4 py-1.5 text-sm md:px-6">
+            <div className="chrome mx-auto mt-2 flex max-w-[1400px] items-center justify-between gap-2 rounded-full px-4 py-1.5 text-sm">
               <span>
-                <FlaskConical size={14} className="mr-1 inline" /> {t("Testing session running", "परीक्षण सत्र जारी")} · {session.role}
+                <FlaskConical size={14} className="mr-1 inline text-[var(--st-bright)]" /> {t("Testing session running", "परीक्षण सत्र जारी")} · {session.role}
               </span>
-              <NavLink to="/testing" className="underline">
-                {t("Tasks & survey", "काम व सर्वे")}
+              <NavLink to="/testing" className="font-semibold text-[var(--st-bright)]">
+                {t("Tasks & survey", "काम व सर्वे")} →
               </NavLink>
             </div>
           )}
         </header>
 
-        <main className="mx-auto max-w-[1400px] px-3 pb-28 pt-5 md:px-6 lg:pb-12">
-          <motion.div key={location.pathname} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+        <main className="mx-auto max-w-[1400px] px-3 pb-36 pt-5 md:px-5 lg:pb-14">
+          <motion.div key={location.pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 260, damping: 30 }}>
             <Suspense fallback={<Loading />}>
               <Routes location={location}>
-                <Route path="/today" element={<TodayPage onAsk={() => setAsk(true)} onRole={() => setChooseRole(true)} />} />
+                <Route path="/today" element={<TodayPage onAsk={() => setAsk(true)} onRole={() => setRoleSheet(true)} onTour={startTour} />} />
                 <Route path="/schools" element={<SchoolsPage />} />
                 <Route path="/schools/:id" element={<SchoolPage />} />
                 <Route path="/interviews" element={<AskPage />} />
@@ -222,7 +268,7 @@ function Console() {
                 <Route path="/testing" element={<TestingPage />} />
                 <Route path="/ai" element={<AIPage />} />
                 <Route path="/method" element={<MethodPage />} />
-                <Route path="/about" element={<AboutPage onTour={() => setTour(true)} />} />
+                <Route path="/about" element={<AboutPage onTour={() => setFilm(true)} />} />
                 {/* older links */}
                 <Route path="/find" element={<Navigate to="/schools" replace />} />
                 <Route path="/ask" element={<Navigate to="/interviews" replace />} />
@@ -233,7 +279,7 @@ function Console() {
             </Suspense>
           </motion.div>
         </main>
-        <footer className="no-print mx-auto max-w-[1400px] px-6 pb-24 text-xs text-[var(--color-ink-3)] lg:pb-8">
+        <footer className="no-print mx-auto max-w-[1400px] px-6 pb-28 text-xs leading-relaxed text-[var(--color-ink-3)] lg:pb-8">
           {t(
             "Jugnu · AI for Foundational Learning Hackathon, Challenge 4. Adults only, with consent; no child-level data. The demo block is simulated (calibrated to ASER 2024); live interviews are real. Background videos are AI-generated (Google Veo).",
             "जुगनू · AI for Foundational Learning हैकाथॉन, चुनौती 4। सिर्फ़ वयस्क, सहमति से; बच्चों का कोई व्यक्तिगत डेटा नहीं। डेमो ब्लॉक सिम्युलेटेड है (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
@@ -241,25 +287,89 @@ function Console() {
         </footer>
       </div>
 
-      {/* phone bottom bar */}
-      <nav className="chrome no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t lg:hidden" aria-label={t("Main", "मुख्य")}>
-        {BOTTOM.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) => cx("flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-amber-200" : "text-[var(--color-ink-3)]")}
-          >
-            <Icon size={20} aria-hidden />
-            <span className="truncate">{label}</span>
-          </NavLink>
-        ))}
-        <button className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-[var(--color-ink-3)]" onClick={() => setAsk(true)}>
-          <MessageCircleQuestion size={20} aria-hidden />
-          {t("Ask", "पूछें")}
-        </button>
+      {/* phones: floating glass tab bar */}
+      <nav className="no-print fixed inset-x-3 bottom-3 z-30 lg:hidden" aria-label={t("Main", "मुख्य")} data-tour="nav-loop">
+        <div className="chrome mx-auto grid max-w-md grid-cols-5 rounded-full p-1.5">
+          {TABS.map(({ to, label, icon: Icon }) => {
+            const on = tabMatch?.to === to;
+            return (
+              <NavLink key={to} to={to} className={cx("relative isolate flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[10.5px] font-semibold transition-colors", on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>
+                {on && <motion.span layoutId="tab-pill" className="seg-on absolute inset-0 -z-10 rounded-full" transition={SPRING} />}
+                <Icon size={20} strokeWidth={on ? 2.3 : 1.9} aria-hidden style={on ? { color: "var(--st-bright)" } : undefined} />
+                <span className="max-w-full truncate px-1">{label}</span>
+              </NavLink>
+            );
+          })}
+          <button className={cx("relative isolate flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[10.5px] font-semibold", more ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]")} onClick={() => setMore(true)}>
+            <Ellipsis size={20} aria-hidden />
+            {t("More", "और")}
+          </button>
+        </div>
       </nav>
 
-      <TutorialPlayer clips={TOUR} open={tour} onClose={() => setTour(false)} />
+      {/* phones: the rest of the menu as a sheet */}
+      <AnimatePresence>
+        {more && (
+          <motion.div className="no-print fixed inset-0 z-[60] lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="scrim absolute inset-0" onClick={() => setMore(false)} />
+            <motion.div
+              className="sheet absolute inset-x-2 bottom-2 max-h-[86dvh] overflow-y-auto rounded-[2rem] p-3"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 340, damping: 34 }}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.5 }}
+              onDragEnd={(_, i) => i.offset.y > 90 && setMore(false)}
+            >
+              <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-[var(--ring-track)]" />
+              <div className="mb-2 flex items-center justify-between px-1">
+                <Wordmark size={30} sub={state.block.name} />
+                <button className="btn btn-glass btn-icon !p-2" onClick={() => setMore(false)} aria-label={t("Close", "बंद करें")}>
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn btn-primary justify-center" onClick={() => (setMore(false), setAsk(true))}>
+                  <MessageCircleQuestion size={16} /> {t("Ask Jugnu", "पूछें")}
+                </button>
+                <button className="btn btn-glass justify-center" onClick={startTour}>
+                  <Compass size={16} /> {t("Guide me", "गाइड करें")}
+                </button>
+              </div>
+              {demo.available && (
+                <button className="card-inset mt-2 flex w-full items-center gap-3 p-3 text-left" onClick={() => (setMore(false), demo.start())}>
+                  <span className="grid h-9 w-9 place-items-center rounded-full text-[#0b1308]" style={{ background: "var(--grad-flat)" }}>
+                    <Play size={16} />
+                  </span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-semibold">{t("Play the term", "सत्र चलाकर देखें")}</span>
+                    <span className="block text-xs text-[var(--color-ink-3)]">{t("14 days of field work in 40 seconds", "14 दिन का काम 40 सेकंड में")}</span>
+                  </span>
+                  <ChevronRight size={16} className="text-[var(--color-ink-3)]" />
+                </button>
+              )}
+              <div className="mt-3 rounded-[1.4rem] bg-[var(--inset-bg)] p-1.5">
+                <div className="label px-3 pb-1 pt-1.5">{t("The loop", "चक्र")}</div>
+                {[TOP[1], ...LOOP].map((x) => navLink(x, "sheet"))}
+              </div>
+              <div className="mt-2 rounded-[1.4rem] bg-[var(--inset-bg)] p-1.5">
+                {TOOLS.map((x) => navLink(x, "sheet-tools"))}
+                <button className="nav-item w-full" onClick={() => (setMore(false), setFilm(true))}>
+                  <Clapperboard size={18} aria-hidden /> <span className="flex-1 text-left">{t("2-minute film", "2 मिनट की फ़िल्म")}</span>
+                </button>
+              </div>
+              <div className="mt-3 space-y-2.5">
+                <RoleBadge role={role} onChange={() => (setMore(false), setRoleSheet(true))} />
+                <PrefsRow />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <TutorialPlayer clips={TOUR} open={film} onClose={() => setFilm(false)} />
       <AskJugnu
         open={ask}
         onClose={() => setAsk(false)}
@@ -271,26 +381,220 @@ function Console() {
           }
         }}
       />
+      <LiveToasts />
       <FeedbackButton />
+      <Welcome
+        open={!welcomed || roleSheet}
+        mode={welcomed ? "role" : "full"}
+        onDone={(withTour) => {
+          setRoleSheet(false);
+          if (!welcomed) setWelcomed(true);
+          if (withTour) window.setTimeout(() => tour.start(tourSteps), 350);
+        }}
+      />
       <PasscodeGate />
-      <RoleChooser open={chooseRole || role === null} onClose={() => setChooseRole(false)} onPick={(r) => (setRole(r), setChooseRole(false))} />
     </>
   );
 }
 
-function RoleCard({ role, onChange }: { role: Role | null; onChange: () => void }) {
+/** Marks pages as seen for the "first 10 minutes" checklist. */
+function useJourneyMarks() {
+  const { pathname } = useLocation();
+  const school = useMatch("/schools/:id");
+  const { state } = usePipeline();
+  const id = school?.params.id;
+  useEffect(() => {
+    markJourney(`seen:${pathname}`);
+    if (id && schoolStatuses(state).get(id) === "bright") markJourney("seen:bright");
+  }, [pathname, id, state]);
+}
+
+/** The guided tour, written for the person's role. */
+function useTourSteps(): TourStep[] {
+  const [role] = useRole();
+  const { state, followUps } = usePipeline();
+  return useMemo(() => {
+    const status = schoolStatuses(state);
+    const story = pickStory(state, followUps);
+    const inPatch = (id: string) => role?.kind !== "crp" || state.block.schools.find((s) => s.id === id)?.cluster === role.cluster;
+    const crpSchool = [...status].filter(([id, v]) => inPatch(id) && (v === "check_due" || v === "bright")).sort((a, b) => (a[1] === "check_due" ? -1 : 1) - (b[1] === "check_due" ? -1 : 1))[0]?.[0];
+    const school = role?.kind === "crp" ? (crpSchool ?? story?.bright.id) : story?.bright.id;
+    const st = school ? status.get(school) : undefined;
+    const nextBody: [string, string] =
+      st === "check_due"
+        ? ["Record the spot check right here — 15 children, 15 minutes. The school's status changes the moment you save.", "जाँच यहीं दर्ज करें — 15 बच्चे, 15 मिनट। सहेजते ही स्कूल की स्थिति बदल जाती है।"]
+        : st === "bright"
+          ? ["For a bright spot the next step is a 12-minute voice interview: one button creates the WhatsApp link and QR code for the teacher.", "अच्छे स्कूल के लिए अगला कदम 12 मिनट की बातचीत है: एक बटन से शिक्षक के लिए WhatsApp लिंक और QR बनता है।"]
+          : ["Every school page opens with one clear next step, and the action to take it.", "हर स्कूल का पेज एक साफ़ अगले कदम से शुरू होता है।"];
+    const steps: TourStep[] = [
+      {
+        route: "/today",
+        target: "hero-next",
+        title: ["Start here, every day", "हर दिन, यहीं से शुरू करें"],
+        body: ["Jugnu puts your most important next step at the top — one tap opens the school and the form you need.", "जुगनू आपका सबसे ज़रूरी अगला कदम सबसे ऊपर रखता है — एक टैप में स्कूल और ज़रूरी फ़ॉर्म खुलता है।"],
+      },
+      {
+        target: "rings",
+        title: ["This term at a glance", "इस सत्र की झलक"],
+        body: [
+          "Three rings fill as the term moves: candidates checked on the spot, struggling schools reached with a practice, and teachers called back on day 14.",
+          "सत्र आगे बढ़ते ही तीन घेरे भरते हैं: मौके पर जाँचे स्कूल, तरीका पहुँचे स्कूल, और 14वें दिन फ़ोन किए गए शिक्षक।",
+        ],
+      },
+      {
+        target: "journey",
+        title: ["Your first 10 minutes", "आपके पहले 10 मिनट"],
+        body: ["Five steps for your role. Each one ticks itself off as you do it — no setup needed.", "आपकी भूमिका के पाँच कदम। करते ही हर कदम अपने-आप पूरा हो जाता है।"],
+      },
+      {
+        target: "nav-loop",
+        title: ["The loop, in order", "चक्र, क्रम से"],
+        body: ["Find & check → Listen → What works → Share → Follow up. Each page is one step; the numbers show what is waiting.", "ढूँढें व जाँचें → सुनें → क्या काम करता है → पहुँचाएँ → फ़ॉलो-अप। हर पेज एक कदम है; अंक बताते हैं क्या बाकी है।"],
+      },
+      {
+        target: "map",
+        title: ["The block tonight", "आज रात ब्लॉक"],
+        body: ["Every house is a school. Brighter windows mean children are doing better than expected; arcs of light show who is learning from whom.", "हर घर एक स्कूल है। खिड़कियाँ जितनी चमकीली, बच्चे उतना बेहतर; रोशनी की रेखाएँ बताती हैं कौन किससे सीख रहा है।"],
+      },
+    ];
+    if (school)
+      steps.push(
+        {
+          route: `/schools/${school}`,
+          target: "school-tracker",
+          title: ["Every school has a tracker", "हर स्कूल का ट्रैकर"],
+          body: ["Like a parcel on its way: where this school is in the loop, what is done, and what comes next.", "जैसे रास्ते में पार्सल: स्कूल चक्र में कहाँ है, क्या हो चुका, आगे क्या है।"],
+        },
+        { target: "school-next", title: ["One clear next step", "एक साफ़ अगला कदम"], body: nextBody },
+      );
+    steps.push(
+      {
+        target: "live",
+        title: ["Live on every screen", "हर स्क्रीन पर लाइव"],
+        body: ["What anyone records — on a phone in the field or here — reaches every screen within seconds, with a notification.", "कोई भी जो दर्ज करे — मैदान में फ़ोन पर या यहाँ — कुछ ही सेकंड में हर स्क्रीन पर सूचना के साथ पहुँचता है।"],
+      },
+      {
+        target: "guide",
+        title: ["Replay any time", "कभी भी दोबारा"],
+        body: ["Open this guide again from here. To watch a whole term in 40 seconds, press “Play the term” on Today.", "यह गाइड यहाँ से फिर खोलें। पूरा सत्र 40 सेकंड में देखने के लिए ‘आज’ पर “सत्र चलाकर देखें” दबाएँ।"],
+      },
+    );
+    return steps;
+  }, [role, state, followUps]);
+}
+
+/** "Live · 2 s": the shared log is being kept up to date. */
+function LiveIndicator() {
+  const t = useT();
+  const { lastSync, syncError, demoEvents } = usePipeline();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => tick((x) => x + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const ago = lastSync ? Math.max(0, Math.round((Date.now() - lastSync) / 1000)) : null;
+  const ok = !syncError && ago !== null && ago < 40;
+  const connecting = lastSync === null && !syncError;
+  const tone = demoEvents.length ? "var(--tone-teal)" : connecting ? "var(--tone-muted)" : ok ? "var(--tone-good)" : "var(--tone-warn)";
+  return (
+    <span
+      className="chip shrink-0 !py-1.5"
+      data-tour="live"
+      title={
+        syncError
+          ? t(`Can't reach the server — retrying (${syncError})`, `सर्वर तक नहीं पहुँच पा रहे — फिर कोशिश (${syncError})`)
+          : t("Changes anyone records appear on every screen within seconds.", "कोई भी जो दर्ज करे, कुछ सेकंड में हर स्क्रीन पर दिखता है।")
+      }
+    >
+      <span className="live-dot" style={{ color: tone }} />
+      <span style={{ color: tone }}>{demoEvents.length ? t("Playback", "प्लेबैक") : connecting ? t("Connecting", "जुड़ रहे") : ok ? t("Live", "लाइव") : t("Offline", "ऑफ़लाइन")}</span>
+      {ok && !demoEvents.length && <span className="hidden tabular-nums text-[var(--color-ink-3)] sm:inline">{ago}s</span>}
+    </span>
+  );
+}
+
+/** Banners for what other people just did (any device), and "what next" after your own action. */
+function LiveToasts() {
+  const t = useT();
+  const toast = useToast();
+  const [role] = useRole();
+  const { incoming, events, state, allActions } = usePipeline();
+  const me = roleName(role, state.block);
+  const status = useMemo(() => schoolStatuses(state), [state]);
+  const school = (id: string) => state.block.schools.find((s) => s.id === id);
+
+  useEffect(() => {
+    if (!incoming.seq) return;
+    for (const e of incoming.events.filter((x) => x.actor !== me).slice(-3)) {
+      const d = describeEvent(e, t, allActions);
+      const s = school(d.schoolId);
+      toast({ meta: t("Live · just now", "लाइव · अभी"), title: s?.name ?? t("Block update", "ब्लॉक अपडेट"), body: d.text, icon: d.icon, tone: d.tone, to: s ? `/schools/${s.id}` : undefined, action: t("Open school", "स्कूल खोलें") });
+    }
+    for (const r of incoming.interviews.slice(-2)) {
+      const s = school(r.school_id);
+      const n = new Set(r.codings.map((x) => x.practice ?? x.new_name)).size;
+      toast({
+        meta: t("Live · interview", "लाइव · बातचीत"),
+        title: t(`${s?.teacher ?? "A teacher"} finished the interview`, `${s?.teacher ?? "एक शिक्षक"} ने बातचीत पूरी की`),
+        body: t(`${n} practice${n === 1 ? "" : "s"} described${s ? ` · ${s.name}` : ""}. Jugnu has added them to “What works”.`, `${n} तरीके बताए${s ? ` · ${s.name}` : ""}। जुगनू ने इन्हें “क्या काम करता है” में जोड़ा।`),
+        icon: Mic,
+        tone: "var(--tone-teal)",
+        to: "/interviews",
+        action: t("Read it", "पढ़ें"),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming.seq]);
+
+  // your own saved actions: say what changed and what comes next
+  const seen = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!seen.current) {
+      seen.current = new Set(events.map((e) => String(e.id)));
+      return;
+    }
+    for (const e of events) {
+      const id = String(e.id);
+      if (seen.current.has(id) || e.pending || e.demo) continue;
+      seen.current.add(id);
+      if (e.actor !== me) continue;
+      const s = school(e.kind === "action" ? e.ref.split("-")[0] : e.ref);
+      if (!s) continue;
+      const st = status.get(s.id);
+      if (e.kind === "spotcheck" && st)
+        toast({
+          icon: Stethoscope,
+          tone: STATUS_INFO[st].color,
+          title: t(`Saved — ${s.name} is now “${STATUS_INFO[st].en}”`, `सहेजा — ${s.name} अब “${STATUS_INFO[st].hi}”`),
+          body: t(`Next: ${STATUS_INFO[st].next[0]}`, `अगला: ${STATUS_INFO[st].next[1]}`),
+        });
+      else if (e.kind === "followup")
+        toast({ icon: LineChart, tone: "var(--tone-good)", title: t("Follow-up saved for everyone", "फ़ॉलो-अप सबके लिए सहेजा"), body: t("Results and the support plan are updated.", "नतीजे और योजना अपडेट हो गए।"), to: "/results", action: t("See results", "नतीजे देखें") });
+      else if (e.kind === "action" && (e.payload as { status?: string }).status === "stuck")
+        toast({ icon: X, tone: "var(--tone-bad)", title: t("Escalated", "ऊपर भेजा"), body: t("The Block Education Officer sees it at the top of Today.", "BEO को यह ‘आज’ में सबसे ऊपर दिखेगा।") });
+      else if (e.kind === "action" && e.ref.endsWith("-visit") && (e.payload as { status?: string }).status === "done")
+        toast({ icon: Handshake, tone: "var(--tone-visit)", title: t("Visit done", "दौरा पूरा"), body: t("Next: Jugnu calls the teacher on day 14 — “Did you try it?”", "अगला: 14वें दिन जुगनू शिक्षक को फ़ोन करेगा — “क्या आज़माया?”") });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events]);
+  return null;
+}
+
+function RoleBadge({ role, onChange }: { role: Role | null; onChange: () => void }) {
   const t = useT();
   const { state } = usePipeline();
+  const name = roleName(role, state.block);
+  const initials = role?.kind === "crp" ? (state.block.schools.find((s) => s.cluster === role.cluster)?.crp ?? "C").split(" ").map((w) => w[0]).slice(0, 2).join("") : role?.kind === "beo" ? "BEO" : "👋";
   return (
-    <button className="card-inset flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--hover)]" onClick={onChange}>
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-amber-200/12 text-amber-200">
-        <UserRound size={17} />
+    <button className="card-inset flex w-full items-center gap-3 px-2.5 py-2 text-left transition hover:bg-[var(--hover)]" onClick={onChange}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[11px] font-bold text-[#0b1308]" style={{ background: "var(--grad-flat)" } as CSSProperties}>
+        {initials}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xs text-[var(--color-ink-3)]">{t("You are using Jugnu as", "आप जुगनू इस रूप में चला रहे हैं")}</span>
-        <span className="block truncate text-sm font-semibold">{roleName(role, state.block) ?? t("Choose your role", "अपनी भूमिका चुनें")}</span>
+        <span className="block text-[11px] text-[var(--color-ink-3)]">{t("Using Jugnu as", "आप इस रूप में")}</span>
+        <span className="block truncate text-[13px] font-semibold">{name ?? t("Choose your role", "अपनी भूमिका चुनें")}</span>
       </span>
-      <span className="text-xs text-amber-200">{t("Change", "बदलें")}</span>
+      <span className="text-xs font-semibold text-[var(--st-bright)]">{t("Switch", "बदलें")}</span>
     </button>
   );
 }
@@ -306,7 +610,7 @@ function PrefsRow() {
       <button
         className={cx("btn !px-3 !py-1.5", lite ? "btn-primary" : "btn-glass")}
         onClick={() => setLite(!lite)}
-        title={lite ? t(`Low-data mode on${liteReason ? ` — ${liteReason}` : ""}`, "कम-डेटा मोड चालू") : t("Low-data mode: no video, no 3D", "कम-डेटा मोड: न वीडियो, न 3D")}
+        title={lite ? t(`Low-data mode on${liteReason ? ` — ${liteReason}` : ""}`, "कम-डेटा मोड चालू") : t("Low-data mode: no video, no 3D, no blur", "कम-डेटा मोड: न वीडियो, न 3D")}
         aria-pressed={lite}
         aria-label={t("Low-data mode", "कम-डेटा मोड")}
       >
@@ -328,14 +632,22 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
     if (k.length < 2) return [];
     return state.block.schools.filter((s) => `${s.name} ${s.village} ${s.teacher} ${s.clusterName}`.toLowerCase().includes(k)).slice(0, 8);
   }, [q, state.block]);
+  const status = useMemo(() => schoolStatuses(state), [state]);
   useEffect(() => {
     const off = (e: MouseEvent) => box.current && !box.current.contains(e.target as Node) && setOpen(false);
+    const key = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        box.current?.querySelector("input")?.focus();
+      }
+    };
     window.addEventListener("mousedown", off);
-    return () => window.removeEventListener("mousedown", off);
+    window.addEventListener("keydown", key);
+    return () => (window.removeEventListener("mousedown", off), window.removeEventListener("keydown", key));
   }, []);
   return (
-    <div ref={box} className="relative ml-auto w-full max-w-md">
-      <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-3)]" />
+    <div ref={box} className="relative min-w-0 flex-1 md:max-w-md">
+      <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-ink-3)]" />
       <input
         value={q}
         onChange={(e) => (setQ(e.target.value), setOpen(true))}
@@ -344,96 +656,46 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
           if (e.key === "Enter" && hits[0]) (onPick(hits[0].id), setQ(""), setOpen(false));
           if (e.key === "Escape") setOpen(false);
         }}
-        placeholder={t("Find a school, village or teacher…", "स्कूल, गाँव या शिक्षक खोजें…")}
-        className="w-full rounded-full border border-[var(--chip-line)] bg-[var(--inset-bg)] py-2 pl-9 pr-8 text-sm outline-none focus:border-amber-200/60"
+        placeholder={t("Search school, village, teacher", "स्कूल, गाँव, शिक्षक खोजें")}
+        className="w-full rounded-full border border-transparent bg-[var(--inset-bg)] py-2 pl-10 pr-12 text-sm outline-none transition focus:border-[color-mix(in_srgb,var(--st-bright)_60%,transparent)]"
         aria-label={t("Search schools", "स्कूल खोजें")}
       />
-      {q && (
-        <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-ink-3)]" onClick={() => setQ("")} aria-label={t("Clear", "साफ़ करें")}>
+      {q ? (
+        <button className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-3)]" onClick={() => setQ("")} aria-label={t("Clear", "साफ़ करें")}>
           <X size={15} />
         </button>
+      ) : (
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-[var(--chip-line)] px-1.5 text-[10px] text-[var(--color-ink-3)] md:block">Ctrl K</kbd>
       )}
-      {open && hits.length > 0 && (
-        <ul className="card absolute inset-x-0 top-11 z-50 max-h-80 overflow-y-auto p-1.5">
-          {hits.map((s) => (
-            <li key={s.id}>
-              <button className="w-full rounded-lg px-3 py-2 text-left hover:bg-[var(--hover)]" onClick={() => (onPick(s.id), setQ(""), setOpen(false))}>
-                <div className="text-sm font-semibold">{s.name}</div>
-                <div className="text-xs text-[var(--color-ink-3)]">
-                  {s.teacher} · {s.clusterName} {t("cluster", "क्लस्टर")}
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function RoleChooser({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (r: Role) => void }) {
-  const t = useT();
-  const { state } = usePipeline();
-  const [role] = useRole();
-  const clusters = useMemo(() => {
-    const m = new Map<number, { name: string; crp: string; n: number }>();
-    for (const s of state.block.schools) m.set(s.cluster, { name: s.clusterName, crp: s.crp, n: (m.get(s.cluster)?.n ?? 0) + 1 });
-    return [...m.entries()].sort((a, b) => a[0] - b[0]);
-  }, [state.block]);
-  const [cluster, setCluster] = useState(role?.kind === "crp" ? role.cluster : (clusters[0]?.[0] ?? 0));
-  if (!open) return null;
-  const option = "card card-hover w-full p-4 text-left";
-  return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[#020617]/70 p-4 backdrop-blur-sm">
-      <div className="card max-h-[94dvh] w-full max-w-lg overflow-y-auto">
-        <div className="on-dark relative h-36 overflow-hidden">
-          <video className="welcome-video" src="/media/jugnu-welcome.mp4" poster="/media/jugnu-welcome.jpg" autoPlay muted loop playsInline />
-          <div className="welcome-shade" />
-          <div className="absolute bottom-3 left-4">
-            <Wordmark size={40} />
-          </div>
-        </div>
-        <div className="space-y-3 p-5">
-          <div>
-            <h2 className="text-xl font-bold">{t("Who is using Jugnu?", "जुगनू कौन चला रहा है?")}</h2>
-            <p className="text-sm text-[var(--color-ink-2)]">{t("Jugnu shows you the tasks that are yours. You can switch any time.", "जुगनू आपको आपके काम दिखाएगा। आप कभी भी बदल सकते हैं।")}</p>
-          </div>
-          <button className={option} onClick={() => onPick({ kind: "beo" })}>
-            <div className="font-semibold">{t("Block Education Officer", "ब्लॉक शिक्षा अधिकारी (BEO)")}</div>
-            <div className="text-sm text-[var(--color-ink-2)]">{t("The whole block: where to act, what is stuck, did it work.", "पूरा ब्लॉक: कहाँ काम करना है, क्या अटका है, क्या असर हुआ।")}</div>
-          </button>
-          <div className={cx(option, "space-y-2")}>
-            <div className="font-semibold">{t("Cluster resource person (CRP)", "क्लस्टर संसाधन व्यक्ति (CRP)")}</div>
-            <div className="text-sm text-[var(--color-ink-2)]">{t("Your cluster: spot checks, interviews, peer visits, follow-ups.", "आपका क्लस्टर: मौके की जाँच, बातचीत, साथी-दौरे, फ़ॉलो-अप।")}</div>
-            <div className="flex gap-2">
-              <select
-                className="min-w-0 flex-1 rounded-xl border border-[var(--chip-line)] bg-[var(--inset-bg)] px-3 py-2 text-sm"
-                value={cluster}
-                onChange={(e) => setCluster(Number(e.target.value))}
-                aria-label={t("Your cluster", "आपका क्लस्टर")}
-              >
-                {clusters.map(([i, c]) => (
-                  <option key={i} value={i}>
-                    {c.name} — {c.crp} ({c.n} {t("schools", "स्कूल")})
-                  </option>
-                ))}
-              </select>
-              <button className="btn btn-primary" onClick={() => onPick({ kind: "crp", cluster })}>
-                {t("Continue", "आगे")}
-              </button>
-            </div>
-          </div>
-          <button className={option} onClick={() => onPick({ kind: "guest" })}>
-            <div className="font-semibold">{t("Just looking (judge or visitor)", "सिर्फ़ देख रहा/रही हूँ (जज या मेहमान)")}</div>
-            <div className="text-sm text-[var(--color-ink-2)]">{t("See everything in the demo block, as the Block Education Officer would.", "डेमो ब्लॉक का सब कुछ देखें, जैसे ब्लॉक शिक्षा अधिकारी देखते हैं।")}</div>
-          </button>
-          {role && (
-            <button className="w-full text-center text-sm text-[var(--color-ink-3)] underline" onClick={onClose}>
-              {t("Cancel", "रद्द करें")}
-            </button>
-          )}
-        </div>
-      </div>
+      <AnimatePresence>
+        {open && hits.length > 0 && (
+          <motion.ul
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={SPRING}
+            className="sheet absolute inset-x-0 top-12 z-50 max-h-80 overflow-y-auto rounded-[1.4rem] p-1.5"
+          >
+            {hits.map((s) => {
+              const st = status.get(s.id)!;
+              return (
+                <li key={s.id}>
+                  <button className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left hover:bg-[var(--hover)]" onClick={() => (onPick(s.id), setQ(""), setOpen(false))}>
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: STATUS_INFO[st].color }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{s.name}</span>
+                      <span className="block truncate text-xs text-[var(--color-ink-3)]">
+                        {s.teacher} · {s.clusterName} {t("cluster", "क्लस्टर")}
+                      </span>
+                    </span>
+                    <ChevronRight size={15} className="text-[var(--color-ink-3)]" />
+                  </button>
+                </li>
+              );
+            })}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

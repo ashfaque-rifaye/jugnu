@@ -7,6 +7,7 @@ import { PRACTICES, type PracticeId } from "../engine/practices";
 import { postJSON, usePoll } from "../lib/api";
 import { useT } from "../lib/prefs";
 import { speak } from "../lib/speech";
+import { markJourney } from "../lib/journey";
 
 interface CheckRow {
   name: string;
@@ -110,6 +111,7 @@ function ReviewCard({ item, reviewer, onDone }: { item: Item; reviewer: string; 
     setBusy(true);
     await postJSON(`/api/reviews/${item.id}/decide`, { decision, reviewer, note: note || undefined, payload: editing && item.kind === "voice_note" ? { voice_hi: text } : undefined });
     setBusy(false);
+    markJourney("review");
     onDone();
   };
   const card = item.payload.card;

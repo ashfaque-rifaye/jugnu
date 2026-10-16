@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Mic, Search, Send, ShieldAlert, ShieldCheck, Sparkles, Volume2, X } from "lucide-react";
 import { useState } from "react";
 import { postJSON } from "../lib/api";
+import { markJourney } from "../lib/journey";
 import { usePrefs, useT } from "../lib/prefs";
 import { canListen, listen, speak } from "../lib/speech";
 import { usePipeline } from "../lib/store";
@@ -44,6 +45,7 @@ export function AskJugnu({ open, onClose, onSchool }: { open: boolean; onClose: 
     setHistory((h) => [{ q: question, a: null }, ...h]);
     try {
       const body = state.block.source === "imported" ? { question, block: state.block } : { question, seed, track: !!state.track };
+      markJourney("ask");
       const a = await postJSON<Answer>("/api/ask", body);
       setHistory((h) => [{ q: question, a }, ...h.slice(1)]);
     } catch (e) {
