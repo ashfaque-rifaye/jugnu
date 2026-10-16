@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Check, ChevronDown, ChevronUp, Pause, Play, RotateCcw, SkipForward, X } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getPasscode, useStatus } from "../lib/api";
 import { buildTerm, type DemoBeat } from "../lib/demo";
 import { markJourney } from "../lib/journey";
 import { usePrefs, useT } from "../lib/prefs";
@@ -30,6 +31,7 @@ interface DemoCtx {
 const Ctx = createContext<DemoCtx>({ start: () => {}, stop: () => {}, active: false, available: false });
 export const useDemo = () => useContext(Ctx);
 
+const PLAY_AFTER_PASSCODE = "jugnu-play-after-passcode";
 const INTRO_MS = 2200;
 const TICK_MS = 340;
 const OUTRO_MS = 1500;
@@ -41,12 +43,32 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [want, setWant] = useState(false);
   const available = !!state.block.truth && state.recs.length > 0;
 
+  const status = useStatus();
   const start = useCallback(() => {
     clearDemo();
     setRun(null);
-    setWant(true);
     nav("/today");
-  }, [clearDemo, nav]);
+    // The passcode prompt reloads the page once it is accepted: remember to play after that.
+    if (status.passcode && !getPasscode()) {
+      try {
+        sessionStorage.setItem(PLAY_AFTER_PASSCODE, "1");
+      } catch {
+        /* private mode */
+      }
+      return;
+    }
+    setWant(true);
+  }, [clearDemo, nav, status.passcode]);
+  useEffect(() => {
+    if (!status.checked || (status.passcode && !getPasscode())) return;
+    try {
+      if (sessionStorage.getItem(PLAY_AFTER_PASSCODE) !== "1") return;
+      sessionStorage.removeItem(PLAY_AFTER_PASSCODE);
+    } catch {
+      return;
+    }
+    setWant(true);
+  }, [status.checked, status.passcode]);
   const stop = useCallback(() => {
     clearDemo();
     setRun(null);
