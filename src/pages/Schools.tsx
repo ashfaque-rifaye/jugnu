@@ -100,12 +100,12 @@ export default function SchoolsPage() {
       />
 
       <Card className="mb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[220px] flex-1">
+        <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+          <div className="relative col-span-2 min-w-[220px] flex-1">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-3)]" />
             <input className={cx(fieldClass, "pl-9")} value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Search by school, village or teacher", "स्कूल, गाँव या शिक्षक से खोजें")} />
           </div>
-          <select className={fieldBase} value={cluster} onChange={(e) => setCluster(e.target.value === "all" ? "all" : Number(e.target.value))} aria-label={t("Cluster", "क्लस्टर")}>
+          <select className={cx(fieldBase, "min-w-0")} value={cluster} onChange={(e) => setCluster(e.target.value === "all" ? "all" : Number(e.target.value))} aria-label={t("Cluster", "क्लस्टर")}>
             <option value="all">{t("All clusters", "सभी क्लस्टर")}</option>
             {clusters.map(([i, n]) => (
               <option key={i} value={i}>
@@ -114,7 +114,7 @@ export default function SchoolsPage() {
             ))}
           </select>
           {view === "list" && (
-            <select className={fieldBase} value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} aria-label={t("Sort", "क्रम")}>
+            <select className={cx(fieldBase, "min-w-0")} value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} aria-label={t("Sort", "क्रम")}>
               <option value="status">{t("Sort: what needs action", "क्रम: किस पर काम करना है")}</option>
               <option value="reading">{t("Sort: reading vs expected", "क्रम: पढ़ना, अपेक्षा से")}</option>
               <option value="maths">{t("Sort: maths vs expected", "क्रम: गणित, अपेक्षा से")}</option>

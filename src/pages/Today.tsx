@@ -9,6 +9,7 @@ import { AIVideoLabel, Card, Empty, Rings, SPRING } from "../components/kit";
 import { LoopFlow } from "../components/LoopFlow";
 import { LivingMap, MapLegend } from "../components/maps";
 import { cx } from "../components/ui";
+import { CountUp, EASE, Tilt, WordReveal } from "../lib/motion";
 import { usePoll } from "../lib/api";
 import { MEDIA } from "../lib/clips";
 import { usePrefs, useT } from "../lib/prefs";
@@ -100,9 +101,13 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
         <div className="relative grid gap-5 p-5 md:p-8 lg:grid-cols-[1fr_380px] lg:items-end">
           <div className="min-w-0 pb-4">
             <div className="label mb-3 !text-white/60">{new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { weekday: "long", day: "numeric", month: "long" })}</div>
-            <h1 className={cx("display-xl text-[2.6rem] text-white md:text-[3.6rem]", hi)}>{greeting}</h1>
-            <p className={cx("mt-3 max-w-xl text-[15px] leading-relaxed text-white/75", hi)}>{summary}</p>
-            <div className="mt-5 flex flex-wrap gap-2">
+            <h1 className={cx("display-xl text-[2.6rem] text-white md:text-[3.6rem]", hi)}>
+              <WordReveal key={greeting} text={greeting} stagger={0.08} />
+            </h1>
+            <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.3, ease: EASE }} className={cx("mt-3 max-w-xl text-[15px] leading-relaxed text-white/75", hi)}>
+              {summary}
+            </motion.p>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.42, ease: EASE }} className="mt-5 flex flex-wrap gap-2">
               {demo.available && (
                 <button className="btn btn-primary" onClick={demo.start} data-tour="play">
                   <Play size={16} /> {t("Play the term", "सत्र चलाकर देखें")}
@@ -114,10 +119,11 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               <button className="btn btn-glass" onClick={onRole}>
                 <UserRound size={16} /> {guest ? t("Choose my role", "मेरी भूमिका चुनें") : t("Switch role", "भूमिका बदलें")}
               </button>
-            </div>
+            </motion.div>
           </div>
           {/* the frosted "start here" card */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING, delay: 0.15 }} className="rounded-[1.6rem] border border-white/15 bg-white/[0.09] p-4 shadow-2xl backdrop-blur-2xl" data-tour="hero-next">
+          <Tilt className="[transform-style:preserve-3d]">
+          <motion.div initial={{ opacity: 0, y: 28, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 1, delay: 0.35, ease: EASE }} className="rounded-[1.6rem] border border-white/15 bg-white/[0.09] p-4 shadow-2xl backdrop-blur-2xl" data-tour="hero-next">
             {first ? (
               <StartHere task={first} school={first.schoolId ? state.block.schools.find((s) => s.id === first.schoolId) : undefined} onOpen={() => first.schoolId && select(first.schoolId)} more={tasks.length - 1} />
             ) : (
@@ -128,6 +134,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               </div>
             )}
           </motion.div>
+          </Tilt>
         </div>
       </section>
 
@@ -145,7 +152,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
             </span>
           }
         >
-          <div className="max-h-[330px] overflow-y-auto pr-1 scroll-thin">
+          <div className="scroll-thin lg:max-h-[330px] lg:overflow-y-auto lg:pr-1">
             <ActivityFeed events={events} limit={10} />
           </div>
         </Card>
@@ -285,7 +292,9 @@ function TermRings({ onPlay }: { onPlay?: () => void }) {
     <Card title={t("This term", "इस सत्र")} icon={Target} tone="var(--ring-1)" tour="rings" accent>
       <div className="flex flex-wrap items-center gap-5">
         <Rings rings={rows.map((r) => ({ value: r.n ? r.k / r.n : 0, color: r.color }))} size={172} stroke={14} gap={3}>
-          <div className="font-display text-[1.45rem] font-bold leading-none tabular-nums">{pct}%</div>
+          <div className="font-display text-[1.45rem] font-bold leading-none tabular-nums">
+            <CountUp value={pct} />%
+          </div>
         </Rings>
         <ul className="min-w-[180px] flex-1 space-y-2.5">
           <li className={cx("text-xs text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{t(`${pct}% of the term's work is done`, `सत्र का ${pct}% काम पूरा`)}</li>
@@ -295,7 +304,7 @@ function TermRings({ onPlay }: { onPlay?: () => void }) {
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: r.color, boxShadow: `0 0 10px ${tint(r.color, 60)}` }} />
                 <span className={cx("flex-1 text-[13.5px] text-[var(--color-ink-2)] group-hover:text-[var(--color-ink)]", lang === "hi" && "font-deva")}>{r.label}</span>
                 <span className="font-display text-[15px] font-bold tabular-nums">
-                  {r.k}
+                  <CountUp value={r.k} />
                   <span className="text-[var(--color-ink-3)]">/{r.n}</span>
                 </span>
               </Link>

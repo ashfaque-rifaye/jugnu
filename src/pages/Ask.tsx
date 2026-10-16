@@ -99,7 +99,7 @@ function PilotPanel() {
           />
           {err && <p className="text-sm text-red-300">{err}</p>}
           {rows && rows.length === 0 && <p className="glass-inset p-4 text-sm text-[var(--color-ink-3)]">{t("No interviews yet. Invite a teacher on the left, or open the teacher side yourself.", "अभी कोई बातचीत नहीं। बाईं ओर किसी शिक्षक को आमंत्रित करें, या खुद शिक्षक की तरफ़ से आज़माएँ।")}</p>}
-          <ul className="scroll-thin max-h-[380px] space-y-2 overflow-y-auto pr-1">
+          <ul className="scroll-thin space-y-2 lg:max-h-[380px] lg:overflow-y-auto lg:pr-1">
             {rows?.map((r) => (
               <li key={r.id}>
                 <button className={cx("glass-inset w-full p-3 text-left transition hover:bg-white/8", open === r.id && "ring-1 ring-amber-200/60")} onClick={() => setOpen(r.id)}>
@@ -438,7 +438,7 @@ function SimulatedInterviews() {
             </button>
           ))}
         </div>
-        <ul className="scroll-thin max-h-[560px] space-y-2 overflow-y-auto pr-1">
+        <ul className="scroll-thin space-y-2 lg:max-h-[560px] lg:overflow-y-auto lg:pr-1">
           {list.map((i) => {
             const s = nameOf(i.schoolId)!;
             return (
@@ -485,7 +485,7 @@ function Transcript({ interview }: { interview: Interview }) {
           </button>
         }
       />
-      <div className="scroll-thin max-h-[520px] space-y-2 overflow-y-auto pr-1">
+      <div className="scroll-thin space-y-2 lg:max-h-[520px] lg:overflow-y-auto lg:pr-1">
         {interview.turns.map((t, i) => (
           <div key={i} className={cx("flex", t.speaker === "teacher" ? "justify-end" : "justify-start")}>
             <div className={cx("max-w-[80%] rounded-2xl px-4 py-2 text-sm", t.speaker === "teacher" ? "rounded-br-sm bg-amber-200/12" : "rounded-bl-sm bg-white/8")}>

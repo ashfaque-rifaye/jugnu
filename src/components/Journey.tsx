@@ -11,6 +11,7 @@ import { schoolStatuses } from "../lib/status";
 import { usePipeline } from "../lib/store";
 import { pickStory } from "../lib/story";
 import { Card, Rings, SPRING } from "./kit";
+import { CountUp } from "../lib/motion";
 import { cx } from "./ui";
 
 interface Step {
@@ -78,7 +79,7 @@ export function JourneyCard({ onTour, onDemo }: { onTour: () => void; onDemo: ()
       <div className="flex items-center gap-4">
         <Rings rings={[{ value: n / steps.length, color: "var(--ring-1)" }]} size={64} stroke={8}>
           <span className="font-display text-[15px] font-bold tabular-nums">
-            {n}/{steps.length}
+            <CountUp value={n} />/{steps.length}
           </span>
         </Rings>
         <div className="min-w-0">

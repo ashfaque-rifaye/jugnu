@@ -1,10 +1,12 @@
 // The block as one flow from data to action — schools → beat expectations → verified → heard →
 // practices → schools learning one. Each step opens the page where that work happens.
 import { ChevronRight } from "lucide-react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 import { loopCounts } from "../lib/story";
+import { CountUp } from "../lib/motion";
 import { cx } from "./ui";
 
 export function LoopFlow({ compact = false, onEnter }: { compact?: boolean; onEnter?: () => void }) {
@@ -42,13 +44,15 @@ export function LoopFlow({ compact = false, onEnter }: { compact?: boolean; onEn
             className={cx("card-inset card-hover group block h-full", compact ? "px-3 py-2.5" : "px-4 py-4")}
           >
             <div className={cx("font-display font-bold tabular-nums leading-none", compact ? "text-2xl" : "text-3xl md:text-4xl")} style={{ color: s.tone }}>
-              {s.n}
+              <CountUp value={s.n} />
             </div>
             <div className={cx("mt-1.5 text-[13px] leading-snug text-[var(--color-ink-2)]", lang === "hi" && "font-deva")}>{s.label}</div>
             {s.sub && <div className={cx("mt-1 text-xs text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{s.sub}</div>}
           </Link>
           {i < steps.length - 1 && (
-            <ChevronRight size={16} className={cx("pointer-events-none absolute -right-[13px] top-1/2 z-10 hidden -translate-y-1/2 text-[var(--color-ink-3)]", compact ? "xl:block" : "lg:block")} aria-hidden />
+            <span className={cx("pointer-events-none absolute -right-[13px] top-1/2 z-10 hidden -translate-y-1/2", compact ? "xl:block" : "lg:block")} aria-hidden>
+              <ChevronRight size={16} className="flow-chev text-[var(--color-ink-3)]" style={{ "--i": i } as CSSProperties} />
+            </span>
           )}
         </li>
       ))}

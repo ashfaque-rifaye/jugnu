@@ -13,11 +13,11 @@ import { inMyPatch, useRole } from "../lib/role";
 import { usePipeline } from "../lib/store";
 import { meanZ, schoolStatuses } from "../lib/status";
 
-const COLUMNS: { key: Action["status"]; en: string; hi: string }[] = [
-  { key: "todo", en: "To do", hi: "करना है" },
-  { key: "scheduled", en: "Scheduled", hi: "तय है" },
-  { key: "stuck", en: "Stuck — needs the BEO", hi: "अटका — BEO की ज़रूरत" },
-  { key: "done", en: "Done", hi: "पूरा" },
+const COLUMNS: { key: Action["status"]; en: string; hi: string; short: [string, string] }[] = [
+  { key: "todo", en: "To do", hi: "करना है", short: ["To do", "करना है"] },
+  { key: "scheduled", en: "Scheduled", hi: "तय है", short: ["Scheduled", "तय"] },
+  { key: "stuck", en: "Stuck — needs the BEO", hi: "अटका — BEO की ज़रूरत", short: ["Stuck", "अटके"] },
+  { key: "done", en: "Done", hi: "पूरा", short: ["Done", "पूरे"] },
 ];
 
 export default function PlanPage() {
@@ -31,6 +31,9 @@ export default function PlanPage() {
   const [view, setView] = useState<"board" | "schools" | "map">("board");
   const [owner, setOwner] = useState<"all" | "CRP" | "BEO" | "Jugnu AI">("all");
   const [onlyStuck, setOnlyStuck] = useState(params.get("status") === "stuck");
+  // phones show one column of the board at a time
+  const [col, setCol] = useState<Action["status"]>(params.get("status") === "stuck" ? "stuck" : "todo");
+  const [more, setMore] = useState(false);
   const status = useMemo(() => schoolStatuses(state), [state]);
   const z = useMemo(() => meanZ(state), [state]);
   const byId = useMemo(() => new Map(state.block.schools.map((s) => [s.id, s])), [state.block]);
@@ -151,24 +154,41 @@ export default function PlanPage() {
       </Card>
 
       {view === "board" && (
-        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
-          {COLUMNS.map((col) => {
-            const items = actions.filter((a) => a.status === col.key);
-            return (
-              <div key={col.key} className="card p-3">
-                <div className={cx("mb-2 flex items-center justify-between px-1 text-sm font-semibold", hi)}>
-                  {t(col.en, col.hi)} <span className="chip">{items.length}</span>
+        <>
+          <div className="mb-3 lg:hidden">
+            <Segmented
+              size="sm"
+              value={col}
+              onChange={(v) => (setCol(v), setMore(false))}
+              options={COLUMNS.map((c) => ({ value: c.key, label: t(...c.short), count: actions.filter((a) => a.status === c.key).length }))}
+            />
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+            {COLUMNS.map((c) => {
+              const items = actions.filter((a) => a.status === c.key);
+              return (
+                <div key={c.key} className={cx("card p-3", c.key !== col && "max-lg:hidden")}>
+                  <div className={cx("mb-2 flex items-center justify-between px-1 text-sm font-semibold", hi)}>
+                    {t(c.en, c.hi)} <span className="chip">{items.length}</span>
+                  </div>
+                  <div className="scroll-thin space-y-2 lg:max-h-[560px] lg:overflow-y-auto lg:pr-1">
+                    {items.length === 0 && <p className="px-1 text-xs text-[var(--color-ink-3)]">{t("Nothing here.", "यहाँ कुछ नहीं।")}</p>}
+                    {items.slice(0, 60).map((a, i) => (
+                      <div key={a.id} className={cx(i >= 12 && !more && "max-lg:hidden")}>
+                        <ActionRow action={a} school={byId.get(a.schoolId)} />
+                      </div>
+                    ))}
+                    {items.length > 12 && !more && (
+                      <button className="btn btn-glass w-full justify-center lg:hidden" onClick={() => setMore(true)}>
+                        {t(`Show ${Math.min(60, items.length) - 12} more`, `${Math.min(60, items.length) - 12} और दिखाएँ`)}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="scroll-thin max-h-[560px] space-y-2 overflow-y-auto pr-1">
-                  {items.length === 0 && <p className="px-1 text-xs text-[var(--color-ink-3)]">{t("Nothing here.", "यहाँ कुछ नहीं।")}</p>}
-                  {items.slice(0, 60).map((a) => (
-                    <ActionRow key={a.id} action={a} school={byId.get(a.schoolId)} />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {view === "schools" && (

@@ -335,7 +335,7 @@ function Results() {
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             <div>
               <div className="label mb-2">{t("Latest comments", "ताज़ा राय")}</div>
-              <ul className="scroll-thin max-h-72 space-y-2 overflow-y-auto pr-1">
+              <ul className="scroll-thin space-y-2 lg:max-h-72 lg:overflow-y-auto lg:pr-1">
                 {s.comments.slice(0, 40).map((c, i) => (
                   <li key={i} className="glass-inset p-3 text-sm">
                     <div className="font-deva">{c.text}</div>
@@ -351,7 +351,7 @@ function Results() {
               <div className="label mb-2 flex items-center gap-1">
                 <Users size={13} /> {t("You said → we changed", "आपने कहा → हमने बदला")}
               </div>
-              <ul className="scroll-thin max-h-72 space-y-2 overflow-y-auto pr-1">
+              <ul className="scroll-thin space-y-2 lg:max-h-72 lg:overflow-y-auto lg:pr-1">
                 {(changes ?? []).map((c, i) => (
                   <li key={i} className="glass-inset p-3 text-sm">
                     <div className="text-[var(--color-ink-2)]">“{c.heard}” <span className="text-[11px] text-[var(--color-ink-3)]">— {c.from}</span></div>

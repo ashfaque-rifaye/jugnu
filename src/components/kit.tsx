@@ -5,6 +5,7 @@ import { Check, CircleHelp, X, type LucideIcon } from "lucide-react";
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
 import { usePrefs, useT } from "../lib/prefs";
+import { CountText, EASE, WordReveal } from "../lib/motion";
 import { cx } from "./ui";
 
 export const SPRING = { type: "spring", stiffness: 420, damping: 34, mass: 0.8 } as const;
@@ -15,14 +16,31 @@ export function PageHeader({ title, sub, actions, eyebrow, hint }: { title: Reac
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        {eyebrow && <div className="label mb-2">{eyebrow}</div>}
-        <h1 className={cx("flex items-center gap-2 text-[1.9rem] font-semibold leading-tight tracking-[-0.035em] md:text-[2.35rem]", lang === "hi" && "font-deva")}>
-          {title}
+        {eyebrow && (
+          <motion.div className="label mb-2" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
+            {eyebrow}
+          </motion.div>
+        )}
+        <h1 className={cx("flex flex-wrap items-center gap-x-2 text-[1.9rem] font-semibold leading-tight tracking-[-0.035em] md:text-[2.35rem]", lang === "hi" && "font-deva")}>
+          {typeof title === "string" ? <WordReveal text={title} stagger={0.05} /> : title}
           {hint && <Hint>{hint}</Hint>}
         </h1>
-        {sub && <p className={cx("mt-1.5 max-w-3xl text-[15px] leading-relaxed text-[var(--color-ink-2)]", lang === "hi" && "font-deva")}>{sub}</p>}
+        {sub && (
+          <motion.p
+            className={cx("mt-1.5 max-w-3xl text-[15px] leading-relaxed text-[var(--color-ink-2)]", lang === "hi" && "font-deva")}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.15, ease: EASE }}
+          >
+            {sub}
+          </motion.p>
+        )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <motion.div className="flex flex-wrap items-center gap-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.25, ease: EASE }}>
+          {actions}
+        </motion.div>
+      )}
     </header>
   );
 }
@@ -82,9 +100,9 @@ export function Card({
   return (
     <section className={cx("card", accent && "edge-top", pad && "p-4 md:p-5", className)} data-tour={tour} style={style}>
       {(title || right) && (
-        <div className={cx("mb-4 flex items-center justify-between gap-2", !pad && "px-4 pt-4 md:px-5")}>
+        <div className={cx("mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-2.5", !pad && "px-4 pt-4 md:px-5")}>
           {title && (
-            <h2 className="flex min-w-0 items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]">
+            <h2 className="flex min-w-0 flex-[1_1_12rem] items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]">
               {Icon && (
                 <span className="icon-tile h-8 w-8" style={{ "--tile": tone ?? "var(--st-bright)" } as CSSProperties}>
                   <Icon size={16} aria-hidden />
@@ -170,7 +188,7 @@ export function Stat({ label, value, hint, tone }: { label: ReactNode; value: Re
     <div className="card-inset px-4 py-3.5">
       <div className="text-[13px] text-[var(--color-ink-2)]">{label}</div>
       <div className="mt-1 font-display text-[1.7rem] font-bold leading-none tabular-nums" style={tone ? { color: tone } : undefined}>
-        {value}
+        <CountText>{value}</CountText>
       </div>
       {hint && <div className="mt-1 text-xs text-[var(--color-ink-3)]">{hint}</div>}
     </div>
@@ -317,19 +335,22 @@ export function Tracker({ steps, className }: { steps: TrackStep[]; className?: 
     <div className={cx("relative", className)} style={n}>
       {/* the rail: vertical on phones, horizontal from md */}
       <div className="absolute bottom-[18px] left-[17px] top-[18px] w-[3px] rounded-full bg-[var(--ring-track)] md:hidden">
-        <motion.div className="w-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ height: 0 }} animate={{ height: fill }} transition={SOFT} />
+        <motion.div className="w-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ height: 0 }} animate={{ height: fill }} transition={{ ...SOFT, delay: 0.35 }} />
       </div>
       <div className="absolute left-[calc(100%/var(--n)/2)] right-[calc(100%/var(--n)/2)] top-[17px] hidden h-[3px] rounded-full bg-[var(--ring-track)] md:block">
-        <motion.div className="h-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ width: 0 }} animate={{ width: fill }} transition={SOFT} />
+        <motion.div className="h-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ width: 0 }} animate={{ width: fill }} transition={{ ...SOFT, delay: 0.35 }} />
       </div>
       <ol className="relative grid gap-4 md:gap-2 md:[grid-template-columns:repeat(var(--n),minmax(0,1fr))]">
-        {steps.map((s) => {
+        {steps.map((s, i) => {
           const tone = STEP_TONE[s.state];
           const Icon = s.state === "done" ? Check : s.state === "bad" ? X : s.icon;
           const quiet = s.state === "todo" || s.state === "skip";
           return (
             <li key={s.key} className="flex items-start gap-3 md:flex-col md:items-center md:text-center">
-              <span
+              <motion.span
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.1 + i * 0.09 }}
                 className="relative grid h-[37px] w-[37px] shrink-0 place-items-center rounded-full border"
                 style={
                   s.state === "done"
@@ -341,7 +362,7 @@ export function Tracker({ steps, className }: { steps: TrackStep[]; className?: 
               >
                 {s.state === "current" && <span className="absolute inset-0 rounded-full" style={{ color: tone, animation: "pulse-dot 2s infinite" }} aria-hidden />}
                 {Icon ? <Icon size={16} strokeWidth={2.4} /> : <span className="h-2 w-2 rounded-full bg-current" />}
-              </span>
+              </motion.span>
               <span className="min-w-0 pt-1 md:pt-0">
                 <span className={cx("block text-[13.5px] font-semibold leading-snug", quiet && "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{s.label}</span>
                 {s.sub && <span className={cx("mt-0.5 block text-xs leading-snug text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{s.sub}</span>}

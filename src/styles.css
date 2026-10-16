@@ -92,6 +92,7 @@
   --lite-glass: rgba(18, 20, 26, 0.94);
   --grid-line: rgb(255 255 255 / 0.05);
   --ring-track: rgb(255 255 255 / 0.08);
+  --sheen: rgb(255 255 255 / 0.075);
 
   /* school status colours (dots, chips, borders) */
   --st-bright: #facc15;
@@ -192,6 +193,7 @@
   --lite-glass: #ffffff;
   --grid-line: rgb(15 23 42 / 0.06);
   --ring-track: rgb(15 23 42 / 0.08);
+  --sheen: rgb(250 204 21 / 0.16);
 
   --st-bright: #a16207;
   --st-check-due: #0369a1;
@@ -683,6 +685,72 @@ html[data-lite="1"] .firefly { display: none; }
 .trail-line { stroke-dasharray: 2 7; animation: trail 1.6s linear infinite; }
 @keyframes trail { to { stroke-dashoffset: -18; } }
 @media (prefers-reduced-motion: reduce) { .trail-line { animation: none; } }
+
+/* ------------------------------------------------------------------ motion (src/lib/motion.tsx) */
+/* content rises into place as it first scrolls into view, in a cascade */
+[data-rv="wait"] { opacity: 0; translate: 0 26px; scale: 0.97; }
+[data-rv="in"] {
+  opacity: 1;
+  translate: none;
+  scale: none;
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--rv-delay, 0ms),
+    translate 1s cubic-bezier(0.16, 1, 0.3, 1) var(--rv-delay, 0ms),
+    scale 1s cubic-bezier(0.16, 1, 0.3, 1) var(--rv-delay, 0ms);
+}
+@media print { [data-rv] { opacity: 1 !important; translate: none !important; scale: none !important; } }
+
+/* glass catches the light under the pointer */
+@media (hover: hover) and (pointer: fine) {
+  .card::before,
+  .sheen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
+    background: radial-gradient(560px circle at var(--mx, 50%) var(--my, -30%), var(--sheen), transparent 42%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .card:hover::before,
+  .sheen:hover::before { opacity: 1; }
+}
+
+/* loading placeholders that shimmer like glass */
+.skeleton { position: relative; overflow: hidden; background: var(--inset-bg); border: 1px solid var(--inset-line); }
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(var(--fg) / 0.07), transparent);
+  animation: sweep 1.4s ease-in-out infinite;
+}
+@keyframes sweep { to { transform: translateX(100%); } }
+
+/* the loop's arrows pulse in sequence, like light travelling along it */
+.flow-chev { animation: flow 2.8s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 0.24s); }
+@keyframes flow {
+  0%, 100% { opacity: 0.3; transform: translateX(0); }
+  35% { opacity: 1; transform: translateX(3px); color: var(--st-bright); }
+}
+
+/* dark ⇄ light: the new mode spreads from the switch (View Transitions) */
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-rv] { opacity: 1 !important; translate: none !important; scale: none !important; transition: none !important; }
+  .flow-chev, .skeleton::after { animation: none; }
+}
+
+/* phones: 16 px text in fields so iOS does not zoom; app-like touch */
+@media (max-width: 767px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+nav, .btn, .chip { -webkit-user-select: none; user-select: none; }
 
 /* Grid columns may shrink below their content (long names truncate instead of widening the page). */
 main .grid > * { min-width: 0; }

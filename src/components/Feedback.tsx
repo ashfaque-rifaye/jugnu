@@ -65,6 +65,9 @@ export function VoiceText({ value, onChange, placeholder, rows = 3 }: { value: s
   );
 }
 
+/** Phones open the feedback panel from the More sheet. */
+export const FEEDBACK_EVENT = "jugnu:feedback";
+
 export function FeedbackButton() {
   const t = useT();
   const { lang } = usePrefs();
@@ -73,6 +76,11 @@ export function FeedbackButton() {
   const [rating, setRating] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "sent">("idle");
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(FEEDBACK_EVENT, show);
+    return () => window.removeEventListener(FEEDBACK_EVENT, show);
+  }, []);
   const submit = async () => {
     setState("busy");
     const page = loc.pathname || "/";
@@ -112,7 +120,7 @@ export function FeedbackButton() {
           </motion.div>
         )}
       </AnimatePresence>
-      <button className="btn btn-glass ml-auto shadow-xl max-sm:!p-3" onClick={() => setOpen((v) => !v)} aria-label={t("Feedback", "राय दें")}>
+      <button className={cx("btn btn-glass ml-auto shadow-xl max-sm:!p-3", !location.pathname.startsWith("/talk") && "max-lg:hidden")} onClick={() => setOpen((v) => !v)} aria-label={t("Feedback", "राय दें")}>
         <MessageSquareHeart size={16} /> <span className="max-sm:hidden">{t("Feedback", "राय दें")}</span>
       </button>
     </div>

@@ -1,7 +1,7 @@
 // The front door. Instead of explaining modules, it follows ONE practice through the block —
 // from a number that looked unusual to a teacher next door trying it — using the live demo
 // block, so every step opens the real page where that work happens.
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useScroll, useSpring, useTransform } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
@@ -40,6 +40,7 @@ import { usePipeline } from "../lib/store";
 import { pickStory, type Story } from "../lib/story";
 import { useTasks } from "../lib/tasks";
 import { ThemeToggle, useTheme } from "../lib/theme";
+import { CountUp, EASE, Tilt, useReveal, usePointerSheen, WordReveal } from "../lib/motion";
 
 export default function HomePage({ onTour }: { onTour: () => void }) {
   const t = useT();
@@ -67,6 +68,35 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
 
   const video = mode === "light" ? MEDIA.dawn : MEDIA.welcome;
   const poster = mode === "light" ? MEDIA.dawnPoster : MEDIA.welcomePoster;
+
+  // motion: the first visit of a session opens like the Lodge reference — the frame draws itself
+  // with a counter, then the words arrive; the video drifts in slowly and lags behind on scroll.
+  const mainRef = useRef<HTMLElement>(null);
+  useReveal(mainRef);
+  usePointerSheen();
+  const [intro, setIntro] = useState(() => {
+    try {
+      return !lite && !matchMedia("(prefers-reduced-motion: reduce)").matches && !sessionStorage.getItem("jugnu-intro");
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!intro) return;
+    try {
+      sessionStorage.setItem("jugnu-intro", "1");
+    } catch {
+      /* private mode */
+    }
+    const id = window.setTimeout(() => setIntro(false), 1650);
+    return () => window.clearTimeout(id);
+  }, [intro]);
+  const d = useRef(intro ? 1.3 : 0.1).current;
+  const hero = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: hero, offset: ["start start", "end start"] });
+  const videoY = useTransform(scrollYProgress, [0, 1], ["0%", "9%"]);
+  const textY = useTransform(scrollYProgress, [0, 1], [0, -90]);
+  const textFade = useTransform(scrollYProgress, [0, 0.65], [1, 0]);
 
   return (
     <div className="min-h-dvh">
@@ -107,33 +137,46 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
 
       {/* hero: a framed, cinematic window — dusk in dark mode, dawn in light mode */}
       <div className="-mt-[66px] px-2 md:px-3">
-      <section className="relative isolate overflow-hidden rounded-b-[2.4rem] md:rounded-[2.4rem]">
-        {lite ? <img className="welcome-video" src={poster} alt="" aria-hidden /> : <video key={video} className="welcome-video" src={video} poster={poster} autoPlay muted loop playsInline aria-hidden />}
+      <section ref={hero} className="relative isolate overflow-hidden rounded-b-[2.4rem] md:rounded-[2.4rem]">
+        {lite ? (
+          <img className="welcome-video" src={poster} alt="" aria-hidden />
+        ) : (
+          <motion.video
+            key={video}
+            className="welcome-video"
+            src={video}
+            poster={poster}
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-hidden
+            style={{ y: videoY }}
+            initial={{ scale: 1.32 }}
+            animate={{ scale: 1.14 }}
+            transition={{ duration: 3.2, ease: EASE }}
+          />
+        )}
         <div className={cx("home-shade", mode === "light" ? "home-shade-light" : "home-shade-dark")} />
-        <div className="pointer-events-none absolute inset-3 hidden rounded-[2rem] border border-white/12 md:block" aria-hidden />
+        <HeroFrame intro={intro} />
         <AIVideoLabel className="absolute bottom-5 right-6" />
-        <div className="relative mx-auto grid min-h-[min(92svh,820px)] max-w-[1240px] items-center gap-10 px-5 pb-20 pt-28 md:px-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <div>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="chip mb-5 w-fit !bg-[var(--chrome)] backdrop-blur">
+        <motion.div style={{ y: textY }} className="relative mx-auto grid min-h-[min(92svh,820px)] max-w-[1240px] items-center gap-10 px-5 pb-20 pt-28 md:px-8 lg:grid-cols-[1.15fr_0.85fr]">
+          <motion.div style={{ opacity: textFade }} className="min-w-0">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: d, ease: EASE }} className="chip mb-5 w-fit !bg-[var(--chrome)] backdrop-blur">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--st-bright-fill)]" />
               {t(`Live demo · ${state.block.name} · ${state.block.schools.length} schools`, `लाइव डेमो · ${state.block.name} · ${state.block.schools.length} स्कूल`)}
             </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className={cx("display-xl max-w-[15ch] text-[2.9rem] md:text-[4.2rem] lg:text-[5.1rem]", hi && "!max-w-[18ch] !leading-[1.2]")}
-            >
-              {t("Somewhere in your block, a teacher has ", "आपके ब्लॉक में कहीं, कोई शिक्षक ")}
-              <span className="gradient-text font-semibold">{t("already cracked it.", "यह कर दिखा चुका है।")}</span>
-            </motion.h1>
-            <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className={cx("mt-6 max-w-xl text-[17px] leading-relaxed text-[var(--color-ink-2)] md:text-lg", hi)}>
+            <h1 className={cx("display-xl max-w-[15ch] text-[2.9rem] md:text-[4.2rem] lg:text-[5.1rem]", hi && "!max-w-[18ch] !leading-[1.2]")}>
+              <WordReveal text={t("Somewhere in your block, a teacher has", "आपके ब्लॉक में कहीं, कोई शिक्षक")} delay={d + 0.05} stagger={0.07} />{" "}
+              <WordReveal text={t("already cracked it.", "यह कर दिखा चुका है।")} delay={d + 0.55} stagger={0.08} className="font-semibold" wordClassName="gradient-text" />
+            </h1>
+            <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: d + 0.8, ease: EASE }} className={cx("mt-6 max-w-xl text-[17px] leading-relaxed text-[var(--color-ink-2)] md:text-lg", hi)}>
               {t(
                 "Jugnu finds the teachers whose children read and count better than anyone expected, learns exactly what they do by talking to them, and carries it to the school next door — teacher to teacher. Then it checks that it worked.",
                 "जुगनू उन शिक्षकों को ढूँढता है जिनके बच्चे उम्मीद से बेहतर पढ़ते-गिनते हैं, उनसे बात करके समझता है कि वे ठीक-ठीक क्या करते हैं, और उसे पास के स्कूल तक पहुँचाता है — शिक्षक से शिक्षक। फिर जाँचता है कि असर हुआ।",
               )}
             </motion.p>
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mt-8 flex flex-wrap gap-3">
+            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: d + 0.95, ease: EASE }} className="mt-8 flex flex-wrap gap-3">
               <a href="#start" className="btn btn-primary !px-5 !py-3 text-base">
                 {t("Find your way in", "अपनी भूमिका चुनें")} <ArrowRight size={17} />
               </a>
@@ -146,7 +189,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
                 <Clapperboard size={17} /> {t("2-minute film", "2 मिनट की फ़िल्म")}
               </button>
             </motion.div>
-            <ul className={cx("mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--color-ink-2)]", hi)}>
+            <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: d + 1.15 }} className={cx("mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--color-ink-2)]", hi)}>
               {[
                 [Smartphone, t("Any phone, even 2G", "कोई भी फ़ोन, 2G पर भी")],
                 [Languages, t("Hindi first", "पहले हिंदी")],
@@ -159,14 +202,15 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
                   </li>
                 );
               })}
-            </ul>
-          </div>
-          {story && <HeroMoments story={story} />}
-        </div>
+            </motion.ul>
+            {story && <MomentsStrip story={story} delay={d + 1.1} />}
+          </motion.div>
+          {story && <HeroMoments story={story} delay={d + 0.7} />}
+        </motion.div>
       </section>
       </div>
 
-      <main className="mx-auto max-w-[1240px] space-y-24 px-4 pb-16 pt-16 md:px-6">
+      <main ref={mainRef} className="mx-auto max-w-[1240px] space-y-24 px-4 pb-16 pt-16 md:px-6">
         {/* who it is for */}
         <section id="start" className="scroll-mt-24">
           <SectionHead
@@ -320,7 +364,7 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: ReactNod
   const { lang } = usePrefs();
   const hi = lang === "hi" && "font-deva";
   return (
-    <div className="mb-6 max-w-3xl">
+    <div className="mb-6 max-w-3xl" data-reveal>
       <div className={cx("label mb-2", hi)}>{eyebrow}</div>
       <h2 className={cx("text-3xl font-bold leading-tight md:text-[2.4rem]", hi)}>{title}</h2>
       {sub && <p className={cx("mt-3 text-[16px] leading-relaxed text-[var(--color-ink-2)]", hi)}>{sub}</p>}
@@ -328,11 +372,45 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: ReactNod
   );
 }
 
-/** Three moments from the story, floating over the hero like notifications on an officer's phone. */
-function HeroMoments({ story }: { story: Story }) {
+/** The frame inset in the hero, drawn in on the first visit with a counter (as in the Lodge reference). */
+function HeroFrame({ intro }: { intro: boolean }) {
+  return (
+    <>
+      <svg className="pointer-events-none absolute inset-3 z-[1] hidden h-[calc(100%-24px)] w-[calc(100%-24px)] overflow-visible md:block" aria-hidden>
+        <motion.rect
+          x="0"
+          y="0"
+          width="100%"
+          height="100%"
+          rx="32"
+          fill="none"
+          stroke="rgb(var(--fg) / 0.2)"
+          strokeWidth="1.2"
+          initial={intro ? { pathLength: 0, opacity: 0.4 } : false}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: 1.5, ease: [0.65, 0, 0.35, 1] }}
+        />
+      </svg>
+      <AnimatePresence>
+        {intro && (
+          <motion.div
+            className="display-xl pointer-events-none fixed bottom-8 left-6 z-[2] text-[3.4rem] text-[rgb(var(--fg)/0.8)] md:bottom-10 md:left-12 md:text-[4.6rem]"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16, filter: "blur(8px)", transition: { duration: 0.5 } }}
+            aria-hidden
+          >
+            <CountUp value={100} duration={1.35} />%
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+function useMoments(story: Story) {
   const t = useT();
   const { lang } = usePrefs();
-  const hi = lang === "hi" && "font-deva";
   const y = story.years[story.years.length - 1];
   const items: { icon: typeof Stars; tone: string; title: string; text: string }[] = [
     {
@@ -357,17 +435,56 @@ function HeroMoments({ story }: { story: Story }) {
       text: t(`To ${story.recipient.teacher} at ${story.recipient.name}, ${story.rec.distanceKm.toFixed(1)} km away`, `${story.recipient.name} की ${story.recipient.teacher} को, ${story.rec.distanceKm.toFixed(1)} किमी दूर`),
     },
   ];
+  return items;
+}
+
+/** Phones: the same three moments as cards you swipe through. */
+function MomentsStrip({ story, delay }: { story: Story; delay: number }) {
+  const { lang } = usePrefs();
+  const hi = lang === "hi" && "font-deva";
+  const items = useMoments(story);
+  return (
+    <div className="no-scrollbar -mx-5 mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 lg:hidden" aria-hidden>
+      {items.map((it, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.9, delay: delay + i * 0.12, ease: EASE }}
+          className="glass w-[78%] shrink-0 snap-start !rounded-[1.4rem] p-4"
+        >
+          <div className="flex gap-3">
+            <span className="icon-tile h-9 w-9 rounded-full" style={{ "--tile": it.tone } as CSSProperties}>
+              <it.icon size={17} />
+            </span>
+            <span className="min-w-0">
+              <span className={cx("block text-sm font-semibold", hi)}>{it.title}</span>
+              <span className={cx("mt-0.5 line-clamp-3 block text-[13px] leading-snug text-[var(--color-ink-2)]", (hi || i === 1) && "font-deva")}>{it.text}</span>
+            </span>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+/** Three moments from the story, floating over the hero like notifications on an officer's phone. */
+function HeroMoments({ story, delay }: { story: Story; delay: number }) {
+  const { lang } = usePrefs();
+  const hi = lang === "hi" && "font-deva";
+  const items = useMoments(story);
   return (
     <div className="relative hidden h-[420px] lg:block" aria-hidden>
       {items.map((it, i) => (
         <motion.div
           key={i}
-          initial={{ opacity: 0, y: 24, scale: 0.97 }}
+          initial={{ opacity: 0, y: 40, scale: 0.94 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ delay: 0.35 + i * 0.45, duration: 0.5 }}
-          className="glass absolute w-[360px] !rounded-[1.4rem] p-4"
+          transition={{ delay: delay + i * 0.35, duration: 1, ease: EASE }}
+          className="absolute w-[360px]"
           style={{ top: 18 + i * 128, left: i === 1 ? 48 : i === 2 ? 12 : 0 }}
         >
+          <Tilt className="glass !rounded-[1.4rem] p-4">
           <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut" }} className="flex gap-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: `color-mix(in srgb, ${it.tone} 16%, transparent)`, color: it.tone }}>
               <it.icon size={17} />
@@ -377,6 +494,7 @@ function HeroMoments({ story }: { story: Story }) {
               <span className={cx("mt-0.5 line-clamp-2 block text-[13px] leading-snug text-[var(--color-ink-2)]", (hi || i === 1) && "font-deva")}>{it.text}</span>
             </span>
           </motion.div>
+          </Tilt>
         </motion.div>
       ))}
     </div>
@@ -495,6 +613,10 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
     no_answer: ["did not answer — Jugnu will call again", "जवाब नहीं मिला — जुगनू फिर कॉल करेगा"],
   };
 
+  const trail = useRef<HTMLOListElement>(null);
+  const { scrollYProgress } = useScroll({ target: trail, offset: ["start 70%", "end 60%"] });
+  const lit = useSpring(scrollYProgress, { stiffness: 110, damping: 26 });
+
   const steps: { icon: typeof Stars; tone: string; verb: string; who: string; title: string; body: string; visual: ReactNode; to: string; link: string }[] = [
     {
       icon: MapPinned,
@@ -596,16 +718,28 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
   ];
 
   return (
-    <ol className="relative">
-      {/* the firefly's path */}
+    <ol ref={trail} className="relative">
+      {/* the firefly's path: dotted, and lit up as far as you have read */}
       <svg className="pointer-events-none absolute left-[21px] top-6 hidden h-[calc(100%-48px)] w-2 md:block" preserveAspectRatio="none" viewBox="0 0 2 100" aria-hidden>
-        <line x1="1" y1="0" x2="1" y2="100" stroke="var(--st-bright-fill)" strokeOpacity="0.55" strokeWidth="2" vectorEffect="non-scaling-stroke" className="trail-line" />
+        <line x1="1" y1="0" x2="1" y2="100" stroke="var(--st-bright-fill)" strokeOpacity="0.35" strokeWidth="2" vectorEffect="non-scaling-stroke" className="trail-line" />
       </svg>
+      <motion.span
+        className="pointer-events-none absolute left-[21px] top-6 hidden h-[calc(100%-48px)] w-[2px] origin-top rounded-full md:block"
+        style={{ scaleY: lit, background: "linear-gradient(180deg, var(--st-bright-fill), var(--tone-lime) 60%, var(--tone-teal))", boxShadow: "0 0 14px var(--glow)" }}
+        aria-hidden
+      />
       {steps.map((s, i) => (
-        <motion.li key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="relative pb-5 md:pl-16">
-          <span className="absolute left-0 top-5 z-10 hidden h-11 w-11 place-items-center rounded-full border-2 bg-[var(--chrome-solid)] md:grid" style={{ borderColor: s.tone, color: s.tone, boxShadow: `0 0 22px -4px ${s.tone}` }}>
+        <li key={i} className="relative pb-5 md:pl-16">
+          <motion.span
+            className="absolute left-0 top-5 z-10 hidden h-11 w-11 place-items-center rounded-full border-2 bg-[var(--chrome-solid)] md:grid"
+            style={{ borderColor: s.tone, color: s.tone, boxShadow: `0 0 22px -4px ${s.tone}` }}
+            initial={{ scale: 0.3, opacity: 0 }}
+            whileInView={{ scale: 1, opacity: 1 }}
+            viewport={{ once: true, margin: "-25% 0px" }}
+            transition={{ type: "spring", stiffness: 380, damping: 16 }}
+          >
             <s.icon size={18} />
-          </span>
+          </motion.span>
           <div className="card grid gap-5 p-5 md:grid-cols-[1.2fr_1fr] md:p-6">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -622,7 +756,7 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
             </div>
             <div className="card-inset flex flex-col justify-center p-4">{s.visual}</div>
           </div>
-        </motion.li>
+        </li>
       ))}
     </ol>
   );

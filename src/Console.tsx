@@ -14,6 +14,7 @@ import {
   Info,
   LineChart,
   MessageCircleQuestion,
+  MessageSquareHeart,
   Mic,
   Play,
   School as SchoolIcon,
@@ -24,11 +25,12 @@ import {
   Zap,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useReveal, usePointerSheen, useScrollingDown } from "./lib/motion";
 import { Navigate, NavLink, Route, Routes, useLocation, useMatch, useNavigate, useSearchParams } from "react-router-dom";
 import { AskJugnu } from "./components/AskJugnu";
 import { describeEvent } from "./components/ActivityFeed";
 import { DemoProvider, useDemo } from "./components/Demo";
-import { FeedbackButton, useSession } from "./components/Feedback";
+import { FEEDBACK_EVENT, FeedbackButton, useSession } from "./components/Feedback";
 import { AppBackground, SPRING } from "./components/kit";
 import { LogoMark, Wordmark } from "./components/Logo";
 import { TutorialPlayer } from "./components/media";
@@ -61,7 +63,17 @@ const AIPage = lazy(() => import("./pages/AI"));
 const MethodPage = lazy(() => import("./pages/Method"));
 const AboutPage = lazy(() => import("./pages/About"));
 
-const Loading = () => <div className="grid min-h-[40vh] place-items-center text-sm text-[var(--color-ink-3)]">…</div>;
+/** While a page loads: glass placeholders in the shape of a page. */
+const Loading = () => (
+  <div className="space-y-5" aria-busy="true" aria-label="Loading">
+    <div className="skeleton h-10 w-56 rounded-full" />
+    <div className="skeleton h-44 rounded-[2rem]" />
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="skeleton h-64 rounded-[1.75rem]" />
+      <div className="skeleton h-64 rounded-[1.75rem]" />
+    </div>
+  </div>
+);
 
 /** The officer / CRP console. The block is computed only here, never for teachers. */
 export default function ConsoleRoot() {
@@ -109,6 +121,10 @@ function Console() {
   const welcomed = useWelcomed();
   const { state, select, followUps } = usePipeline();
   const session = useSession();
+  const mainRef = useRef<HTMLElement>(null);
+  useReveal(mainRef);
+  usePointerSheen();
+  const tucked = useScrollingDown();
   const tour = useTour();
   const demo = useDemo();
   const [pending] = usePoll<unknown[]>("/api/reviews?status=pending", 15000);
@@ -219,7 +235,7 @@ function Console() {
       <aside className="chrome no-print scroll-thin fixed bottom-3 left-3 top-3 z-30 hidden w-[256px] overflow-y-auto rounded-[1.9rem] lg:block">{sidebar}</aside>
 
       <div className="lg:pl-[268px]">
-        <header className="no-print sticky top-0 z-20 px-3 pt-3 md:px-5">
+        <header className={cx("no-print sticky top-0 z-20 px-3 pt-3 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] md:px-5", tucked && !more && "max-lg:-translate-y-[120%]")}>
           <div className="chrome mx-auto flex max-w-[1400px] items-center gap-2 rounded-full py-1.5 pl-2 pr-1.5">
             <NavLink to="/" className="shrink-0 lg:hidden" title={t("Home page", "होम पेज")}>
               <LogoMark size={34} />
@@ -253,8 +269,9 @@ function Console() {
           )}
         </header>
 
-        <main className="mx-auto max-w-[1400px] px-3 pb-36 pt-5 md:px-5 lg:pb-14">
-          <motion.div key={location.pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 260, damping: 30 }}>
+        <main ref={mainRef} className="mx-auto max-w-[1400px] px-3 pb-36 pt-5 md:px-5 lg:pb-14">
+          {/* only movement here: the page's cards fade in themselves (see useReveal), so the glass keeps blurring */}
+          <motion.div key={location.pathname} initial={{ y: 18 }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 220, damping: 30 }}>
             <Suspense fallback={<Loading />}>
               <Routes location={location}>
                 <Route path="/today" element={<TodayPage onAsk={() => setAsk(true)} onRole={() => setRoleSheet(true)} onTour={startTour} />} />
@@ -288,23 +305,35 @@ function Console() {
       </div>
 
       {/* phones: floating glass tab bar */}
-      <nav className="no-print fixed inset-x-3 bottom-3 z-30 lg:hidden" aria-label={t("Main", "मुख्य")} data-tour="nav-loop">
-        <div className="chrome mx-auto grid max-w-md grid-cols-5 rounded-full p-1.5">
+      {/* phones: floating glass tab bar — it shrinks while you scroll down, like iOS */}
+      <nav className="no-print fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 lg:hidden" aria-label={t("Main", "मुख्य")} data-tour="nav-loop">
+        <motion.div
+          className="chrome mx-auto grid grid-cols-5 rounded-full p-1.5"
+          initial={false}
+          animate={{ maxWidth: tucked ? 300 : 448, y: tucked ? 4 : 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
           {TABS.map(({ to, label, icon: Icon }) => {
             const on = tabMatch?.to === to;
             return (
-              <NavLink key={to} to={to} className={cx("relative isolate flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[10.5px] font-semibold transition-colors", on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>
+              <NavLink key={to} to={to} className={cx("relative isolate flex flex-col items-center justify-center rounded-full py-1.5 text-[10.5px] font-semibold transition-colors", on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>
                 {on && <motion.span layoutId="tab-pill" className="seg-on absolute inset-0 -z-10 rounded-full" transition={SPRING} />}
-                <Icon size={20} strokeWidth={on ? 2.3 : 1.9} aria-hidden style={on ? { color: "var(--st-bright)" } : undefined} />
-                <span className="max-w-full truncate px-1">{label}</span>
+                <motion.span key={String(on)} initial={on ? { scale: 0.7, y: 2 } : false} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
+                  <Icon size={20} strokeWidth={on ? 2.3 : 1.9} aria-hidden style={on ? { color: "var(--st-bright)" } : undefined} />
+                </motion.span>
+                <motion.span className="max-w-full overflow-hidden truncate px-1" initial={false} animate={{ height: tucked ? 0 : 15, opacity: tucked ? 0 : 1, marginTop: tucked ? 0 : 2 }} transition={{ duration: 0.25 }}>
+                  {label}
+                </motion.span>
               </NavLink>
             );
           })}
-          <button className={cx("relative isolate flex flex-col items-center gap-0.5 rounded-full py-1.5 text-[10.5px] font-semibold", more ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]")} onClick={() => setMore(true)}>
+          <button className={cx("relative isolate flex flex-col items-center justify-center rounded-full py-1.5 text-[10.5px] font-semibold", more ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]")} onClick={() => setMore(true)}>
             <Ellipsis size={20} aria-hidden />
-            {t("More", "और")}
+            <motion.span className="overflow-hidden" initial={false} animate={{ height: tucked ? 0 : 15, opacity: tucked ? 0 : 1, marginTop: tucked ? 0 : 2 }} transition={{ duration: 0.25 }}>
+              {t("More", "और")}
+            </motion.span>
           </button>
-        </div>
+        </motion.div>
       </nav>
 
       {/* phones: the rest of the menu as a sheet */}
@@ -313,7 +342,7 @@ function Console() {
           <motion.div className="no-print fixed inset-0 z-[60] lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="scrim absolute inset-0" onClick={() => setMore(false)} />
             <motion.div
-              className="sheet absolute inset-x-2 bottom-2 max-h-[86dvh] overflow-y-auto rounded-[2rem] p-3"
+              className="sheet absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] max-h-[86dvh] overflow-y-auto rounded-[2rem] p-3"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -358,6 +387,9 @@ function Console() {
                 {TOOLS.map((x) => navLink(x, "sheet-tools"))}
                 <button className="nav-item w-full" onClick={() => (setMore(false), setFilm(true))}>
                   <Clapperboard size={18} aria-hidden /> <span className="flex-1 text-left">{t("2-minute film", "2 मिनट की फ़िल्म")}</span>
+                </button>
+                <button className="nav-item w-full" onClick={() => (setMore(false), window.dispatchEvent(new Event(FEEDBACK_EVENT)))}>
+                  <MessageSquareHeart size={18} aria-hidden /> <span className="flex-1 text-left">{t("Give feedback", "राय दें")}</span>
                 </button>
               </div>
               <div className="mt-3 space-y-2.5">

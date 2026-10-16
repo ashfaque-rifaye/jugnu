@@ -161,7 +161,7 @@ function Player({ run, onPause, onSkip, onReplay, onClose, onResults }: { run: R
     return (
       <motion.div
         layout
-        className="no-print fixed bottom-[92px] left-1/2 z-[75] -translate-x-1/2 lg:bottom-6 lg:left-[calc(50%+134px)]"
+        className="no-print fixed bottom-[calc(92px+env(safe-area-inset-bottom))] left-1/2 z-[75] -translate-x-1/2 lg:bottom-6 lg:left-[calc(50%+134px)]"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
@@ -192,7 +192,7 @@ function Player({ run, onPause, onSkip, onReplay, onClose, onResults }: { run: R
   return (
     <motion.div
       layout
-      className="no-print fixed inset-x-3 bottom-[92px] z-[75] mx-auto max-w-[620px] lg:bottom-6 lg:left-[calc(268px+1.5rem)] lg:right-6"
+      className="no-print fixed inset-x-3 bottom-[calc(92px+env(safe-area-inset-bottom))] z-[75] mx-auto max-w-[620px] lg:bottom-6 lg:left-[calc(268px+1.5rem)] lg:right-6"
       initial={{ opacity: 0, y: 40, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 30, scale: 0.97 }}

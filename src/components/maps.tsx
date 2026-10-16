@@ -131,13 +131,13 @@ export function MapLegend({ status, onPick, active }: { status: Map<string, Scho
   }, [status]);
   const keys: SchoolStatus[] = ["bright", "check_due", "check_data", "revisit", "support", "ok"];
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 md:flex-wrap md:overflow-visible">
       {keys
         .filter((k) => counts[k])
         .map((k) => (
           <button
             key={k}
-            className={cx("chip transition", active && active !== k && "opacity-45")}
+            className={cx("chip shrink-0 transition", active && active !== k && "opacity-45")}
             style={{ borderColor: tint(STATUS_INFO[k].color, 40) }}
             onClick={() => onPick?.(active === k ? null : k)}
             aria-pressed={active === k}

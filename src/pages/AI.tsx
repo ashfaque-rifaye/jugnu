@@ -129,7 +129,7 @@ export default function AIPage() {
         </div>
       </Glass>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label={t("AI calls logged", "दर्ज AI कॉल")} value={total} />
         <StatTile label={t("Answered by Claude", "Claude के जवाब")} value={claude} sub={total ? `${Math.round((100 * claude) / total)}%` : undefined} />
         <StatTile label={t("Rejected by guardrails", "जाँच में अस्वीकार")} value={rejected} sub={t("offline engine used instead", "ऑफ़लाइन इंजन से जवाब")} />
