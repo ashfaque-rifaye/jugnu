@@ -16,7 +16,15 @@ const Kind = z.enum(["action", "spotcheck", "followup", "note"]);
 const Payloads = {
   action: z.object({ status: z.enum(["todo", "scheduled", "done", "stuck"]), note: z.string().max(500).optional() }),
   spotcheck: z.object({ sampled: z.number().int().min(5).max(40), proficient: z.number().int().min(0), numeracyProficient: z.number().int().min(0) }),
-  followup: z.object({ outcome: z.enum(["adopted", "trying", "barrier", "no_answer"]), said: z.string().max(2000).optional(), barrierOwner: z.string().max(80).optional() }),
+  followup: z.object({
+    outcome: z.enum(["adopted", "trying", "barrier", "no_answer"]),
+    said: z.string().max(2000).optional(),
+    saidEn: z.string().max(2000).optional(),
+    summary: z.tuple([z.string().max(200), z.string().max(200)]).optional(),
+    insight: z.tuple([z.string().max(300), z.string().max(300)]).optional(),
+    barrier: z.string().max(120).optional(),
+    barrierOwner: z.string().max(80).optional(),
+  }),
   note: z.object({ text: z.string().min(1).max(1000) }),
 } as const;
 
@@ -39,7 +47,7 @@ events.post("/", rateLimit("events", 400, 600000), async (req, res) => {
   if (head.data.kind === "spotcheck" && (Number(p.proficient) > Number(p.sampled) || Number(p.numeracyProficient) > Number(p.sampled)))
     return res.status(400).json({ error: "More children passed than were checked" });
   // Free text never keeps phone or ID numbers.
-  for (const k of ["note", "said", "text"]) if (typeof p[k] === "string") p[k] = scrubPII(p[k] as string).text;
+  for (const k of ["note", "said", "saidEn", "text"]) if (typeof p[k] === "string") p[k] = scrubPII(p[k] as string).text;
   const created = now();
   await db.run(
     `INSERT INTO events (block, kind, ref, payload, actor, created_at) VALUES (?, ?, ?, ?, ?, ?)`,

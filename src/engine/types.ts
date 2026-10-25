@@ -142,6 +142,12 @@ export interface FollowUp {
   outcome: "adopted" | "trying" | "barrier" | "no_answer";
   said: string;
   saidEn: string;
+  /** What happened, in a line: [en, hi]. */
+  summary?: [string, string];
+  /** What it means and the next step: [en, hi]. */
+  insight?: [string, string];
+  barrier?: string;
+  owner?: "BEO" | "CRP" | "Teacher";
 }
 
 export interface TrackResult {

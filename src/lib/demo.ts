@@ -100,7 +100,7 @@ export function buildTerm(state: PipelineState): DemoBeat[] | null {
         `Jugnu calls every teacher back — ${working} of ${term.followUps.length} say it is working; barriers go to the person who can fix them.`,
         `जुगनू हर शिक्षक को फ़ोन करता है — ${term.followUps.length} में से ${working} कहते हैं असर हो रहा है; रुकावटें उस तक जाती हैं जो हल कर सके।`,
       ],
-      events: term.followUps.map((f) => ({ kind: "followup" as const, ref: f.schoolId, payload: { outcome: f.outcome, said: f.said }, actor: "Jugnu AI" })),
+      events: term.followUps.map((f) => ({ kind: "followup" as const, ref: f.schoolId, payload: { outcome: f.outcome, said: f.said, saidEn: f.saidEn, summary: f.summary, insight: f.insight, barrier: f.barrier, barrierOwner: f.owner }, actor: "Jugnu AI" })),
     },
     {
       key: "assess",

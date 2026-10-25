@@ -189,6 +189,7 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
   const [owner, setOwner] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [ai, setAi] = useState<{ summary: string; barrier: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const read = async () => {
@@ -203,6 +204,7 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
     const o = out.value.outcome === "not_tried" ? "barrier" : (out.value.outcome as Outcome);
     setOutcome(o);
     setOwner(out.value.owner);
+    setAi({ summary: out.value.summary_en, barrier: out.value.barrier });
     setHint(
       `${out.source === "claude" ? "Claude" : t("Offline reader", "ऑफ़लाइन")}: ${out.value.summary_en}${out.value.barrier ? ` — ${out.value.barrier}${out.value.owner ? ` (${out.value.owner})` : ""}` : ""}`,
     );
@@ -210,7 +212,13 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
   const save = async () => {
     if (!outcome) return;
     setBusy(true);
-    await record("followup", school.id, { outcome, said: said.trim() || undefined, barrierOwner: outcome === "barrier" ? (owner ?? undefined) : undefined }).catch(() => null);
+    await record("followup", school.id, {
+      outcome,
+      said: said.trim() || undefined,
+      summary: ai ? [ai.summary, ai.summary] : undefined,
+      barrier: outcome === "barrier" ? (ai?.barrier ?? undefined) : undefined,
+      barrierOwner: outcome === "barrier" ? (owner ?? undefined) : undefined,
+    }).catch(() => null);
     setBusy(false);
     setDone(true);
   };

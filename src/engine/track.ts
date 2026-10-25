@@ -3,22 +3,10 @@
 // analysis side sees only follow-ups and scores: wave 1 vs wave 2 (not yet started) gives a
 // fair difference-in-differences per practice, with a bootstrap interval.
 import { measured, rateFor } from "./block";
+import { FOLLOW_UP_LINES, PRACTICE_LINES } from "./followup-lines";
 import { PRACTICES, type PracticeId } from "./practices";
 import { chance, mulberry32, pick, type Rng } from "./rng";
 import { CYCLES, type Block, type FollowUp, type Recommendation, type TrackResult } from "./types";
-
-const SAID: Record<FollowUp["outcome"], { hi: string; en: string }[]> = {
-  adopted: [
-    { hi: "हाँ, दो हफ़्ते से रोज़ कर रहे हैं। बच्चे खुद आकर बैठ जाते हैं।", en: "Yes, doing it daily for two weeks. Children now sit down for it on their own." },
-    { hi: "{demo} जी का स्कूल देखकर आसान लगा। अब रोज़ होता है।", en: "Seeing it in {demo}'s school made it easy. Now it happens every day." },
-  ],
-  trying: [{ hi: "शुरू किया है, पर अभी हफ़्ते में दो-तीन दिन ही हो पाता है।", en: "Started, but only two or three days a week so far." }],
-  barrier: [
-    { hi: "बच्चे बहुत ज़्यादा हैं और मैं अकेली शिक्षिका हूँ — समय नहीं मिलता।", en: "Too many children and I'm the only teacher — no time." },
-    { hi: "सर्वे की ड्यूटी लग गई थी, दो हफ़्ते स्कूल कम आ पाए।", en: "I was put on survey duty and couldn't be in school much for two weeks." },
-  ],
-  no_answer: [{ hi: "(फ़ोन नहीं उठा — कल फिर कोशिश)", en: "(No answer — will retry tomorrow)" }],
-};
 
 export interface SimulatedTerm {
   followUps: FollowUp[];
@@ -42,9 +30,21 @@ export function simulateTerm(block: Block, recs: Recommendation[], seed = 11): S
       const visited = chance(rng, 0.8);
       const p = 0.42 + (visited ? 0.28 : 0);
       const outcome: FollowUp["outcome"] = chance(rng, 0.08) ? "no_answer" : chance(rng, p) ? "adopted" : chance(rng, 0.5) ? "trying" : "barrier";
-      const line = pick(rng, SAID[outcome]);
+      const bank = outcome === "adopted" || outcome === "trying" ? (PRACTICE_LINES[rec.practice]?.[outcome] ?? FOLLOW_UP_LINES[outcome]) : FOLLOW_UP_LINES[outcome];
+      const line = pick(rng, bank);
       const demo = block.schools.find((x) => x.id === rec.demonstratorId)?.teacher.split(" ")[0] ?? "";
-      followUps.push({ schoolId: s.id, day: 14, outcome, said: line.hi.replace("{demo}", demo), saidEn: line.en.replace("{demo}", demo) });
+      const fill = (x: string) => x.replaceAll("{demo}", demo);
+      followUps.push({
+        schoolId: s.id,
+        day: 14,
+        outcome,
+        said: fill(line.hi),
+        saidEn: fill(line.en),
+        summary: [fill(line.summary[0]), fill(line.summary[1])],
+        insight: [fill(line.insight[0]), fill(line.insight[1])],
+        barrier: line.barrier,
+        owner: line.owner,
+      });
       if (outcome === "adopted" || (outcome === "trying" && chance(rng, 0.4)) || (outcome === "no_answer" && chance(rng, 0.4))) {
         adopted.add(s.id);
         practices = [...new Set([...practices, rec.practice])];
