@@ -9,6 +9,15 @@ import type { BlockEvent } from "./store";
 
 type T = (en: string, hi: string) => string;
 
+// Anything with its own sound (the film) hushes Jugnu while it plays: no speaking, listening or page guide.
+export const HUSH_EVENT = "jugnu:hush";
+let hushed = false;
+export const isHushed = () => hushed;
+export function hushJugnu(on: boolean) {
+  hushed = on;
+  window.dispatchEvent(new Event(HUSH_EVENT));
+}
+
 const lc = (s: string) => s.toLowerCase().normalize("NFC").trim();
 
 /** Find a school by English or Hindi name, village or teacher: exact first, then partial. */

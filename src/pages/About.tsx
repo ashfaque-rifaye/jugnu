@@ -3,10 +3,11 @@ import { ArrowRight, BadgeCheck, BrainCircuit, Clapperboard, FlaskConical, Hands
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { LivingMap } from "../components/maps";
-import { HeroMedia, TutorialPlayer, VideoCard } from "../components/media";
+import { FilmCard, FilmPlayer } from "../components/Film";
+import { HeroMedia } from "../components/media";
 import { Fireflies, Glass, SectionTitle, cx } from "../components/ui";
 import { ASER_2024 } from "../engine/block";
-import { MEDIA, TOUR } from "../lib/clips";
+import { MEDIA } from "../lib/clips";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 import { meanZ, schoolStatuses } from "../lib/status";
@@ -59,7 +60,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mt-8 flex flex-wrap gap-3">
               <button className="btn btn-primary !px-5 !py-3 text-base" onClick={onTour}>
-                <Clapperboard size={18} /> {t("Watch the tour", "टूर देखें")}
+                <Clapperboard size={18} /> {t("Watch the film", "फ़िल्म देखें")}
               </button>
               <Link to="/today" className="btn btn-glass !px-5 !py-3 text-base">
                 {t("Open today's tasks", "आज के काम खोलें")} <ArrowRight size={16} />
@@ -119,19 +120,10 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
         <SectionTitle
           eyebrow={t("See it in action", "काम करते हुए देखें")}
           title={t("One loop, every term", "एक चक्र, हर सत्र")}
-          sub={t("Hover to preview, click to watch with captions. Clips generated with Google Flow (Veo 3.1).", "झलक के लिए माउस ले जाएँ, कैप्शन के साथ देखने के लिए क्लिक करें। क्लिप Google Flow (Veo 3.1) से बनाए गए।")}
-          right={
-            <button className="btn btn-glass" onClick={onTour}>
-              <Clapperboard size={16} /> {t("Play all", "सब चलाएँ")}
-            </button>
-          }
+          sub={t("The whole loop as a short film: shot with Veo 3.1, scored with Lyria, narrated with Chirp 3. Jump to any chapter.", "पूरा चक्र एक छोटी फ़िल्म में: Veo 3.1 से फ़िल्माई, Lyria का संगीत, Chirp 3 की आवाज़। किसी भी अध्याय पर जाएँ।")}
         />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {TOUR.slice(1).map((c, i) => (
-            <VideoCard key={c.src} clip={c} index={i} onOpen={() => setClip(i + 1)} />
-          ))}
-        </div>
-        <TutorialPlayer clips={TOUR} open={clip !== null} start={clip ?? 0} onClose={() => setClip(null)} />
+        <FilmCard onPlay={(at) => setClip(at ?? 0)} />
+        <FilmPlayer open={clip !== null} start={clip ?? 0} onClose={() => setClip(null)} />
       </section>
 
       <section>

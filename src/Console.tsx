@@ -37,13 +37,12 @@ import { FEEDBACK_EVENT, FeedbackButton, useSession } from "./components/Feedbac
 import { AppBackground, SPRING } from "./components/kit";
 import { Locator } from "./components/Locator";
 import { LogoMark, Wordmark } from "./components/Logo";
-import { TutorialPlayer } from "./components/media";
+import { FilmPlayer } from "./components/Film";
 import { PasscodeGate } from "./components/Passcode";
 import { AIStatus, cx } from "./components/ui";
 import { Welcome } from "./components/Welcome";
 import { DAMOH, profileFor } from "./engine/district";
 import { usePoll } from "./lib/api";
-import { TOUR } from "./lib/clips";
 import { markJourney, setWelcomed, useWelcomed } from "./lib/journey";
 import { usePrefs, useT } from "./lib/prefs";
 import { roleName, useRole, type Role } from "./lib/role";
@@ -106,7 +105,7 @@ function Home() {
       <Suspense fallback={<div className="min-h-dvh" />}>
         <HomePage onTour={() => setTour(true)} />
       </Suspense>
-      <TutorialPlayer clips={TOUR} open={tour} onClose={() => setTour(false)} />
+      <FilmPlayer open={tour} onClose={() => setTour(false)} />
     </>
   );
 }
@@ -410,7 +409,7 @@ function Console() {
         )}
       </AnimatePresence>
 
-      <TutorialPlayer clips={TOUR} open={film} onClose={() => setFilm(false)} />
+      <FilmPlayer open={film} onClose={() => setFilm(false)} />
       <AgentDock open={ask} onOpen={() => setAsk(true)} onClose={() => setAsk(false)} />
       <LiveToasts />
       <FeedbackButton />

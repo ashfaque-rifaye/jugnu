@@ -8,7 +8,7 @@ import { Check, Compass, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, S
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DAMOH } from "../engine/district";
-import { briefingFacts, buildBriefing, clickByLabel, fillField, findSchool, parseCommand, readScreen, TOOL_LABEL } from "../lib/agent";
+import { briefingFacts, buildBriefing, clickByLabel, fillField, findSchool, HUSH_EVENT, isHushed, parseCommand, readScreen, TOOL_LABEL } from "../lib/agent";
 import { postJSON, useStatus } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { useRole } from "../lib/role";
@@ -633,15 +633,22 @@ export function useAgent() {
 
   useEffect(() => () => mic.current?.close(), []);
 
+  useEffect(() => {
+    const onHush = () => isHushed() && stop();
+    window.addEventListener(HUSH_EVENT, onHush);
+    return () => window.removeEventListener(HUSH_EVENT, onHush);
+  }, [stop]);
+
   /** A spoken word of help for the page just opened: what it is for, and the one thing to do here now. */
   const guide = useCallback(async (page: string) => {
-    if (busy.current || live.current.mode !== "off" || !status.claude) return;
+    if (busy.current || live.current.mode !== "off" || !status.claude || isHushed()) return;
     busy.current = true;
     cancelled.current = false;
     try {
       const { state: st, events: ev, lang: l } = live.current;
       const res = await postJSON<{ text: string }>("/api/agent/page", { page, screen: readScreen().slice(0, 3800), facts: briefingFacts(st, ev).slice(0, 14), lang: l }).catch(() => null);
-      if (!res?.text || cancelled.current || live.current.mode !== "off") return;
+      if (!res?.text || cancelled.current || live.current.mode !== "off" || isHushed()) return;
+      if (pageOf(window.location.pathname, window.location.search) !== page) return; // they have moved on
       // Browsers only play sound after the person has tapped something; until then the guide is a bubble.
       const canPlay = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? false;
       if (canPlay) {
@@ -672,7 +679,7 @@ export function useAgent() {
     const key = `${page}|${lang}`;
     if (page === "home" || guided.has(key)) return;
     const id = setTimeout(() => {
-      if (live.current.mode !== "off" || busy.current || guided.has(key)) return;
+      if (live.current.mode !== "off" || busy.current || guided.has(key) || isHushed()) return;
       guided.add(key);
       void guide(page);
     }, 1800);
