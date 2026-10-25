@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS interviews (
   school_name  TEXT,
   teacher_name TEXT,
   grp          TEXT NOT NULL DEFAULT 'live',      -- bright | comparison | live
-  channel      TEXT NOT NULL,                     -- web | phone | phone-sim
+  channel      TEXT NOT NULL,                     -- web | phone (real Exotel/Plivo call)
   language     TEXT NOT NULL DEFAULT 'hi',
   consent      INTEGER NOT NULL DEFAULT 0,
   status       TEXT NOT NULL DEFAULT 'invited',   -- invited | in_progress | completed | declined
@@ -137,7 +137,10 @@ CREATE TABLE IF NOT EXISTS ai_calls (
 
 /** turso: lasting · sqlite: a local file that lasts · temporary: Vercel without Turso — lost on restart. */
 /** Columns added after the first deploy: applied once, ignored if they already exist. */
-const MIGRATIONS = [`ALTER TABLE interviews ADD COLUMN school_id TEXT`];
+const MIGRATIONS = [
+  `ALTER TABLE interviews ADD COLUMN school_id TEXT`,
+  `ALTER TABLE interviews ADD COLUMN call_status TEXT`, // dialing | in-call | completed | busy | no-answer | failed …
+];
 
 export const storage = (): "turso" | "sqlite" | "temporary" =>
   process.env.TURSO_DATABASE_URL ? "turso" : process.env.VERCEL && !process.env.JUGNU_DB ? "temporary" : "sqlite";

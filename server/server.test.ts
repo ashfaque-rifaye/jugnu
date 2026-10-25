@@ -177,10 +177,21 @@ describe("coder, writer and officer guardrails", () => {
     expect(susScore([5, 1, 5, 1, 5, 1, 5, 1, 5, 1])).toBe(100);
   });
 
-  it("signs and escapes TwiML for the phone line", async () => {
-    const { twilioSignature, twimlAsk } = await import("./ivr");
-    const sig = twilioSignature("token", "https://x.test/api/ivr/twilio/gather?t=a", { SpeechResult: "हाँ", Confidence: "0.9" });
-    expect(sig).toBe(twilioSignature("token", "https://x.test/api/ivr/twilio/gather?t=a", { Confidence: "0.9", SpeechResult: "हाँ" }));
-    expect(twimlAsk(["A & B < C"], "hi", "/next?t=1&x=2")).toContain("A &amp; B &lt; C");
+  it("normalises Indian numbers, hashes them, and signs/escapes for the phone line", async () => {
+    const t = await import("./telephony");
+    expect(t.normaliseIndianNumber("06382 844365")).toBe("+916382844365");
+    expect(t.normaliseIndianNumber("+91 63828-44365")).toBe("+916382844365");
+    expect(t.normaliseIndianNumber("916382844365")).toBe("+916382844365");
+    expect(t.normaliseIndianNumber("12345")).toBeNull();
+    expect(t.normaliseIndianNumber("+14155550100")).toBeNull();
+    expect(t.phoneHash("+916382844365")).toBe(t.phoneHash("06382844365"));
+    expect(t.phoneHash("+916382844365")).not.toContain("6382");
+    expect(t.plivoSignature("https://x.test/a", "nonce", "token")).toBe(t.plivoSignature("https://x.test/a", "nonce", "token"));
+    expect(t.plivoSignature("https://x.test/a", "nonce", "token")).not.toBe(t.plivoSignature("https://x.test/b", "nonce", "token"));
+    expect(t.xmlEscape("A & B < C")).toBe("A &amp; B &lt; C");
+    const { pcmToWav } = await import("./voice");
+    const wav = pcmToWav(Buffer.alloc(16), 8000);
+    expect(wav.subarray(0, 4).toString()).toBe("RIFF");
+    expect(wav.length).toBe(44 + 16);
   });
 });

@@ -114,7 +114,7 @@ await flow("Teacher web interview", "Teacher · BEO", async (step) => {
 });
 
 await flow("Teacher interview (public demo link)", "Teacher / judge", async (step) => {
-  const demo = await call("POST", "/api/talk/demo", { language: "hi", schoolName: "Flow check" });
+  const demo = await call("POST", "/api/talk/practice", { language: "hi", schoolName: "Flow check" });
   step("Anyone can open a practice interview", demo.status === 200, demo.data.token);
   const token = demo.data.token;
   const st = await call("POST", `/api/talk/${token}/start`);
@@ -145,15 +145,11 @@ await flow("Teacher says no to consent", "Teacher", async (step) => {
   await call("DELETE", `/api/interviews/${inv.data.interview.id}`);
 });
 
-await flow("Phone-line interview (simulator)", "Teacher on a basic phone", async (step) => {
-  const demo = await call("POST", "/api/talk/demo", { language: "hi", schoolName: "Flow check phone" });
-  step("Call created", demo.status === 200, demo.data.token);
-  const s = await call("POST", `/api/ivr/sim/${demo.data.token}/start`);
-  step("Opening speaks Hindi and listens", s.data.twiml?.includes('<Gather input="speech" language="hi-IN"'), s.data.lines?.[0]);
-  let r = await call("POST", `/api/ivr/sim/${demo.data.token}/say`, { text: ANSWERS.consent, confidence: 0.82 });
-  step("Speech answer moves the call on", r.status === 200 && r.data.twiml?.includes("<Say"), r.data.reply?.say);
-  r = await call("POST", `/api/ivr/sim/${demo.data.token}/say`, { text: ANSWERS.open, confidence: 0.82 });
-  step("Next question within the phone deadline", r.status === 200, `${r.data.source} · ${r.data.reply?.say}`);
+await flow("Phone line (real telephony)", "Teacher on a basic phone", async (step) => {
+  const st = await call("GET", "/api/ivr/status");
+  step("Telephony status is reported", st.status === 200 && typeof st.data.active !== "undefined", st.data.active ? `${st.data.active} ? ${st.data.publicUrl}` : "no provider configured (set EXOTEL_* / PLIVO_* + PUBLIC_URL)");
+  const bad = await call("POST", "/api/ivr/call", { to: "123" });
+  step("Bad numbers are refused before dialing", bad.status === 400 || bad.status === 401 || bad.status === 503, bad.data.error);
 });
 
 await flow("CRP field work → live activity", "CRP · BEO", async (step) => {

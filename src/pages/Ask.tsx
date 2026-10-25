@@ -1,6 +1,5 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, Globe2, Loader2, MessageCircle, Mic, Phone, PhoneOff, RefreshCw, Send, ShieldCheck, Trash2, TriangleAlert, Volume2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { ExternalLink, Globe2, Loader2, MessageCircle, Phone, RefreshCw, Send, ShieldCheck, Trash2, TriangleAlert } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
 import { PageHeader } from "../components/kit";
 import { InviteCard, type PilotRow } from "../components/Invite";
 import { Glass, SectionTitle, cx } from "../components/ui";
@@ -9,7 +8,6 @@ import { PRACTICES, type PracticeId } from "../engine/practices";
 import type { Interview } from "../engine/types";
 import { delJSON, postJSON, usePoll, useStatus } from "../lib/api";
 import { useT } from "../lib/prefs";
-import { canListen, listen, speak, stopSpeaking } from "../lib/speech";
 import { usePipeline } from "../lib/store";
 import { tint } from "../lib/status";
 
@@ -287,135 +285,144 @@ function InterviewDetail({ id, onDeleted }: { id: string; onDeleted: () => void 
   );
 }
 
-// ================================================================== phone line (IVR) simulator
-interface SimReply {
-  reply: { say: string; done: boolean; kind: string };
-  source: string;
-  status: string;
-  twiml: string;
+// ================================================================== phone line (real calls via Exotel / Plivo)
+interface Telephony {
+  active: "exotel" | "plivo" | null;
+  publicUrl: string | null;
+  voice: boolean;
+  providers: { exotel: { configured: boolean; from: string | null }; plivo: { configured: boolean; from: string | null } };
 }
+
+const CALL_STATE: Record<string, [string, string, string]> = {
+  dialing: ["Dialing", "??? ?? ??? ??", "var(--tone-warn)"],
+  "in-call": ["On the line", "???? ??", "var(--tone-teal)"],
+  completed: ["Call ended", "??? ????", "var(--tone-muted)"],
+  "no-answer": ["No answer", "???? ????", "var(--tone-bad)"],
+  busy: ["Busy", "??????", "var(--tone-bad)"],
+  failed: ["Failed", "????", "var(--tone-bad)"],
+};
 
 function PhoneLine() {
   const t = useT();
   const status = useStatus();
-  const [token, setToken] = useState<string | null>(null);
-  const [log, setLog] = useState<{ who: "jugnu" | "teacher"; text: string; twiml?: string }[]>([]);
-  const [state, setState] = useState<"idle" | "ringing" | "on" | "ended">("idle");
+  const [tel] = usePoll<Telephony>("/api/ivr/status", 15000);
+  const [rows, , reload] = usePoll<PilotRow[]>("/api/interviews", 4000);
+  const [to, setTo] = useState("+91");
+  const [teacherName, setTeacherName] = useState("");
+  const [schoolName, setSchoolName] = useState("");
+  const [group, setGroup] = useState<"bright" | "comparison" | "live">("live");
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [listening, setListening] = useState(false);
-  const [showTwiml, setShowTwiml] = useState(true);
-  const stopRef = useRef<() => void>(() => {});
+  const [note, setNote] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
 
-  const dial = async () => {
-    setState("ringing");
-    const { token: tok } = await postJSON<{ token: string }>("/api/talk/demo", { language: "hi", schoolName: "Phone-line test" });
-    setToken(tok);
-    window.setTimeout(async () => {
-      const r = await postJSON<{ twiml: string; lines: string[] }>(`/api/ivr/sim/${tok}/start`, {});
-      setState("on");
-      setLog(r.lines.map((l, i) => ({ who: "jugnu" as const, text: l, twiml: i === r.lines.length - 1 ? r.twiml : undefined })));
-      for (const l of r.lines) await speak(l, "hi-IN");
-    }, 900);
-  };
+  const calls = useMemo(() => (rows ?? []).filter((r) => r.channel === "phone"), [rows]);
+  const ready = !!tel?.active && !!tel?.publicUrl && !!tel?.voice;
+  const from = tel?.active ? tel.providers[tel.active].from : null;
 
-  const say = async (text: string) => {
-    if (!token || !text.trim()) return;
+  const dial = async (e: FormEvent) => {
+    e.preventDefault();
     setBusy(true);
-    setDraft("");
-    setLog((l) => [...l, { who: "teacher", text }]);
-    const r = await postJSON<SimReply>(`/api/ivr/sim/${token}/say`, { text, confidence: 0.82 });
-    setLog((l) => [...l, { who: "jugnu", text: r.reply.say, twiml: r.twiml }]);
-    setBusy(false);
-    await speak(r.reply.say, "hi-IN");
-    if (r.reply.done) setState("ended");
-  };
-
-  const mic = async () => {
-    if (listening) return stopRef.current();
-    stopSpeaking();
-    const h = listen("hi-IN", setDraft);
-    stopRef.current = h.stop;
-    setListening(true);
+    setNote(null);
     try {
-      const text = await h.promise;
-      setListening(false);
-      if (text) await say(text);
-    } catch {
-      setListening(false);
+      const r = await postJSON<{ interview: PilotRow; callSid: string; provider: string }>("/api/ivr/call", { to, teacherName, schoolName, group, language: "hi" });
+      setNote({ kind: "ok", text: t(`Ringing ${to} via ${r.provider === "exotel" ? "Exotel" : "Plivo"} (call ${r.callSid.slice(0, 10)}?)`, `${to} ?? ??? ?? ??? ?? (${r.provider === "exotel" ? "Exotel" : "Plivo"})`) });
+      setOpen(r.interview.id);
+      reload();
+    } catch (err) {
+      setNote({ kind: "err", text: (err as Error).message });
+    } finally {
+      setBusy(false);
     }
   };
 
-  const lastTwiml = [...log].reverse().find((l) => l.twiml)?.twiml;
   return (
-    <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
-      <Glass className="p-5">
-        <div className="on-dark mx-auto w-full max-w-[300px] rounded-[2.4rem] border border-white/15 bg-[#0b0f17] p-4 shadow-2xl">
-          <div className="mb-3 text-center text-xs text-[var(--color-ink-3)]">{state === "idle" ? t("Basic phone", "साधारण फ़ोन") : state === "ringing" ? t("Incoming call…", "कॉल आ रही है…") : state === "on" ? t("On call · Jugnu (Block office)", "कॉल पर · जुगनू (ब्लॉक कार्यालय)") : t("Call ended", "कॉल खत्म")}</div>
-          <div className="scroll-thin h-72 space-y-2 overflow-y-auto rounded-2xl bg-white/5 p-2">
-            <AnimatePresence initial={false}>
-              {log.map((l, i) => (
-                <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={cx("rounded-xl px-3 py-1.5 font-deva text-[13px]", l.who === "teacher" ? "ml-6 bg-amber-200/15" : "mr-6 bg-white/10")}>
-                  {l.who === "jugnu" && <Volume2 size={11} className="mr-1 inline text-amber-200" />}
-                  {l.text}
-                </motion.div>
+    <div className="grid gap-5 lg:grid-cols-[400px_1fr]">
+      <div className="space-y-4">
+        <Glass className="p-5">
+          <SectionTitle
+            eyebrow={ready ? t(`Line open ? ${tel?.active === "exotel" ? "Exotel" : "Plivo"}`, `???? ???? ? ${tel?.active === "exotel" ? "Exotel" : "Plivo"}`) : t("Line closed", "???? ???")}
+            title={t("Dial a teacher", "?????? ?? ??? ????")}
+            sub={t("A real call on any basic phone. Jugnu speaks Hindi (Google Chirp), listens, and runs the same 12-minute interview as the web call.", "???? ?? ?????? ???? ?? ???? ???? ????? ????? ??? ????? ??, ????? ??, ?? ???-??? ???? ?? 12 ???? ?? ?????? ???? ???")}
+          />
+          <form className="space-y-3" onSubmit={dial}>
+            <label className="block">
+              <span className="label">{t("Mobile number", "?????? ????")}</span>
+              <input value={to} onChange={(e) => setTo(e.target.value)} inputMode="tel" placeholder="+91 98765 43210" className="mt-1 w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 font-mono text-sm outline-none focus:border-amber-200/60" />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <input value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder={t("Teacher (optional)", "?????? (????????)")} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none" />
+              <input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder={t("School (optional)", "????? (????????)")} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none" />
+            </div>
+            <div className="inline-flex rounded-full border border-white/10 bg-black/20 p-1 text-xs">
+              {(["live", "bright", "comparison"] as const).map((g) => (
+                <button type="button" key={g} className={cx("rounded-full px-3 py-1", group === g ? "bg-white/15 text-white" : "text-[var(--color-ink-2)]")} onClick={() => setGroup(g)}>
+                  {g === "live" ? t("Live", "????") : g === "bright" ? t("Bright spot", "????? ?????") : t("Comparison", "?????")}
+                </button>
               ))}
-            </AnimatePresence>
-            {busy && <Loader2 size={14} className="animate-spin text-amber-200" />}
-          </div>
-          <div className="mt-3 flex items-center justify-center gap-3">
-            {state === "idle" || state === "ended" ? (
-              <button className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-black" onClick={() => (setLog([]), void dial())} aria-label="call">
-                <Phone size={22} />
-              </button>
-            ) : (
-              <>
-                <button className={cx("grid h-14 w-14 place-items-center rounded-full", listening ? "accent-solid" : "bg-white/15")} onClick={mic} disabled={!canListen() || busy || state !== "on"} aria-label="speak">
-                  <Mic size={22} />
-                </button>
-                <button className="grid h-14 w-14 place-items-center rounded-full bg-red-500 text-black" onClick={() => (stopSpeaking(), setState("ended"))} aria-label="hang up">
-                  <PhoneOff size={22} />
-                </button>
-              </>
-            )}
-          </div>
-          {state === "on" && (
-            <form className="mt-3 flex gap-1" onSubmit={(e) => (e.preventDefault(), void say(draft))}>
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("or type what the teacher says", "या शिक्षक का जवाब लिखें")} className="min-w-0 flex-1 rounded-full border border-white/15 bg-black/30 px-3 py-1.5 font-deva text-xs outline-none" />
-              <button className="btn btn-glass !px-2 !py-1" disabled={busy}>
-                <Send size={13} />
-              </button>
-            </form>
-          )}
-        </div>
-      </Glass>
-      <Glass className="p-5">
-        <SectionTitle
-          eyebrow={status.ivr ? t("Phone line connected (Twilio)", "फ़ोन लाइन जुड़ी है (Twilio)") : t("Simulator — the phone line uses the same code", "सिम्युलेटर — फ़ोन लाइन यही कोड चलाती है")}
-          title={t("Interviews on any phone — no smartphone, no data", "किसी भी फ़ोन पर बातचीत — न स्मार्टफ़ोन, न डेटा")}
-          sub={t(
-            "Twilio dials the teacher, speaks each question in Hindi, and sends the spoken answer (hi-IN speech recognition) to Jugnu's interviewer. Claude gets 8 seconds per turn; if it is slower, the offline interviewer answers so the caller never waits. Below is the exact TwiML the server returns at each step.",
-            "Twilio शिक्षक को कॉल करता है, हर सवाल हिंदी में बोलता है, और बोले गए जवाब (hi-IN पहचान) को जुगनू के इंटरव्यूअर तक भेजता है। Claude को हर बारी में 8 सेकंड मिलते हैं; देर हो तो ऑफ़लाइन इंटरव्यूअर जवाब देता है।",
-          )}
-          right={
-            <button className="btn btn-glass" onClick={() => setShowTwiml((v) => !v)}>
-              {showTwiml ? t("Hide TwiML", "TwiML छिपाएँ") : t("Show TwiML", "TwiML दिखाएँ")}
+            </div>
+            <button className="btn btn-primary w-full" disabled={busy || !ready}>
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />} {t("Place the call", "??? ?????")}
             </button>
-          }
-        />
-        {showTwiml && <pre className="glass-inset scroll-thin max-h-[420px] overflow-auto whitespace-pre-wrap break-all p-3 font-mono text-[11px] leading-relaxed text-teal-100">{lastTwiml ? prettyXml(lastTwiml) : t("Press the green button to place a test call.", "टेस्ट कॉल के लिए हरा बटन दबाएँ।")}</pre>}
-        <ul className="mt-4 grid gap-2 text-sm text-[var(--color-ink-2)] md:grid-cols-3">
-          <li className="glass-inset p-3"><b className="text-white">{t("Consent first", "पहले अनुमति")}</b><br />{t("“Shall we begin? Say yes or no.” A no deletes the call.", "“क्या हम शुरू करें?” — ना कहने पर कुछ नहीं रखा जाता।")}</li>
-          <li className="glass-inset p-3"><b className="text-white">{t("Signed webhooks", "हस्ताक्षरित वेबहुक")}</b><br />{t("Every Twilio request is verified with its HMAC signature.", "हर Twilio अनुरोध की HMAC जाँच होती है।")}</li>
-          <li className="glass-inset p-3"><b className="text-white">{t("No phone numbers stored", "फ़ोन नंबर नहीं रखे जाते")}</b><br />{t("Only a salted hash, to avoid calling twice.", "सिर्फ़ एक हैश, ताकि दोबारा कॉल न हो।")}</li>
-        </ul>
-      </Glass>
+          </form>
+          {note && <p className={cx("mt-3 text-xs", note.kind === "ok" ? "text-teal-200" : "text-red-300")}>{note.text}</p>}
+          {!ready && (
+            <p className="mt-3 text-xs text-[var(--color-ink-3)]">
+              {!tel?.active
+                ? t("No telephony provider is configured on this server (EXOTEL_* or PLIVO_*).", "?? ????? ?? ??? ????????? ??????? ??? ???? ?? (EXOTEL_* ?? PLIVO_*)?")
+                : !tel.publicUrl
+                  ? t("PUBLIC_URL is not set ? the provider cannot reach this server for audio.", "PUBLIC_URL ??? ???? ?? ? ??????? ????? ?? ??? ?? ????? ?? ???? ????? ?????")
+                  : t("Voice (GOOGLE_CLOUD_API_KEY) is not configured.", "????? (GOOGLE_CLOUD_API_KEY) ??? ???? ???")}
+            </p>
+          )}
+        </Glass>
+        <Glass className="p-4 text-xs text-[var(--color-ink-2)]">
+          <div className="label mb-2">{t("Line details", "???? ?? ???????")}</div>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            <dt className="text-[var(--color-ink-3)]">{t("Provider", "???????")}</dt><dd>{tel?.active ?? "?"}{tel?.providers.plivo.configured && !tel.providers.plivo.from ? t(" ? Plivo waiting for an Indian number", " ? Plivo ?? ?????? ???? ?????") : ""}</dd>
+            <dt className="text-[var(--color-ink-3)]">{t("Caller ID", "???? ID")}</dt><dd className="font-mono">{from ?? "?"}</dd>
+            <dt className="text-[var(--color-ink-3)]">{t("Audio bridge", "????? ?????")}</dt><dd className="truncate font-mono" title={tel?.publicUrl ?? ""}>{tel?.publicUrl?.replace(/^https?:\/\//, "") ?? "?"}</dd>
+            <dt className="text-[var(--color-ink-3)]">{t("Voice", "?????")}</dt><dd>{tel?.voice ? "Google Chirp STT + TTS" : "?"}</dd>
+          </dl>
+          <ul className="mt-3 space-y-1 text-[11px] text-[var(--color-ink-3)]">
+            <li>? {t("Consent first: ?Shall we begin? Say yes or no.? A no keeps nothing.", "???? ??????: ????? ?? ???? ?????? ? ?? ?? ??? ???? ??? ?????")}</li>
+            <li>? {t("Only a salted hash of the number is stored, never the number.", "???? ????, ?????? ???? salted ??? ??? ???? ???")}</li>
+            <li>? {t("Trial accounts can only ring numbers verified in the provider dashboard.", "?????? ???? ?????? ??????? ???????? ??? ???????? ?????? ?? ??? ?? ???? ????")}</li>
+          </ul>
+          {status.passcode && (
+            <a className="mt-3 inline-flex items-center gap-1 text-[11px] text-amber-200" href="/api/ivr/setup" target="_blank" rel="noreferrer">
+              <ExternalLink size={11} /> {t("Provider setup JSON (webhook URLs)", "??????? ????? JSON (?????? URL)")}
+            </a>
+          )}
+        </Glass>
+      </div>
+      <div className="space-y-4">
+        <Glass className="p-4">
+          <div className="label mb-2">{t("Phone calls", "???? ???")} ? {calls.length}</div>
+          {calls.length === 0 ? (
+            <p className="text-sm text-[var(--color-ink-3)]">{t("No phone calls yet. Dial a teacher on the left.", "??? ??? ???? ??? ????? ???? ?? ?? ?????? ?? ??? ?????")}</p>
+          ) : (
+            <ul className="scroll-thin max-h-[320px] space-y-1 overflow-y-auto">
+              {calls.map((r) => {
+                const cs = r.call_status ? CALL_STATE[r.call_status] ?? [r.call_status, r.call_status, "var(--tone-muted)"] : null;
+                return (
+                  <li key={r.id}>
+                    <button className={cx("flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm", open === r.id ? "bg-white/12" : "hover:bg-white/6")} onClick={() => setOpen(r.id)}>
+                      <span className="min-w-0 truncate">{r.teacher_name || t("Teacher", "??????")} ? {r.school_name || "?"}</span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        {cs && <span className="chip text-[10px]" style={{ borderColor: tint(cs[2], 55), background: tint(cs[2], 12) }}>{t(cs[0], cs[1])}</span>}
+                        <StatusChip s={r.status} />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Glass>
+        {open && <InterviewDetail id={open} onDeleted={() => (setOpen(null), reload())} />}
+      </div>
     </div>
   );
-}
-
-function prettyXml(x: string) {
-  return x.replace(/></g, ">\n<").replace(/(<Say[^>]*>)/g, "  $1").replace(/(<Gather[^>]*>)/g, "$1");
 }
 
 // ================================================================== simulated block (evaluation set)

@@ -1,8 +1,9 @@
-// Jugnu's ears and voice. Speech-to-text, best first: Gemini 3 Flash listening to the audio with
-// the block's school, cluster and teacher names in front of it (any Indian language, mixed speech,
-// written in the speaker's own script); then Google Chirp 3; both need Google credentials. Without
-// them, Google's v1 recogniser with an API key, steered towards the same names. Text-to-speech: Google
-// Chirp 3 HD voices in Hindi, Indian English and other Indian languages.
+// Jugnu's ears and voice. Speech-to-text: Google Chirp 3 (any Indian language, mixed speech, written
+// in the speaker's own script) when Google credentials are present; otherwise Google's v1 recogniser
+// with an API key, steered towards the block's school, cluster and teacher names. Text-to-speech:
+// Google Chirp 3 HD voices in Hindi, Indian English and other Indian languages.
+// All language-model work (understanding, answering, agent tools) is Claude — see ../claude.ts.
+// TODO(bhashini): add Sarvam / Bhashini as an alternative STT/TTS engine — see ./bhashini.ts.
 import { GoogleAuth } from "google-auth-library";
 import { createHash } from "node:crypto";
 
@@ -40,33 +41,7 @@ async function googleClient() {
 export interface Heard {
   text: string;
   language: string | null;
-  engine: "gemini" | "chirp_3" | "google_v1";
-}
-
-const LANG_NAME: Record<string, string> = { en: "English", hi: "Hindi", ta: "Tamil", te: "Telugu", mr: "Marathi", bn: "Bengali", gu: "Gujarati", kn: "Kannada", ml: "Malayalam" };
-
-/** Gemini hears the officer, knowing the names that matter in this block. */
-async function geminiHear(client: NonNullable<Awaited<ReturnType<typeof googleClient>>>, audio: Buffer, mime: string, lang: string, hints: string[]): Promise<Heard> {
-  const model = process.env.GEMINI_STT_MODEL || "gemini-3-flash-preview";
-  const prompt =
-    "Transcribe exactly what the speaker says to Jugnu, an assistant for a block education officer in Damoh district, Madhya Pradesh, India. " +
-    `Their console is set to ${LANG_NAME[lang] ?? "English"}, but they may speak any Indian language or mix languages. ` +
-    "Write the words in the script of the language spoken (Devanagari for Hindi, Tamil script for Tamil, Latin for English) and keep mixed speech mixed. " +
-    "Do not translate, summarise or answer. Names that may come up — when a word sounds like one of these, use this spelling: " +
-    hints.slice(0, 700).join(", ") +
-    '. Reply with JSON only: {"text": "...", "language": "BCP-47 code"}. If there is no clear speech, text is "".';
-  const r = await client.request<{ candidates?: { content?: { parts?: { text?: string }[] } }[] }>({
-    url: `https://aiplatform.googleapis.com/v1/projects/${PROJECT()}/locations/global/publishers/google/models/${model}:generateContent`,
-    method: "POST",
-    data: {
-      contents: [{ role: "user", parts: [{ inlineData: { mimeType: (mime.split(";")[0] || "audio/webm").trim(), data: audio.toString("base64") } }, { text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0, thinkingConfig: { thinkingLevel: "minimal" } },
-    },
-    timeout: 20000,
-  });
-  const raw = r.data.candidates?.[0]?.content?.parts?.map((x) => x.text ?? "").join("") ?? "";
-  const j = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { text?: string; language?: string };
-  return { text: String(j.text ?? "").trim(), language: j.language ?? null, engine: "gemini" };
+  engine: "chirp_3" | "google_v1";
 }
 
 /** Speech to text. `lang` is the console language; Chirp 3 also hears other languages and mixed speech. */
@@ -74,11 +49,6 @@ export async function transcribe(audio: Buffer, mime: string, lang: string, hint
   const locale = LOCALES[lang] ?? "en-IN";
   const client = await googleClient();
   if (client) {
-    try {
-      return await geminiHear(client, audio, mime, lang, hints);
-    } catch (e) {
-      console.warn("Gemini listening failed, trying Chirp 3:", (e as Error).message);
-    }
     try {
       const r = await client.request<{ results?: { alternatives?: { transcript?: string }[]; languageCode?: string }[] }>({
         url: `https://us-speech.googleapis.com/v2/projects/${PROJECT()}/locations/us/recognizers/_:recognize`,
@@ -129,25 +99,53 @@ export async function transcribe(audio: Buffer, mime: string, lang: string, hint
 
 const cache = new Map<string, Buffer>();
 
-/** Text to speech with a Chirp 3 HD voice; MP3 bytes. Short lines are cached (briefings repeat). */
-export async function synthesize(text: string, lang: string, voice?: string): Promise<Buffer> {
+export type TtsFormat = "mp3" | "pcm8k";
+
+/**
+ * Text to speech with a Chirp 3 HD voice. "mp3" (default) is for browsers; "pcm8k" is raw 16-bit
+ * mono 8 kHz PCM for telephone streams (the WAV header Google returns is stripped). Short lines
+ * are cached (briefings and interview openers repeat).
+ */
+export async function synthesize(text: string, lang: string, voice?: string, format: TtsFormat = "mp3"): Promise<Buffer> {
   const key = KEY();
   if (!key) throw new Error("Voice is not configured (GOOGLE_CLOUD_API_KEY).");
   const locale = LOCALES[lang] ?? "en-IN";
   const name = `${locale}-Chirp3-HD-${VOICES.includes(voice as (typeof VOICES)[number]) ? voice : VOICES[0]}`;
-  const id = createHash("sha1").update(`${name}|${text}`).digest("hex");
+  const id = createHash("sha1").update(`${name}|${format}|${text}`).digest("hex");
   const hit = cache.get(id);
   if (hit) return hit;
+  const audioConfig =
+    format === "pcm8k" ? { audioEncoding: "LINEAR16", sampleRateHertz: 8000, speakingRate: 0.95 } : { audioEncoding: "MP3", speakingRate: 0.97 };
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${key}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ input: { text }, voice: { languageCode: locale, name }, audioConfig: { audioEncoding: "MP3", speakingRate: 0.97 } }),
+    body: JSON.stringify({ input: { text }, voice: { languageCode: locale, name }, audioConfig }),
     signal: AbortSignal.timeout(20000),
   });
   const d = (await res.json()) as { audioContent?: string; error?: { message: string } };
   if (!d.audioContent) throw new Error(`Text to speech: ${d.error?.message ?? "no audio"}`);
-  const buf = Buffer.from(d.audioContent, "base64");
+  let buf = Buffer.from(d.audioContent, "base64");
+  if (format === "pcm8k" && buf.length > 44 && buf.toString("ascii", 0, 4) === "RIFF") buf = buf.subarray(44);
   if (cache.size > 300) cache.delete(cache.keys().next().value!);
   cache.set(id, buf);
   return buf;
+}
+
+/** Wrap raw 16-bit mono PCM in a WAV header so the recognisers can auto-detect it. */
+export function pcmToWav(pcm: Buffer, sampleRate = 8000): Buffer {
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
 }

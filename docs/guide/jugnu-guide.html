@@ -157,7 +157,7 @@ footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line);
       <p class="sub">Each step unblocks the one after it. Items marked <b>you</b> need your accounts or your people; I can do the rest as soon as the item before them is done.</p>
       <ol class="days">
         <li><div class="d">Day 1<small>Sun 25 Oct</small></div><div><div class="t">Switch on storage and Claude in production <span class="who">you · 10 min</span></div><p>In Vercel → project <code>jugnu</code>: add <b>Turso</b> from the Marketplace (region Mumbai) and add the environment variable <code>ANTHROPIC_API_KEY</code>. Tell me, and I redeploy. Without Turso, interviews, phone calls and spot checks on the live site can vanish between requests.</p></div></li>
-        <li><div class="d">Day 1–2<small>25–26 Oct</small></div><div><div class="t">Real phone line on Twilio <span class="who">you + me</span></div><p>Upgrade Twilio from trial (or verify the test phones), buy one number, add the five <code>TWILIO_*</code> values in Vercel. I connect the webhooks and we place a test call to your phone in Hindi. Section 07 has the details and alternatives.</p></div></li>
+        <li><div class="d">Day 1–2<small>25–26 Oct</small></div><div><div class="t">Real phone line on Exotel <span class="who">you + me</span></div><p>Verify the test phones on the Exotel trial, add the Voicebot applet to the flow, keep the <code>TWILIO_*</code> values in Vercel. I connect the webhooks and we place a test call to your phone in Hindi. Section 07 has the details and alternatives.</p></div></li>
         <li><div class="d">Day 2<small>26 Oct</small></div><div><div class="t">Choose the data story <span class="who">you decide · I build</span></div><p>Either a larger simulated district (several blocks, ready in a day) or a real public UDISE+ school list (needs your permission to download). Either feeds the district roll-up still missing from the deck's plan.</p></div></li>
         <li><div class="d">Day 2–4<small>26–28 Oct</small></div><div><div class="t">Field sessions with real users <span class="who">you · 5–8 sessions</span></div><p>Run them with <code>docs/TESTING-KIT.md</code> and record findings on the app's Testing page. Try to include one real teacher interview by web and one by phone. Judges weigh real conditions heavily.</p></div></li>
         <li><div class="d">Day 4–5<small>28–29 Oct</small></div><div><div class="t">Fix what testing found; freeze features <span class="who">me</span></div><p>Turn "you said → we changed" into commits. After 29 Oct, only bug fixes.</p></div></li>
@@ -212,12 +212,12 @@ every call ──► ai_calls trace: task, model, time, tokens, cost, each check
         <tbody>
           <tr><td><div class="step"><i>1</i>Find</div><small>Schools that beat their context</small></td><td>Schools · 3D night map on Today</td><td>Regression on UDISE+ context over 3 cycles, robust residuals; flagged if above expectation in 2 of 3</td><td><span class="pill ok">Built</span></td></tr>
           <tr><td><div class="step"><i>2</i>Verify</div><small>Real, not inflated</small></td><td>School page → tracker → spot check</td><td>Jump checks, then a 15-child spot check by the CRP with a binomial test</td><td><span class="pill ok">Built</span></td></tr>
-          <tr><td><div class="step"><i>3</i>Ask</div><small>12-minute AI voice interview</small></td><td>Teacher link <code>/talk</code> · Interviews · Phone line</td><td>Claude interviewer in Hindi, browser voice; phone via Twilio</td><td><span class="pill ok">Web built</span> <span class="pill part">Phone needs Twilio</span></td></tr>
+          <tr><td><div class="step"><i>3</i>Ask</div><small>12-minute AI voice interview</small></td><td>Teacher link <code>/talk</code> · Interviews · Phone line</td><td>Claude interviewer in Hindi, browser voice; phone via Exotel</td><td><span class="pill ok">Web built</span> <span class="pill part">Phone needs Twilio</span></td></tr>
           <tr><td><div class="step"><i>4</i>Contrast</div><small>What truly differs</small></td><td>What works</td><td>Claude codes transcripts; Beta-Binomial contrast of bright spots vs comparison schools; decoys set aside</td><td><span class="pill ok">Built</span></td></tr>
           <tr><td><div class="step"><i>5</i>Spread</div><small>Teacher to teacher, owned</small></td><td>Support plan (action board) · Review</td><td>Nearest matching demonstrator, voice note, peer visit, an owner and date per action; stuck items escalate</td><td><span class="pill ok">Built</span></td></tr>
           <tr><td><div class="step"><i>6</i>Track</div><small>Did it work?</small></td><td>Results</td><td>Day-14 follow-up read by Claude; wave 1 vs wave 2 difference-in-differences with bootstrap intervals</td><td><span class="pill ok">Built</span></td></tr>
           <tr><td>CSV / state-feed import</td><td>Data &amp; method</td><td>Template + import; runs Find and Verify on real data</td><td><span class="pill ok">Built</span></td></tr>
-          <tr><td>Phone-line interviews</td><td>Interviews → Phone line</td><td>Outbound and incoming calls, signed webhooks, Hindi speech; simulator meanwhile</td><td><span class="pill part">Needs telephony account</span></td></tr>
+          <tr><td>Phone-line interviews</td><td>Interviews → Phone line</td><td>Real outbound calls on Exotel, signed webhooks, Chirp Hindi speech over the call audio</td><td><span class="pill part">Needs telephony account</span></td></tr>
           <tr><td>WhatsApp voice notes</td><td>School page → voice note</td><td>Share button opens WhatsApp with the approved note. No WhatsApp Business API</td><td><span class="pill part">Share link only</span></td></tr>
           <tr><td>Consent &amp; credit manager</td><td>Interviews · Review</td><td>Spoken consent on every interview, "no" deletes it; credit only with permission. No dedicated screen yet</td><td><span class="pill part">Partial</span></td></tr>
           <tr><td>District roll-up</td><td>None yet</td><td>Which practices transfer across blocks. Comes with the data choice on day 2</td><td><span class="pill todo">Not built</span></td></tr>
@@ -272,7 +272,7 @@ every call ──► ai_calls trace: task, model, time, tokens, cost, each check
       <div class="script">
         <div class="beat"><div class="time">0:00<small>30 s</small></div><div><h4>The problem, on the home page</h4><p>Let the intro play; scroll the story of one practice.</p><div class="say">"Every block officer gets results that say where learning is low, never what to do. The answer is often a teacher 4 km away."</div></div></div>
         <div class="beat"><div class="time">0:30<small>45 s</small></div><div><h4>Find and verify</h4><p>Enter as BEO → Today → the 3D night map → Schools → open a gold bright spot and an amber "check" school.</p><div class="say">"These schools beat their context 2 terms out of 3. This one jumped suspiciously, so a CRP checks 15 children before we celebrate."</div></div></div>
-        <div class="beat"><div class="time">1:15<small>75 s</small></div><div><h4>Ask: the live interview</h4><p>From a school page, send the teacher link to the phone and answer two questions in Hindi, aloud. Or call the phone if Twilio is live. Show the transcript coded into practices.</p><div class="say">"Jugnu asks about routines, follows up when an answer is vague, and Claude codes every answer. Each quote is checked word-for-word."</div></div></div>
+        <div class="beat"><div class="time">1:15<small>75 s</small></div><div><h4>Ask: the live interview</h4><p>From a school page, send the teacher link to the phone and answer two questions in Hindi, aloud. Or dial the phone from Interviews → Phone line. Show the transcript coded into practices.</p><div class="say">"Jugnu asks about routines, follows up when an answer is vague, and Claude codes every answer. Each quote is checked word-for-word."</div></div></div>
         <div class="beat"><div class="time">2:30<small>40 s</small></div><div><h4>Contrast: what works here</h4><p>What works → the practice card for daily reading-level groups → point at "set aside: claimed by many".</p><div class="say">"We keep only what separates bright spots from similar schools: free, specific practices, in teachers' own words."</div></div></div>
         <div class="beat"><div class="time">3:10<small>40 s</small></div><div><h4>Spread with owners</h4><p>Support plan → a To-do card with a named CRP and day; Review → approve a voice note; send on WhatsApp.</p><div class="say">"Every lagging school gets one proven practice, a peer to watch, and a person who owns it."</div></div></div>
         <div class="beat"><div class="time">3:50<small>40 s</small></div><div><h4>Track, then play the term</h4><p>Press <b>Play the term</b>; the rings, map and activity move. End on Results: wave 1 vs wave 2.</p><div class="say">"Day-14 calls tell us who tried it. Two waves give a built-in test of what really transfers."</div></div></div>
@@ -301,28 +301,25 @@ every call ──► ai_calls trace: task, model, time, tokens, cost, each check
     <!-- 07 -->
     <section id="calls">
       <h2><span class="n">07</span>Real phone calls</h2>
-      <p class="sub">The phone line is already written for Twilio: outbound calls from the Interviews page, incoming calls, Hindi text-to-speech, hi-IN speech recognition, and signature-checked webhooks. It needs an account, a number and five settings.</p>
-      <h3>With your Twilio account</h3>
+      <p class="sub">Build stage: the phone line is a <b>real outbound call</b> — there is no simulator any more. <b>Exotel</b> is the live provider (Indian caller ID, trial account). Jugnu dials the teacher, the call's audio streams over a WebSocket to the API, Google Chirp hears the Hindi and speaks the next question, and every turn is stored like a web interview.</p>
+      <h3>Exotel (live today)</h3>
       <ol class="plain">
-        <li><b>Trial or paid:</b> a trial can call only phone numbers you verify in the console, adds a trial message, and caps calls at 10 minutes. Fine for a demo to your own phones; upgrade (add a small balance) for real teachers.</li>
-        <li><b>Allow India:</b> Console → Voice → Settings → Geo permissions → tick India.</li>
-        <li><b>Buy a voice number:</b> a US number is quickest. Twilio no longer supports +91 caller ID to +91 destinations, so Indian phones will see an international number.</li>
-        <li><b>Add in Vercel:</b> <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_FROM</code>, <code>PUBLIC_URL=https://jugnu-nine.vercel.app</code>, <code>PHONE_SALT</code> (any random text).</li>
-        <li><b>Incoming calls (optional):</b> set the number's voice webhook to <code>https://jugnu-nine.vercel.app/api/ivr/twilio/incoming</code>.</li>
-        <li>Turso must be on first; each turn of a call is a separate request and needs saved state.</li>
+        <li><b>Settings already in <code>.env</code>:</b> <code>TELEPHONY_PROVIDER=exotel</code>, <code>API_KEY_EXOTEL</code>, <code>API_TOKEN_PASSWORD</code>, <code>EXOTEL_SID</code>, <code>EXOTEL_HOST</code>, <code>EXOTEL_FROM</code> (the ExoPhone), <code>EXOTEL_APP_ID</code> (the flow), <code>PUBLIC_URL</code>, <code>PHONE_SALT</code>.</li>
+        <li><b>One thing in the Exotel dashboard:</b> open the flow named in <code>EXOTEL_APP_ID</code> → add a <b>Voicebot</b> applet → paste the WebSocket URL printed by <code>GET /api/ivr/setup</code> (it looks like <code>wss://&lt;PUBLIC_URL&gt;/api/ivr/exotel/stream?key=…</code>) → end with Hangup.</li>
+        <li><b>Trial limits:</b> calls go only to numbers verified on the account; business KYC lifts that.</li>
+        <li><b>Where the API runs matters:</b> the audio needs a long-lived WebSocket, so the API must run on a long-lived host or through a tunnel (cloudflared is used locally). Vercel functions cannot carry a call; the web app on Vercel can still point at such an API.</li>
+        <li><b>Dial from the app:</b> Interviews → Phone line → enter the number → Call. The call's status (dialing, in-call, completed, no answer) shows on the interview card.</li>
       </ol>
-      <h3>Alternatives</h3>
+      <h3>Other providers</h3>
       <div class="tbl"><table>
-        <thead><tr><th>Provider</th><th>Good for</th><th>Catch</th><th>Work to switch</th></tr></thead>
+        <thead><tr><th>Provider</th><th>State</th><th>Catch</th></tr></thead>
         <tbody>
-          <tr><td><b>Twilio</b> (have it)</td><td>Fastest; code is ready; good docs</td><td>International caller ID in India; delivery to Indian mobiles can vary; consent rules (TRAI) apply</td><td>None</td></tr>
-          <tr><td><b>Exotel</b></td><td>Indian company, Indian virtual numbers, trusted local caller ID; widely used by Indian govt-tech and NGOs</td><td>Business KYC to activate, can take days; speech handled by streaming to your own speech engine</td><td>1–2 days: new call adapter + streaming</td></tr>
-          <tr><td><b>Plivo</b></td><td>Twilio-like XML and API; India coverage; often cheaper</td><td>Indian numbers also need KYC</td><td>About a day (XML is close to TwiML)</td></tr>
-          <tr><td><b>Ozonetel / Knowlarity</b></td><td>Indian cloud telephony and IVR at scale</td><td>Sales-led onboarding; slower for a hackathon</td><td>Days</td></tr>
-          <tr><td><b>Voice-AI layer</b> (Sarvam, Bhashini speech)</td><td>Much better Hindi and regional speech than Twilio's built-in recognition</td><td>Still needs a phone carrier underneath (Exotel/Plivo/Twilio)</td><td>Pairs with any of the above after the hackathon</td></tr>
+          <tr><td><b>Exotel</b></td><td>Wired and live (<code>server/telephony.ts</code>)</td><td>Trial calls only to verified numbers until KYC</td></tr>
+          <tr><td><b>Plivo</b></td><td>Wired (answer XML + audio stream), dormant</td><td>Plivo will not verify an Indian caller ID; an Indian number must be bought on the account before it can dial teachers</td></tr>
+          <tr><td><b>Twilio</b></td><td>On hold (owner's decision)</td><td>International caller ID in India</td></tr>
+          <tr><td><b>Sarvam / Bhashini speech</b></td><td>To do (after the hackathon sprints)</td><td>Better regional-language speech on top of any carrier</td></tr>
         </tbody>
       </table></div>
-      <div class="callout"><b>Recommendation:</b> use Twilio for the hackathon demo, since it works today, and call your own verified phones. Name Exotel + Sarvam/Bhashini in the PPT as the production path for Indian caller ID and better Hindi speech. Only start Exotel now if you can finish its KYC this week.</div>
     </section>
 
     <footer>Jugnu · जुगनू · built with Claude. Prepared 25 October 2026 from the repository and the Ideate-stage deck.</footer>

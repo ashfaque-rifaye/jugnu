@@ -92,7 +92,7 @@ export default function TalkPage() {
   // /talk without a token: create a practice interview (lets anyone, e.g. a judge, try it).
   useEffect(() => {
     if (token) return;
-    postJSON<{ token: string }>("/api/talk/demo", { language: "hi" })
+    postJSON<{ token: string }>("/api/talk/practice", { language: "hi" })
       .then((r) => nav(`/talk/${r.token}`, { replace: true }))
       .catch((e: Error) => setError(e.message));
   }, [token, nav]);

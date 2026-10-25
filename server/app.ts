@@ -15,7 +15,7 @@ import { claudeAvailable, MODEL } from "./claude";
 import { db, storage } from "./db";
 import { answer, codeAndStore, codedForBlock, codingsOf, createInterview, eraseInterview, getById, getByToken, listInterviews, start, turnsOf } from "./interviews";
 import { events } from "./events";
-import { ivr, ivrConfigured } from "./ivr";
+import { ivr, telephonyStatus } from "./telephony";
 import { reviews } from "./reviews";
 import { testing } from "./testing";
 import { synthesize, transcribe, voiceConfigured, VOICES } from "./voice";
@@ -25,7 +25,7 @@ app.set("trust proxy", true);
 app.use(express.json({ limit: "4mb" }));
 
 app.get("/api/status", (_req, res) =>
-  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: ivrConfigured(), passcode: passcodeRequired(), storage: storage() }),
+  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: telephonyStatus(), passcode: passcodeRequired(), storage: storage() }),
 );
 
 app.post("/api/auth/check", (req, res) => res.json({ ok: !process.env.DEMO_PASSCODE || req.body?.passcode === process.env.DEMO_PASSCODE }));
@@ -80,10 +80,10 @@ const publicView = async (token: string) => {
 };
 
 /** Anyone (e.g. a judge) can try the teacher side: creates a practice interview. */
-app.post("/api/talk/demo", rateLimit("demo", 12, 600000), async (req, res) => {
+app.post("/api/talk/practice", rateLimit("practice", 12, 600000), async (req, res) => {
   const body = Invite.safeParse(req.body ?? {});
   // Public practice interviews are never linked to a school in the block.
-  const row = await createInterview({ ...(body.success ? { ...body.data, schoolId: undefined } : {}), group: "live", channel: "web", schoolName: body.success ? body.data.schoolName || "Demo school" : "Demo school" });
+  const row = await createInterview({ ...(body.success ? { ...body.data, schoolId: undefined } : {}), group: "live", channel: "web", schoolName: body.success ? body.data.schoolName || "Practice school" : "Practice school" });
   res.json({ token: row.token });
 });
 

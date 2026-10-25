@@ -14,9 +14,11 @@ export interface PilotRow {
   teacher_name: string | null;
   school_name: string | null;
   grp: "bright" | "comparison" | "live";
-  channel: "web" | "phone" | "phone-sim";
+  channel: "web" | "phone";
   language: "hi" | "en";
   status: "invited" | "in_progress" | "completed" | "declined";
+  call_status: string | null;
+  call_sid: string | null;
   consent: number;
   created_at: string;
   turns: number;
@@ -86,7 +88,7 @@ export function InviteCard({ link, row }: { link: string; row: PilotRow }) {
         <p className="mt-2 text-xs text-[var(--color-ink-3)]">
           {status.ivr
             ? calling
-            : t("The phone line is not connected on this server yet — try the same flow in the Phone line tab.", "इस सर्वर पर फ़ोन लाइन अभी नहीं जुड़ी है — वही बातचीत 'फ़ोन लाइन' टैब में आज़माएँ।")}
+            : t("Telephony is not configured on this server (set EXOTEL_* or PLIVO_* and PUBLIC_URL).", "इस सर्वर पर टेलीफ़ोनी सेट नहीं है (EXOTEL_* या PLIVO_* और PUBLIC_URL सेट करें)।")}
         </p>
       </div>
     </Glass>

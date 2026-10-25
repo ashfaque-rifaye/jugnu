@@ -1,13 +1,15 @@
-// Jugnu on an ordinary server (development, or one long-running host such as Railway): the API,
-// plus the built web app in production.
+// Jugnu on an ordinary long-running server (development, or any free-tier host that keeps a process
+// alive): the API, the telephony WebSocket streams, plus the built web app in production.
+// Serverless hosts (Vercel) run the API via api/[...all].ts but cannot hold the phone-call WebSocket.
 import express from "express";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app } from "./app";
 import { claudeAvailable, MODEL } from "./claude";
 import { storage } from "./db";
-import { ivrConfigured } from "./ivr";
+import { attachTelephony, telephonyStatus } from "./telephony";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, "../dist");
@@ -21,8 +23,12 @@ if (process.env.NODE_ENV === "production" && fs.existsSync(dist)) {
 }
 
 const port = process.env.NODE_ENV === "production" ? Number(process.env.PORT || 8080) : Number(process.env.API_PORT || 8788);
-app.listen(port, () =>
+const server = http.createServer(app);
+attachTelephony(server);
+server.listen(port, () => {
+  const t = telephonyStatus();
+  const phone = t.active ? `${t.active} via ${t.publicUrl}` : "off (set TELEPHONY_PROVIDER + PUBLIC_URL)";
   console.log(
-    `Jugnu API on http://localhost:${port} — Claude ${claudeAvailable() ? `connected (${MODEL})` : "not connected (offline engine)"} · phone line ${ivrConfigured() ? "on" : "simulator only"} · data in ${storage() === "turso" ? "Turso" : "local SQLite"}`,
-  ),
-);
+    `Jugnu API on http://localhost:${port} — Claude ${claudeAvailable() ? `connected (${MODEL})` : "not connected (offline engine)"} · phone line ${phone} · data in ${storage() === "turso" ? "Turso" : "local SQLite"}`,
+  );
+});

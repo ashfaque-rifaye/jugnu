@@ -16,7 +16,7 @@ actions, and checks whether it worked.
 | Everyone | `/` | **Home page** — one real practice followed from a bright spot to the school next door, the whole block as one flow from data to action, and a door for each role |
 | Teacher | `/talk` | A 12-minute Hindi voice interview on any Android phone — no app, no login |
 | Officer / CRP | `/today` | **Today** (the next step, term rings, my first 10 minutes, live activity, tasks, the block's 3D night map) · the loop in order: **Find & check** (schools, a page per school with its tracker) → **Listen** (interviews) → **What works** → **Share** (support plan) → **Follow up** (results) · **Approvals** · **Ask Jugnu** |
-| Phone line | `/ask` → *Phone line* | The same interview on a basic phone (Twilio), or its simulator with the TwiML of each step |
+| Phone line | `/ask` → *Phone line* | The same interview on a basic phone: a real outbound call (Exotel today, Plivo when an Indian number is added), Chirp speech both ways over the provider's audio stream |
 | Judges | `/ai` | Where AI is used, layer by layer, the live trace of every call, and the evaluation |
 | Testers | `/testing` | Consented sessions, role tasks, Hindi/English SUS, results and the change log |
 
@@ -58,7 +58,7 @@ demonstrator + waves), `track.ts` (difference-in-differences, bootstrap interval
 ## Evaluation
 
 ```bash
-npm test        # 30 tests: engine on simulated blocks, the home story, term playback, guardrails, interview service (SQLite + Turso), IVR signing
+npm test        # 36 tests: engine on simulated blocks, the home story, term playback, guardrails, interview service (SQLite + Turso), telephony webhook signing
 npm run eval    # coding vs 30 hand-labelled answers + guardrails under attack + interviewer behaviour
 npm run smoke   # end-to-end interview against a running server (consent → 7 topics → coding)
 ```
@@ -70,9 +70,9 @@ alarms on good outputs. With a Claude key it also scores the Claude coder agains
 
 ## Works in real conditions
 
-- **Voice first, Hindi first:** questions are spoken (browser TTS / Twilio `<Say>`), answers are
-  heard (Web Speech `hi-IN` / Twilio speech recognition); typing is a fallback; the console has a
-  Hindi toggle.
+- **Voice first, Hindi first:** questions are spoken (Google Chirp TTS, browser voices as fallback),
+  answers are heard (Chirp STT / Web Speech `hi-IN`); on a phone the same voices run over the
+  provider's audio stream; typing is a fallback; the console has a Hindi toggle.
 - **Low connectivity:** service worker caches the app shell; the teacher page keeps an unsent
   answer on the phone and resends it when the network returns; the teacher link loads ~90 KB.
 - **Low-cost phones:** low-data mode (auto on data-saver, 2G/3G or ≤ 2 GB RAM) removes video, 3D
@@ -108,8 +108,10 @@ npm run dev               # web http://localhost:5190, API :8788
 npm run build && npm start   # production: one server on $PORT serving the app and the API
 ```
 
-Optional: `DEMO_PASSCODE` (officer console passcode), `TWILIO_*` + `PUBLIC_URL` (real phone line),
-`JUGNU_DB` (database path).
+Optional: `DEMO_PASSCODE` (officer console passcode), `GOOGLE_CLOUD_API_KEY` (Chirp speech),
+`EXOTEL_*` or `PLIVO_*` + `PUBLIC_URL` (real phone line; the provider needs a public WebSocket, so
+run the API on a long-lived host or a tunnel — Vercel functions cannot carry the audio),
+`JUGNU_DB` (database path). There is no phone simulator.
 
 ### Deploy
 
@@ -119,8 +121,8 @@ Optional: `DEMO_PASSCODE` (officer console passcode), `TWILIO_*` + `PUBLIC_URL` 
   when `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` are set — add Turso from the Vercel Marketplace and
   redeploy. Without Turso the function falls back to a temporary database (`/api/status` →
   `"storage": "temporary"`). Git-triggered builds are off (`vercel.json`); deploys come from the CLI.
-- **Any long-running Node host (e.g. Railway):** `npm run build && npm start`, with `JUGNU_DB` on a
-  persistent volume. `railway.json` is ready (health check `/api/status`).
+- **Any long-running Node host (free tier):** `npm run build && npm start`, with `JUGNU_DB` on a
+  persistent volume (health check `/api/status`). This is the host that can also carry phone calls.
 
 Both run the same Express app (`server/app.ts`) and the same SQL; `server/db.ts` picks node:sqlite or
 Turso. `npm test` runs the interview service against both.

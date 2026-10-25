@@ -21,7 +21,7 @@ export function StatusProvider({ children }: { children: ReactNode }) {
     const attempt = (n: number) =>
       fetch("/api/status")
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-        .then((s) => !cancelled && setStatus({ claude: !!s.claude, model: s.model ?? null, voice: !!s.voice, ivr: !!s.ivr, passcode: !!s.passcode, checked: true, online: true }))
+        .then((s) => !cancelled && setStatus({ claude: !!s.claude, model: s.model ?? null, voice: !!s.voice, ivr: !!(s.ivr && (s.ivr === true || s.ivr.active)), passcode: !!s.passcode, checked: true, online: true }))
         .catch(() => {
           if (cancelled) return;
           if (n < 6) window.setTimeout(() => attempt(n + 1), 1200);

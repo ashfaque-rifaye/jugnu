@@ -8,7 +8,7 @@ import { clarifyTurn, closingTurn, nextTurn, type Lang, type LiveTurn, type Next
 import { db, now, type Stmt } from "./db";
 import { later } from "./later";
 
-export type Channel = "web" | "phone" | "phone-sim";
+export type Channel = "web" | "phone";
 export type Group = "bright" | "comparison" | "live";
 
 export interface InterviewRow {
@@ -22,6 +22,7 @@ export interface InterviewRow {
   consent: number;
   status: "invited" | "in_progress" | "completed" | "declined";
   call_sid: string | null;
+  call_status: string | null;
   school_id: string | null;
   created_at: string;
   updated_at: string;
@@ -52,6 +53,7 @@ export async function createInterview(args: { teacherName?: string; schoolName?:
 
 export const getById = (id: string) => db.get<InterviewRow>(`SELECT * FROM interviews WHERE id = ?`, id);
 export const getByToken = (tok: string) => db.get<InterviewRow>(`SELECT * FROM interviews WHERE token = ?`, tok);
+export const getByCallSid = (sid: string) => db.get<InterviewRow>(`SELECT * FROM interviews WHERE call_sid = ?`, sid);
 export const turnsOf = (id: string) => db.all<TurnRow>(`SELECT idx, speaker, text, text_en, kind, topic, source, confidence, created_at FROM turns WHERE interview_id = ? ORDER BY idx`, id);
 export const codingsOf = (id: string) =>
   db.all<{

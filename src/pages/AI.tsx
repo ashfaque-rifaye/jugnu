@@ -44,7 +44,7 @@ const TASKS: { id: string; en: string; hi: string; input: string; model: string;
     model: "Claude, structured output: next utterance + kind (question / follow-up / clarify / closing) + area; 8 s deadline on the phone, 15 s on the web",
     guard: "On classroom routines only (no caste, religion, politics, pay, personal life) · under 40 words · in the teacher's language · never repeats a question · may not close before 5 areas",
     evals: "Coverage of script areas and follow-up rate per interview; replayed against the simulated teachers",
-    output: "Spoken by browser TTS or Twilio <Say>; stored as a turn",
+    output: "Spoken by Google Chirp TTS in the browser or over an Exotel/Plivo call; stored as a turn",
     fallback: "Scripted interviewer with one follow-up on vague answers",
   },
   {
