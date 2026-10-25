@@ -2,7 +2,21 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 
-export const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5";
+/** USD per million tokens. Only the two cheaper models are allowed on the team's credits. */
+export const PRICES: Record<string, { input: number; output: number }> = {
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
+};
+
+const requested = process.env.CLAUDE_MODEL || "claude-haiku-5-5";
+if (!(requested in PRICES)) console.warn(`CLAUDE_MODEL=${requested} is not allowed (Haiku 5.5 or Sonnet 5.5 only) — using claude-haiku-5-5`);
+export const MODEL = requested in PRICES ? requested : "claude-haiku-5-5";
+
+/** Cost of one call in USD. Unknown models are priced as Sonnet 5.5 so the estimate never runs low. */
+export function costUSD(model: string | null, inputTokens: number, outputTokens: number): number {
+  const p = PRICES[model ?? ""] ?? PRICES["claude-sonnet-5-5"];
+  return (inputTokens * p.input + outputTokens * p.output) / 1e6;
+}
 
 let client: Anthropic | null = null;
 
@@ -31,8 +45,6 @@ export interface ClaudeResult<T> {
 
 type Content = string | Anthropic.Beta.BetaContentBlockParam[];
 
-/** Server-side fallbacks re-run a declined request on Anthropic's recommended fallback model. */
-export const FALLBACK: { betas: Anthropic.Beta.AnthropicBeta[]; fallbacks: "default" } = { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" };
 
 /**
  * One structured call to Claude. Output is constrained to `schema` (structured outputs) and
@@ -50,7 +62,6 @@ export async function askClaude<S extends z.ZodType>(args: {
     {
       model: MODEL,
       max_tokens: args.maxTokens ?? 16000,
-      ...FALLBACK,
       system: args.system,
       output_config: { effort: args.effort ?? "medium", format: betaZodOutputFormat(args.schema) },
       messages: [{ role: "user", content: args.content }],

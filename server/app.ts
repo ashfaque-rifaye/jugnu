@@ -7,7 +7,7 @@ import path from "node:path";
 import { z } from "zod";
 import { readFollowUp } from "./ai/followup";
 import { askOfficer } from "./ai/officer";
-import { recentCalls, traceSummary } from "./ai/run";
+import { creditReport, recentCalls, traceSummary } from "./ai/run";
 import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
 import { pipelineFor } from "./blocks";
 import { claudeAvailable, MODEL } from "./claude";
@@ -132,6 +132,9 @@ app.post("/api/ask", requireOfficer, rateLimit("ask", 60, 600000), async (req, r
 
 // ---------------------------------------------------------------- AI trace + evaluation
 app.get("/api/ai/trace", requireOfficer, async (_req, res) => res.json({ summary: await traceSummary(), calls: await recentCalls(150) }));
+
+// Totals only (no prompts or answers), so `npm run credits` can read the deployed app's spend.
+app.get("/api/ai/credits", async (_req, res) => res.json(await creditReport()));
 
 app.get("/api/ai/eval", (_req, res) => {
   const f = path.resolve("data/eval/results.json");

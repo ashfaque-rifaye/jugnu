@@ -6,7 +6,7 @@ import { betaZodOutputFormat, betaZodTool } from "@anthropic-ai/sdk/helpers/beta
 import { z } from "zod";
 import { PRACTICES } from "../../src/engine/practices";
 import type { PipelineState } from "../../src/engine/pipeline";
-import { claudeAvailable, describeError, FALLBACK, getClient, MODEL } from "../claude";
+import { claudeAvailable, describeError, getClient, MODEL } from "../claude";
 import { db, now } from "../db";
 import type { Check } from "./guardrails";
 import { SAFETY } from "./interviewer";
@@ -210,7 +210,6 @@ export async function askOfficer(question: string, st: PipelineState) {
       {
         model: MODEL,
         max_tokens: 8000,
-        ...FALLBACK,
         max_iterations: 8,
         thinking: { type: "adaptive" },
         output_config: { effort: "medium", format: betaZodOutputFormat(AnswerSchema) },
@@ -224,9 +223,13 @@ Never shame or rank teachers; suspected inflation means "revisit respectfully".`
       { signal: AbortSignal.timeout(60000) },
     );
     // Each iteration yields one assistant message; tool_use blocks show which lookups were made.
+    // Every iteration is billed, so add up the usage of all of them, not just the last.
     let final: Awaited<typeof runner> | null = null;
+    const used = { i: 0, o: 0 };
     for await (const message of runner) {
       for (const b of message.content) if (b.type === "tool_use") tools.push(b.name);
+      used.i += message.usage.input_tokens + (message.usage.cache_read_input_tokens ?? 0) + (message.usage.cache_creation_input_tokens ?? 0);
+      used.o += message.usage.output_tokens;
       final = message;
     }
     if (!final) throw new Error("Officer agent returned no message");
@@ -234,7 +237,7 @@ Never shame or rank teachers; suspected inflation means "revisit respectfully".`
     const parsed = AnswerSchema.safeParse(JSON.parse(text));
     if (!parsed.success) throw new Error("Officer answer did not match the schema");
     const { value, checks, accept } = guardAnswer(parsed.data, st, tools.length);
-    await log("claude", final.model, { i: final.usage.input_tokens, o: final.usage.output_tokens }, checks, accept, accept ? null : "rejected by guardrails");
+    await log("claude", final.model, used, checks, accept, accept ? null : "rejected by guardrails");
     if (!accept) return { source: "offline" as const, ...offlineAnswer(question, st), checks, tools, warning: "Claude answered without looking anything up — used the offline answer" };
     return { source: "claude" as const, ...value, checks, tools };
   } catch (error) {

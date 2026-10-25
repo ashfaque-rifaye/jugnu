@@ -6,6 +6,7 @@
 //   3. Interviewer behaviour: does it follow up exactly when an answer names a practice vaguely?
 // Results are written to data/eval/results.json and shown on the "AI & guardrails" page.
 process.env.JUGNU_DB = ":memory:";
+import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -160,6 +161,14 @@ if (claudeAvailable() && !process.argv.includes("--offline")) coders.push(await 
 const results = { ranAt: new Date().toISOString(), coding: coders, guardrails: evalGuardrails(), interviewer: evalInterviewer() };
 fs.mkdirSync(path.resolve("data/eval"), { recursive: true });
 fs.writeFileSync(path.resolve("data/eval/results.json"), JSON.stringify(results, null, 2));
+
+// The eval runs on an in-memory database, so keep its Claude spend where `npm run credits` finds it.
+const { creditReport } = await import("../server/ai/run");
+const spend = await creditReport();
+if (spend.calls > 0) {
+  fs.mkdirSync(path.resolve("data/runtime"), { recursive: true });
+  fs.appendFileSync(path.resolve("data/runtime/eval-spend.jsonl"), JSON.stringify({ at: results.ranAt, usd: spend.spent, calls: spend.calls }) + "\n");
+}
 
 console.log("\nTranscript coding (" + gold.items.length + " labelled answers)");
 console.table(coders.map(({ errors: _e, ...c }) => c));

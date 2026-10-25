@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-10-10T17:39:02.313Z",
+  "ranAt": "2026-10-25T06:25:03.122Z",
   "coding": [
     {
       "coder": "Keyword lexicon (offline)",
@@ -118,6 +118,17 @@
           "got": []
         }
       ]
+    },
+    {
+      "coder": "Claude (claude-haiku-5-5)",
+      "items": 30,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "tricky": "15/15",
+      "newPractices": "2/2",
+      "groundedQuotes": 1,
+      "errors": []
     }
   ],
   "guardrails": [

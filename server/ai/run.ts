@@ -2,7 +2,7 @@
 //   input → model (Claude, with a deadline) → deterministic guardrails → fallback → trace.
 // If Claude is unavailable, too slow, declines, or fails a blocking guardrail, the offline engine's
 // answer is used instead, so the teacher on the line or the officer on the console never waits on it.
-import { claudeAvailable, describeError, type ClaudeResult } from "../claude";
+import { claudeAvailable, costUSD, describeError, type ClaudeResult } from "../claude";
 import { db, now } from "../db";
 import type { Check } from "./guardrails";
 
@@ -95,6 +95,17 @@ export interface TraceRow {
 export async function recentCalls(limit = 100): Promise<TraceRow[]> {
   const rows = await db.all(`SELECT * FROM ai_calls ORDER BY id DESC LIMIT ?`, limit);
   return rows.map((r) => ({ ...(r as unknown as TraceRow), checks: JSON.parse(String(r.checks || "[]")), ok: r.ok === 1 }));
+}
+
+/** Estimated spend on the team's Claude credits, from the tokens every logged call used. */
+export async function creditReport() {
+  const budget = Number(process.env.CREDIT_BUDGET_USD) || 500;
+  const rows = await db.all<{ model: string | null; n: number; tin: number | null; tout: number | null }>(
+    `SELECT model, COUNT(*) n, SUM(input_tokens) tin, SUM(output_tokens) tout FROM ai_calls WHERE source = 'claude' GROUP BY model`,
+  );
+  const byModel = rows.map((r) => ({ model: r.model, calls: r.n, input_tokens: r.tin ?? 0, output_tokens: r.tout ?? 0, usd: costUSD(r.model, r.tin ?? 0, r.tout ?? 0) }));
+  const spent = byModel.reduce((s, m) => s + m.usd, 0);
+  return { budget, spent, remaining: budget - spent, calls: byModel.reduce((s, m) => s + m.calls, 0), byModel };
 }
 
 export async function traceSummary() {
