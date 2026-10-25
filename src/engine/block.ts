@@ -1,14 +1,16 @@
-// A simulated block of government primary schools, calibrated to REAL national figures from
+// A block of government primary schools — real ones from UDISE+ for Damoh's blocks — whose
+// learning results are simulated, calibrated to REAL national figures from
 // ASER 2024 (rural): Std III reading at Std II level in government schools 23.4%; Std III
 // subtraction 33.7%; 52.1% of government primary schools have < 60 students; two-thirds of
 // Std I–II classrooms are multigrade; average student attendance 75.9%; library books in use
 // in 51.3% of schools. Each school also has hidden practices whose effects only the
 // simulator knows — Jugnu has to discover them.
-import { DISTRICT, govtElementary, profileFor, pupilsPerTeacher, type BlockProfile } from "./district";
+import { DISTRICT, govtElementary, profileFor, pupilsPerTeacher } from "./district";
 import { EFFECTIVE, PRACTICE_IDS, PRACTICES } from "./practices";
 import { chance, logit, mulberry32, pick, randInt, shuffle, sigmoid, type Rng } from "./rng";
 import { CYCLES, type Block, type School, type SchoolTruth } from "./types";
-import { BLOCK_HQ, VILLAGES } from "./villages";
+import { UDISE } from "./udise";
+import { BLOCK_HQ } from "./villages";
 
 export const ASER_2024 = {
   std3ReadingGovt: 0.234,
@@ -61,11 +63,14 @@ export function rateFor(s: School, t: Pick<SchoolTruth, "practices" | "fidelity"
   return trueRate(BASE[which], s, t, which, cycle);
 }
 
-// A seed that is a UDISE+ block code (see district.ts) builds that real block's shape: its number
-// of government elementary schools, tribal share, pupils per teacher and share of women teachers.
+// A seed that is a UDISE+ block code (see district.ts) builds that real block: its real government
+// schools (UDISE+ names, locations, clusters, enrolment and teachers) and its tribal share and share
+// of women teachers. What no public source has — learning levels, attendance, teachers' names and
+// classroom practices — stays simulated.
 export function generateBlock(seed = 2024, size = 200): Block {
   const profile = profileFor(seed);
-  if (profile) size = govtElementary(profile);
+  const real = profile ? UDISE[profile.block] : undefined;
+  if (profile) size = real ? real.schools.length : govtElementary(profile);
   const rng = mulberry32(seed);
   const names = new Set<string>();
   const village = () => {
@@ -79,8 +84,8 @@ export function generateBlock(seed = 2024, size = 200): Block {
       }
     }
   };
-  // A real block: every school stands in a real village, clusters are drawn from the geography.
-  const geo = profile ? realSites(profile, size, rng) : null;
+  // A real block: every school is a real one, in its real Jan Shiksha Kendra (cluster).
+  const geo = profile && real ? udiseSites(profile.block) : null;
   const clusterNames = geo ? geo.clusterNames : CLUSTERS;
   const centers = geo
     ? geo.centers
@@ -109,22 +114,26 @@ export function generateBlock(seed = 2024, size = 200): Block {
     const x = site ? site.x : c.x + (rng() - 0.5) * 7;
     const y = site ? site.y : c.y + (rng() - 0.5) * 6;
     const tribal = tribalClusters ? tribalClusters.has(cluster) : x > 3 && y < -1; // south-east: tribal belt, other home languages
-    const enrolment = chance(rng, ASER_2024.smallSchoolShare) ? randInt(rng, 22, 59) : randInt(rng, 60, 180);
+    const simEnrolment = chance(rng, ASER_2024.smallSchoolShare) ? randInt(rng, 22, 59) : randInt(rng, 60, 180);
+    const enrolment = site ? site.enrolment : simEnrolment;
     const female = chance(rng, femaleShare);
+    // Teachers for classes 1–5: a middle school (to class 8) shares its staff with classes 6–8.
+    const primaryTeachers = site ? Math.max(1, Math.round(site.teachers * (site.classTo > 5 ? 0.5 : 1))) : 0;
     const s: School = {
       id: `s${String(i + 1).padStart(3, "0")}`,
       name: "",
       village: site ? site.name : village(),
-      ...(site && { nameHi: site.nameHi, lat: site.lat, lon: site.lon }),
+      ...(site && { nameHi: site.nameHi, lat: site.lat, lon: site.lon, udise: site.udise, clusterNameHi: geo!.clusterNamesHi[cluster] }),
       cluster,
       clusterName: clusterNames[cluster],
       crp: CRPS[cluster % CRPS.length],
       x: Math.round(x * 10) / 10,
       y: Math.round(y * 10) / 10,
       enrolment,
-      grade3: Math.max(6, Math.round(enrolment / 5.5 + (rng() - 0.5) * 4)),
-      ptr: profile ? Math.round(ppt * (0.55 + rng() * 0.9)) : Math.round(18 + rng() * 32),
-      multigrade: chance(rng, enrolment < 60 ? 0.85 : 0.5),
+      grade3: site ? Math.max(3, site.grade3) : Math.max(6, Math.round(enrolment / 5.5 + (rng() - 0.5) * 4)),
+      ptr: site ? Math.round(enrolment / primaryTeachers) : profile ? Math.round(ppt * (0.55 + rng() * 0.9)) : Math.round(18 + rng() * 32),
+      // Fewer teachers than classes 1–5 means classes share a room and a teacher.
+      multigrade: site ? primaryTeachers < 5 : chance(rng, enrolment < 60 ? 0.85 : 0.5),
       library: chance(rng, ASER_2024.libraryInUse),
       attendance: Math.round(Math.min(0.95, Math.max(0.5, ASER_2024.studentAttendance + (rng() - 0.5) * 0.24 - (tribal ? 0.04 : 0))) * 100) / 100,
       langMismatch: Math.round((tribal ? 0.45 + rng() * 0.45 : rng() * 0.25) * 100) / 100,
@@ -135,7 +144,7 @@ export function generateBlock(seed = 2024, size = 200): Block {
       attendanceByCycle: [],
       grades: [],
     };
-    // Every school here is a government primary school, so the village is its name ("GPS" in records).
+    // Government primary schools are known by their village ("GPS Sasna Kalan" in records).
     s.name = s.village;
     schools.push(s);
     const practices = PRACTICE_IDS.filter((p) => chance(rng, PRACTICES[p].baseRate));
@@ -177,82 +186,28 @@ export function generateBlock(seed = 2024, size = 200): Block {
   return { name: "Sonagaon Block", district: "Simulated district", state: "Calibrated to ASER 2024 (rural India)", source: "simulated", schools, truth, seed };
 }
 
-interface Site { name: string; nameHi: string; lat: number; lon: number; x: number; y: number; cluster: number }
-
 /** km east / north of a point, on the local flat approximation (fine at block scale). */
 export function toKm(lat: number, lon: number, lat0: number, lon0: number) {
   return { x: (lon - lon0) * 111.32 * Math.cos((lat0 * Math.PI) / 180), y: (lat - lat0) * 110.57 };
 }
 
-// Schools for a real block: one per real village (OpenStreetMap), in a seeded order. A block with
-// more government schools than mapped villages gives its villages a second school in a tola or
-// basti, a few hundred metres off, as big villages have. Clusters (Jan Shiksha Kendras, ~20
-// schools each) are k-means groups of the sites, named after the village nearest their centre.
-function realSites(profile: BlockProfile, size: number, rng: Rng) {
-  const [lat0, lon0] = BLOCK_HQ[profile.block];
-  const vs = shuffle(rng, VILLAGES[profile.block] ?? []);
-  const sites: Omit<Site, "cluster">[] = [];
-  const extras = [["Tola", "टोला"], ["Basti", "बस्ती"], ["Majra", "मजरा"]];
-  for (let i = 0; sites.length < size && vs.length; i++) {
-    const [name, nameHi, lat, lon] = vs[i % vs.length];
-    const round = Math.floor(i / vs.length);
-    const jitter = round ? 0.006 + rng() * 0.006 : 0;
-    const a = rng() * Math.PI * 2;
-    const la = lat + Math.sin(a) * jitter;
-    const lo = lon + Math.cos(a) * jitter;
-    const [suffix, suffixHi] = extras[(round - 1) % extras.length] ?? ["", ""];
-    // Two real villages can share a name in one block (two Bamoris): number the second one.
-    let nm = round ? `${name} ${suffix}` : name;
-    let nmHi = round ? `${nameHi} ${suffixHi}` : nameHi;
-    for (let n = 2; sites.some((x) => x.name === nm); n++) [nm, nmHi] = [`${round ? `${name} ${suffix}` : name} (${n})`, `${round ? `${nameHi} ${suffixHi}` : nameHi} (${n})`];
-    sites.push({ name: nm, nameHi: nmHi, lat: Math.round(la * 1e5) / 1e5, lon: Math.round(lo * 1e5) / 1e5, ...toKm(la, lo, lat0, lon0) });
-  }
-  const k = Math.max(6, Math.min(18, Math.round(size / 20)));
-  // Farthest-point start from the block HQ, then a few rounds of k-means.
-  let centers = [{ x: 0, y: 0 }];
-  while (centers.length < k) {
-    const far = sites.reduce((best, s) => {
-      const d = Math.min(...centers.map((c) => Math.hypot(c.x - s.x, c.y - s.y)));
-      return d > best.d ? { s, d } : best;
-    }, { s: sites[0], d: -1 }).s;
-    centers.push({ x: far.x, y: far.y });
-  }
-  let label = sites.map(() => 0);
-  for (let it = 0; it < 12; it++) {
-    label = sites.map((s) => centers.reduce((b, c, j) => (Math.hypot(c.x - s.x, c.y - s.y) < Math.hypot(centers[b].x - s.x, centers[b].y - s.y) ? j : b), 0));
-    centers = centers.map((c, j) => {
-      const mine = sites.filter((_, i) => label[i] === j);
-      return mine.length ? { x: mine.reduce((a, s) => a + s.x, 0) / mine.length, y: mine.reduce((a, s) => a + s.y, 0) / mine.length } : c;
-    });
-  }
-  // A cluster of a handful of outlying villages joins its nearest neighbour.
-  for (;;) {
-    const sizes = centers.map((_, j) => label.filter((l) => l === j).length);
-    const tiny = sizes.findIndex((n) => n > 0 && n < 10);
-    if (tiny < 0) break;
-    const rest = centers.map((c, j) => ({ c, j })).filter(({ j }) => j !== tiny && sizes[j] > 0);
-    label = label.map((l, i) => (l !== tiny ? l : rest.reduce((b, r) => (Math.hypot(r.c.x - sites[i].x, r.c.y - sites[i].y) < Math.hypot(b.c.x - sites[i].x, b.c.y - sites[i].y) ? r : b)).j));
-  }
-  const live = [...new Set(label)];
-  centers = live.map((j) => {
-    const mine = sites.filter((_, i) => label[i] === j);
-    return { x: mine.reduce((a, s) => a + s.x, 0) / mine.length, y: mine.reduce((a, s) => a + s.y, 0) / mine.length };
+// A real block's schools from UDISE+, in register order. Clusters are the real Jan Shiksha Kendras,
+// numbered from the one nearest the block HQ outward.
+function udiseSites(block: string) {
+  const { clusters, schools } = UDISE[block];
+  const [lat0, lon0] = BLOCK_HQ[block];
+  const sites = schools.map(([udise, name, nameHi, lat, lon, cluster, enrolment, grade3, teachers, classTo]) => ({ udise, name, nameHi, lat, lon, cluster, enrolment, grade3, teachers, classTo, ...toKm(lat, lon, lat0, lon0) }));
+  const centers = clusters.map((_, j) => {
+    const mine = sites.filter((x) => x.cluster === j);
+    return { x: mine.reduce((a, x) => a + x.x, 0) / mine.length, y: mine.reduce((a, x) => a + x.y, 0) / mine.length };
   });
-  label = label.map((l) => live.indexOf(l));
-  // Cluster 0 is nearest the block HQ; the rest follow outward.
   const order = centers.map((c, j) => ({ j, d: Math.hypot(c.x, c.y) })).sort((a, b) => a.d - b.d).map((o) => o.j);
   const rank = new Map(order.map((j, r) => [j, r]));
-  const sorted = order.map((j) => centers[j]);
-  const used = new Set<string>();
-  const clusterNames = sorted.map((c) => {
-    const near = sites.filter((s) => !/ (Tola|Basti|Majra)$/.test(s.name) && !used.has(s.name)).sort((a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y))[0];
-    used.add(near.name);
-    return near.name;
-  });
   return {
-    sites: sites.map((s, i) => ({ ...s, x: Math.round(s.x * 10) / 10, y: Math.round(s.y * 10) / 10, cluster: rank.get(label[i])! })),
-    centers: sorted,
-    clusterNames,
+    sites: sites.map((x) => ({ ...x, x: Math.round(x.x * 10) / 10, y: Math.round(x.y * 10) / 10, cluster: rank.get(x.cluster)! })),
+    centers: order.map((j) => centers[j]),
+    clusterNames: order.map((j) => clusters[j][0]),
+    clusterNamesHi: order.map((j) => clusters[j][1]),
   };
 }
 

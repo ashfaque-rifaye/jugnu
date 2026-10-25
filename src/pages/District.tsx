@@ -41,13 +41,13 @@ export default function DistrictPage() {
         eyebrow={t(`${DISTRICT.name}, ${DISTRICT.state} · real block profiles, ${DISTRICT.source}`, `${DISTRICT.name}, मध्य प्रदेश · असली ब्लॉक आँकड़े, UDISE+ 2025-26`)}
         title={t("District", "ज़िला")}
         sub={t(
-          "Each of Damoh's 7 blocks is built from its real UDISE+ profile: number of government schools, tribal share, pupils per teacher and women teachers. The schools inside are simulated, because UDISE+ does not publish school results. Open a block to work in it.",
-          "दमोह के 7 ब्लॉक उनके असली UDISE+ आँकड़ों से बने हैं: सरकारी स्कूलों की संख्या, जनजातीय हिस्सा, प्रति शिक्षक बच्चे और महिला शिक्षक। अंदर के स्कूल सिम्युलेटेड हैं, क्योंकि UDISE+ स्कूलों के नतीजे नहीं छापता। किसी ब्लॉक में काम करने के लिए उसे खोलें।",
+          "Each of Damoh's 7 blocks holds its real government schools from UDISE+ — names, locations, clusters, enrolment and teachers — and its real tribal share and women teachers. Learning results are simulated, because UDISE+ does not publish them. Open a block to work in it.",
+          "दमोह के हर ब्लॉक में उसके असली सरकारी स्कूल हैं, UDISE+ से — नाम, जगह, संकुल, नामांकन और शिक्षक — और असली जनजातीय हिस्सा और महिला शिक्षक। सीखने के नतीजे सिम्युलेटेड हैं, क्योंकि UDISE+ उन्हें नहीं छापता। किसी ब्लॉक में काम करने के लिए उसे खोलें।",
         )}
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={t("Schools (all, UDISE+)", "स्कूल (सभी, UDISE+)")} value={fmt(sum((b) => b.profile.schools))} hint={t(`${num(sum((b) => b.schools))} government primary simulated`, `${num(sum((b) => b.schools))} सरकारी प्राथमिक सिम्युलेटेड`)} />
+        <Stat label={t("Schools (all, UDISE+)", "स्कूल (सभी, UDISE+)")} value={fmt(sum((b) => b.profile.schools))} hint={t(`${num(sum((b) => b.schools))} real government schools`, `${num(sum((b) => b.schools))} असली सरकारी स्कूल`)} />
         <Stat label={t("Children enrolled", "नामांकित बच्चे")} value={fmt(sum((b) => b.profile.enrolment))} hint={t(`${num(sum((b) => b.profile.teachers))} teachers`, `${num(sum((b) => b.profile.teachers))} शिक्षक`)} />
         <Stat label={t("Verified bright spots", "जाँचे गए अच्छे स्कूल")} value={d ? sum((b) => b.verified) : "…"} tone="var(--st-bright)" hint={t(`${d ? sum((b) => b.inflation) : "…"} flagged as possibly inflated`, `${d ? sum((b) => b.inflation) : "…"} पर बढ़ा-चढ़ाकर लिखने का शक`)} />
         <Stat label={t("Schools that need support", "जिन्हें मदद चाहिए")} value={d ? sum((b) => b.struggling) : "…"} hint={t("below what their context predicts", "हालात से अपेक्षित से नीचे")} />

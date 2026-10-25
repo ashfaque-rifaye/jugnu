@@ -1,8 +1,8 @@
 // Damoh district (Madhya Pradesh): REAL block profiles from UDISE+ 2025-26 (Know Your School →
 // Region Profile, retrieved 25 Oct 2026; raw copy in data/udise/damoh-2025-26.json). UDISE+ only
-// publishes block aggregates without a CAPTCHA, so each block's schools are simulated, but sized
-// and shaped by these figures: number of government schools, tribal (ST) share, pupils per
-// teacher and the share of women teachers. A block's seed is its UDISE+ block code, so the
+// publishes block aggregates without a CAPTCHA; the schools themselves come from an earlier UDISE+
+// register (see udise.ts). These figures still shape what is simulated: tribal (ST) share and the
+// share of women teachers. A block's seed is its UDISE+ block code, so the
 // server, the activity log and the officer agent all rebuild exactly the same block.
 
 export interface BlockProfile {

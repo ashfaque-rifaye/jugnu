@@ -199,8 +199,8 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
             {lite
               ? t("Each dot is a school. Tap one to open it.", "हर बिंदु एक स्कूल है। खोलने के लिए छुएँ।")
               : t(
-                  "Each dot is a school, on its real village. Tap one for its card — attendance, grades 1–5 and the distance to the nearest bright spot. The ruler measures between any two schools; the link button shows who learns from whom.",
-                  "हर बिंदु एक स्कूल है, अपने असली गाँव पर। कार्ड के लिए छुएँ — उपस्थिति, कक्षा 1–5 और सबसे पास के अच्छे स्कूल की दूरी। पैमाना किन्हीं दो स्कूलों की दूरी नापता है; लिंक बटन बताता है कौन किससे सीखता है।",
+                  "Each dot is a real school, where it stands. Tap one for its card — attendance, grades 1–5 and the distance to the nearest bright spot. The ruler measures between any two schools; the link button shows who learns from whom.",
+                  "हर बिंदु एक असली स्कूल है, अपनी असली जगह पर। कार्ड के लिए छुएँ — उपस्थिति, कक्षा 1–5 और सबसे पास के अच्छे स्कूल की दूरी। पैमाना किन्हीं दो स्कूलों की दूरी नापता है; लिंक बटन बताता है कौन किससे सीखता है।",
                 )}
           </p>
         </Card>

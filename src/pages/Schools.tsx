@@ -66,7 +66,7 @@ export default function SchoolsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={`${state.block.name} · ${state.block.source === "imported" ? t("your data", "आपका डेटा") : profileFor(state.block.seed) ? t("real UDISE+ block profile, simulated schools", "असली UDISE+ ब्लॉक आँकड़े, सिम्युलेटेड स्कूल") : t("demo data, calibrated to ASER 2024", "डेमो डेटा, ASER 2024 के अनुसार")}`}
+        eyebrow={`${state.block.name} · ${state.block.source === "imported" ? t("your data", "आपका डेटा") : profileFor(state.block.seed) ? t("real UDISE+ schools, simulated results", "असली UDISE+ स्कूल, सिम्युलेटेड नतीजे") : t("demo data, calibrated to ASER 2024", "डेमो डेटा, ASER 2024 के अनुसार")}`}
         title={t("Schools", "स्कूल")}
         sub={t(
           "Every school compared with what its context predicts (multigrade classes, size, attendance, home language…). Tap a school to see its results, checks, interviews and next steps.",

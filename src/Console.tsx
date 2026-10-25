@@ -307,8 +307,8 @@ function Console() {
         </main>
         <footer className="no-print mx-auto max-w-[1400px] px-6 pb-28 text-xs leading-relaxed text-[var(--color-ink-3)] lg:pb-8">
           {t(
-            "Jugnu · AI for Foundational Learning Hackathon, Challenge 4. Adults only, with consent; no child-level data. Places are real: Damoh's 7 blocks, their UDISE+ 2025-26 school counts and village locations (OpenStreetMap). School-level results are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated (Google Veo).",
-            "जुगनू · AI for Foundational Learning हैकाथॉन, चुनौती 4। सिर्फ़ वयस्क, सहमति से; बच्चों का कोई व्यक्तिगत डेटा नहीं। जगहें असली हैं: दमोह के 7 ब्लॉक, उनके UDISE+ 2025-26 स्कूल आँकड़े और गाँवों की जगहें (OpenStreetMap)। स्कूल-स्तर के नतीजे सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
+            "Jugnu · AI for Foundational Learning Hackathon, Challenge 4. Adults only, with consent; no child-level data. Schools are real: Damoh's 7 blocks and their 1,365 government schools from UDISE+ (names, locations, clusters, enrolment, teachers). Learning results, attendance and teachers' names are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated (Google Veo).",
+            "जुगनू · AI for Foundational Learning हैकाथॉन, चुनौती 4। सिर्फ़ वयस्क, सहमति से; बच्चों का कोई व्यक्तिगत डेटा नहीं। स्कूल असली हैं: दमोह के 7 ब्लॉक और उनके 1,365 सरकारी स्कूल UDISE+ से (नाम, जगह, संकुल, नामांकन, शिक्षक)। सीखने के नतीजे, उपस्थिति और शिक्षकों के नाम सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
           )}
         </footer>
       </div>
@@ -542,7 +542,7 @@ function useTourSteps(): TourStep[] {
       {
         target: "map",
         title: ["Your block on the map", "नक्शे पर आपका ब्लॉक"],
-        body: ["Every dot is a real village school, coloured by how it is doing. Tap one for its card; the ruler measures the road between two schools.", "हर बिंदु एक असली गाँव का स्कूल है, रंग बताता है हाल। कार्ड के लिए छुएँ; पैमाना दो स्कूलों के बीच की दूरी नापता है।"],
+        body: ["Every dot is a real government school (UDISE+), coloured by how it is doing. Tap one for its card; the ruler measures the road between two schools.", "हर बिंदु एक असली सरकारी स्कूल है (UDISE+), रंग बताता है हाल। कार्ड के लिए छुएँ; पैमाना दो स्कूलों के बीच की दूरी नापता है।"],
       },
     ];
     if (school)

@@ -366,8 +366,8 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             <Wordmark size={26} />
             <p className={cx("mt-3 text-xs leading-relaxed", hi)}>
               {t(
-                "AI for Foundational Learning Hackathon · Challenge 4. Places are real: Damoh's 7 blocks, their UDISE+ 2025-26 school counts and village locations (OpenStreetMap). School-level results are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated (Google Veo).",
-                "AI for Foundational Learning हैकाथॉन · चुनौती 4। जगहें असली हैं: दमोह के 7 ब्लॉक, उनके UDISE+ 2025-26 स्कूल आँकड़े और गाँवों की जगहें (OpenStreetMap)। स्कूल-स्तर के नतीजे सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
+                "AI for Foundational Learning Hackathon · Challenge 4. Schools are real: Damoh's 7 blocks and their 1,365 government schools from UDISE+ (names, locations, clusters, enrolment, teachers). Learning results, attendance and teachers' names are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated (Google Veo).",
+                "AI for Foundational Learning हैकाथॉन · चुनौती 4। स्कूल असली हैं: दमोह के 7 ब्लॉक और उनके 1,365 सरकारी स्कूल UDISE+ से (नाम, जगह, संकुल, नामांकन, शिक्षक)। सीखने के नतीजे, उपस्थिति और शिक्षकों के नाम सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
               )}
             </p>
           </div>

@@ -29,9 +29,12 @@ export interface School {
   attendanceByCycle: number[];
   /** Grades 1–5 in the latest cycle. Grade 3 is the officially assessed cohort (reading/numeracy above). */
   grades: GradeRow[];
-  /** real village location (OpenStreetMap), when the block is a real one */
+  /** real location (UDISE+), when the block is a real one */
   lat?: number;
   lon?: number;
+  /** UDISE+ school code, when the school is a real one */
+  udise?: string;
+  clusterNameHi?: string;
 }
 
 export interface GradeRow {
