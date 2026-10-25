@@ -1,6 +1,7 @@
-// Jugnu's ears and voice. Speech-to-text: Google Chirp 3 (v2, any Indian language, picks the
-// language itself) when Google credentials are available; otherwise Google's v1 recogniser with
-// an API key, steered towards the block's school and village names. Text-to-speech: Google
+// Jugnu's ears and voice. Speech-to-text, best first: Gemini 3 Flash listening to the audio with
+// the block's school, cluster and teacher names in front of it (any Indian language, mixed speech,
+// written in the speaker's own script); then Google Chirp 3; both need Google credentials. Without
+// them, Google's v1 recogniser with an API key, steered towards the same names. Text-to-speech: Google
 // Chirp 3 HD voices in Hindi, Indian English and other Indian languages.
 import { GoogleAuth } from "google-auth-library";
 import { createHash } from "node:crypto";
@@ -39,7 +40,33 @@ async function googleClient() {
 export interface Heard {
   text: string;
   language: string | null;
-  engine: "chirp_3" | "google_v1";
+  engine: "gemini" | "chirp_3" | "google_v1";
+}
+
+const LANG_NAME: Record<string, string> = { en: "English", hi: "Hindi", ta: "Tamil", te: "Telugu", mr: "Marathi", bn: "Bengali", gu: "Gujarati", kn: "Kannada", ml: "Malayalam" };
+
+/** Gemini hears the officer, knowing the names that matter in this block. */
+async function geminiHear(client: NonNullable<Awaited<ReturnType<typeof googleClient>>>, audio: Buffer, mime: string, lang: string, hints: string[]): Promise<Heard> {
+  const model = process.env.GEMINI_STT_MODEL || "gemini-3-flash-preview";
+  const prompt =
+    "Transcribe exactly what the speaker says to Jugnu, an assistant for a block education officer in Damoh district, Madhya Pradesh, India. " +
+    `Their console is set to ${LANG_NAME[lang] ?? "English"}, but they may speak any Indian language or mix languages. ` +
+    "Write the words in the script of the language spoken (Devanagari for Hindi, Tamil script for Tamil, Latin for English) and keep mixed speech mixed. " +
+    "Do not translate, summarise or answer. Names that may come up — when a word sounds like one of these, use this spelling: " +
+    hints.slice(0, 700).join(", ") +
+    '. Reply with JSON only: {"text": "...", "language": "BCP-47 code"}. If there is no clear speech, text is "".';
+  const r = await client.request<{ candidates?: { content?: { parts?: { text?: string }[] } }[] }>({
+    url: `https://aiplatform.googleapis.com/v1/projects/${PROJECT()}/locations/global/publishers/google/models/${model}:generateContent`,
+    method: "POST",
+    data: {
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType: (mime.split(";")[0] || "audio/webm").trim(), data: audio.toString("base64") } }, { text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json", temperature: 0, thinkingConfig: { thinkingLevel: "minimal" } },
+    },
+    timeout: 20000,
+  });
+  const raw = r.data.candidates?.[0]?.content?.parts?.map((x) => x.text ?? "").join("") ?? "";
+  const j = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { text?: string; language?: string };
+  return { text: String(j.text ?? "").trim(), language: j.language ?? null, engine: "gemini" };
 }
 
 /** Speech to text. `lang` is the console language; Chirp 3 also hears other languages and mixed speech. */
@@ -47,6 +74,11 @@ export async function transcribe(audio: Buffer, mime: string, lang: string, hint
   const locale = LOCALES[lang] ?? "en-IN";
   const client = await googleClient();
   if (client) {
+    try {
+      return await geminiHear(client, audio, mime, lang, hints);
+    } catch (e) {
+      console.warn("Gemini listening failed, trying Chirp 3:", (e as Error).message);
+    }
     try {
       const r = await client.request<{ results?: { alternatives?: { transcript?: string }[]; languageCode?: string }[] }>({
         url: `https://us-speech.googleapis.com/v2/projects/${PROJECT()}/locations/us/recognizers/_:recognize`,

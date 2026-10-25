@@ -124,11 +124,11 @@ How to work:
 - Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.
 - Spoken requests come through speech recognition, so names can arrive misheard or in another script ("सपना कला" for Sasna Kalan, "Mahua Kalan" for Mahguwan Kalan). Match them to the closest school, cluster or teacher in the block and carry on; ask only if two are equally close.`;
 
-async function trace(ref: string, usage: { i: number; o: number }, ok: boolean, error: string | null, started: number, tools: string[]) {
+async function trace(ref: string, usage: { i: number; o: number }, ok: boolean, error: string | null, started: number, tools: string[], model = AGENT_MODEL) {
   await db
     .run(
       `INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at) VALUES ('agent.turn', ?, 'claude', ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ref.slice(0, 80), AGENT_MODEL, Date.now() - started, usage.i, usage.o, JSON.stringify([{ name: "tools", passed: true, detail: tools.join(", ") || "none" }]), ok ? 1 : 0, error, now(),
+      ref.slice(0, 80), model, Date.now() - started, usage.i, usage.o, JSON.stringify([{ name: "tools", passed: true, detail: tools.join(", ") || "none" }]), ok ? 1 : 0, error, now(),
     )
     .catch((e) => console.error("ai_calls trace failed:", e));
 }
@@ -227,5 +227,34 @@ Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian 
   } catch (e) {
     await trace("brief", { i: 0, o: 0 }, false, describeError(e), started, []);
     return { lines: [], source: "offline" };
+  }
+}
+
+/** The page guide is short and frequent, so it uses Haiku. */
+const GUIDE_MODEL = "claude-haiku-5-5";
+
+/** A spoken word of help when the officer opens a page: what it is for, and the one thing worth doing here now. */
+export async function agentPageGuide(page: string, screen: string, facts: string[], lang: "en" | "hi"): Promise<{ text: string; source: "claude" | "offline" }> {
+  if (!claudeAvailable()) return { text: "", source: "offline" };
+  const started = Date.now();
+  try {
+    const res = await getClient().messages.create(
+      {
+        model: GUIDE_MODEL,
+        max_tokens: 300,
+        thinking: { type: "disabled" },
+        system: `${SAFETY}
+You are Jugnu, the voice guide inside a console for a Block Education Officer in India. The officer has just opened the "${page}" page. Say, out loud, in 2 short sentences: what this page helps them do, and the single most useful thing to do on it right now, naming a real school or number from the screen or the facts. Never invent names or numbers.
+${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like spot check or CRP are fine." : "Speak plain Indian English."} No greeting, no lists, no markdown, numbers as digits, under 40 words. End with a short offer such as "Want me to open it?"`,
+        messages: [{ role: "user", content: `On screen now:\n${screen.slice(0, 2500)}\n\nBlock facts:\n${facts.map((f) => `- ${f}`).join("\n")}` }],
+      },
+      { signal: AbortSignal.timeout(12000) },
+    );
+    const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join(" ").replace(/\s+/g, " ").trim();
+    await trace("guide", { i: res.usage.input_tokens, o: res.usage.output_tokens }, true, null, started, [], GUIDE_MODEL);
+    return { text, source: "claude" };
+  } catch (e) {
+    await trace("guide", { i: 0, o: 0 }, false, describeError(e), started, [], GUIDE_MODEL);
+    return { text: "", source: "offline" };
   }
 }

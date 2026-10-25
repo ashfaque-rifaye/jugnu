@@ -10,6 +10,7 @@ data/runtime/
 *.db-*
 coverage/
 .vercel/
+.vscode/settings.json
 
 # demo recordings (large)
 demo/*.mp4

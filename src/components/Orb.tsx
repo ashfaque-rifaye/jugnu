@@ -1,5 +1,5 @@
-// Jugnu's voice orb: a turning sphere of glowing mesh lines that the voice ripples and bends,
-// in firefly light. Its colour tells the state — warm amber at rest, lime and teal while it
+// Jugnu's voice orb: a breathing, turning sphere of glowing mesh lines that the voice ripples and
+// bends, in firefly light, with a few fireflies drifting around it. Its colour tells the state — warm amber at rest, lime and teal while it
 // listens, cool blue with gold while it thinks (and it turns faster), bright gold and coral while
 // it speaks. One fragment shader on a quad; plain WebGL, no libraries.
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -47,21 +47,37 @@ float sn(vec3 v){
 mat2 rot(float a){return mat2(cos(a),-sin(a),sin(a),cos(a));}
 void main(){
   vec2 uv=(gl_FragCoord.xy*2.-uRes)/uRes.y;
-  float r=length(uv); vec3 c=vec3(0.);
-  float R=.66+uAmp*.06; float t=uT;
-  float rr=r-sn(vec3(uv*1.6,t*.5))*(.04+uAmp*.12);
+  float r=length(uv); vec3 c=vec3(0.); float t=uT;
+  // it breathes at rest and swells with the voice
+  float R=.6+sin(t*1.4)*.025+uAmp*.07;
+  float rr=r-sn(vec3(uv*1.8,t*.6))*(.035+uAmp*.12);
+  c+=mix(uC1,uC2,.5)*exp(-r*r*6.)*(.16+uAmp*.4);
   if(rr<R){
     float z=sqrt(1.-rr*rr/(R*R));
-    vec3 n=vec3(uv/R,z); n.xz=rot(t*.3)*n.xz;
-    float d=sn(n*2.+t*.4)*(.05+uAmp*.2);
+    vec3 n=vec3(uv/R,z);
+    n.xz=rot(t*.35)*n.xz; n.yz=rot(sin(t*.23)*.5)*n.yz;
+    float d=sn(n*2.2+t*.45)*(.06+uAmp*.22);
     float la=acos(clamp(n.y,-1.,1.))*uD+d*8.;
     float lo=atan(n.z,n.x)*uD+d*8.;
     float ln=max(smoothstep(uW,1.,abs(fract(la)*2.-1.)),smoothstep(uW,1.,abs(fract(lo)*2.-1.)));
-    vec3 col=mix(uC1,uC2,.5+.5*n.y);
-    c=col*ln*(.35+.9*pow(1.-z,1.2)+uAmp)+col*.07;
+    // a band of brighter light flowing over the mesh
+    float band=smoothstep(.55,1.,sin(n.y*5.+t*1.6+d*10.))*.7;
+    vec3 col=mix(uC1,uC2,.5+.5*sin(n.y*2.+t*.5));
+    c+=col*ln*(.35+.9*pow(1.-z,1.2)+uAmp+band)+col*.05;
+  } else {
+    // a soft aura instead of a hard rim
+    c+=uC1*exp(-(rr-R)*10.)*(.16+uAmp*.35);
   }
-  c+=uC1*exp(-abs(rr-R)*14.)*(.35+uAmp);
-  c*=smoothstep(1.,.85,r);
+  // fireflies drifting around it, twinkling
+  for(int i=0;i<12;i++){
+    float fi=float(i);
+    float a=t*(.22+.06*fi)*(mod(fi,2.)*2.-1.)+fi*2.399;
+    float rad=R+.08+.2*fract(sin(fi*12.9898)*43758.5);
+    vec2 p=vec2(cos(a),sin(a)*.85)*rad+vec2(sin(t*.9+fi),cos(t*.7+fi*1.3))*.03;
+    float tw=.35+.65*pow(.5+.5*sin(t*2.6+fi*1.7),2.);
+    c+=mix(uC1,vec3(1.,.95,.75),.55)*exp(-length(uv-p)*60.)*tw*(1.+uAmp);
+  }
+  c*=smoothstep(1.,.86,r);
   gl_FragColor=vec4(c,min(1.,max(c.r,max(c.g,c.b))));
 }`;
 

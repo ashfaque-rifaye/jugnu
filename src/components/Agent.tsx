@@ -4,7 +4,7 @@
 // or open the chat panel. Both drive the same agent — it briefs the officer in their language,
 // answers from the block's data and works the console: pages, schools, the map, forms, records.
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
+import { Check, Compass, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DAMOH } from "../engine/district";
@@ -225,6 +225,24 @@ const PAGE_PATH: Record<string, string> = {
 };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// The page guide: a spoken word of help the first time each page opens in a session.
+const GUIDE_KEY = "jugnu-guide";
+const guideSaved = () => {
+  try {
+    return localStorage.getItem(GUIDE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+};
+/** Which page a path is, in words Claude understands ("schools", "school page", …). */
+function pageOf(path: string, search: string) {
+  if (/^\/schools\/./.test(path)) return "school page";
+  if (path === "/schools" && search.includes("view=map")) return "map";
+  const hit = Object.entries(PAGE_PATH).find(([, p]) => p === path);
+  return hit ? hit[0] : path.replace(/^\//, "").split("/")[0] || "home";
+}
+const guided = new Set<string>();
+
 export function useAgent() {
   const t = useT();
   const { lang, setLang } = usePrefs();
@@ -237,6 +255,7 @@ export function useAgent() {
   const [mode, setMode] = useState<Mode>("off");
   const [lines, setLines] = useState<Line[]>([]);
   const [voice, setVoice] = useState(true);
+  const [guideOn, setGuideOnState] = useState(guideSaved);
   const [voiceName, setVoiceNameState] = useState(savedVoice);
   const [handsFree, setHandsFree] = useState(false);
   const [heard, setHeard] = useState("");
@@ -614,6 +633,52 @@ export function useAgent() {
 
   useEffect(() => () => mic.current?.close(), []);
 
+  /** A spoken word of help for the page just opened: what it is for, and the one thing to do here now. */
+  const guide = useCallback(async (page: string) => {
+    if (busy.current || live.current.mode !== "off" || !status.claude) return;
+    busy.current = true;
+    cancelled.current = false;
+    try {
+      const { state: st, events: ev, lang: l } = live.current;
+      const res = await postJSON<{ text: string }>("/api/agent/page", { page, screen: readScreen().slice(0, 3800), facts: briefingFacts(st, ev).slice(0, 14), lang: l }).catch(() => null);
+      if (!res?.text || cancelled.current || live.current.mode !== "off") return;
+      // Browsers only play sound after the person has tapped something; until then the guide is a bubble.
+      const canPlay = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? false;
+      if (canPlay) {
+        audio();
+        await speakOut(res.text, { tools: [{ name: "guide", ok: true }] });
+      } else add({ who: "jugnu", text: res.text, shown: res.text.length, tools: [{ name: "guide", ok: true }] });
+      history.current.push({ role: "user", content: `(I opened the ${page} page.)` }, { role: "assistant", content: `${res.text}
+[page guide]` });
+    } finally {
+      busy.current = false;
+      setMode((m) => (m === "speaking" ? "off" : m));
+    }
+  }, [speakOut, status.claude]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setGuideOn = (on: boolean) => {
+    setGuideOnState(on);
+    try {
+      localStorage.setItem(GUIDE_KEY, on ? "on" : "off");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // When a page opens (once per page per session), let it settle, then guide.
+  useEffect(() => {
+    if (!guideOn) return;
+    const page = pageOf(location.pathname, location.search);
+    const key = `${page}|${lang}`;
+    if (page === "home" || guided.has(key)) return;
+    const id = setTimeout(() => {
+      if (live.current.mode !== "off" || busy.current || guided.has(key)) return;
+      guided.add(key);
+      void guide(page);
+    }, 1800);
+    return () => clearTimeout(id);
+  }, [location.pathname, location.search, lang, guideOn, guide]);
+
   const startBrief = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
@@ -645,6 +710,8 @@ export function useAgent() {
     stop,
     hangUp,
     brief: startBrief,
+    guideOn,
+    setGuideOn,
     listenOnce,
     clear: () => (setLines([]), (history.current = [])),
   };
@@ -733,6 +800,15 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
     const id = setTimeout(() => setLinger(false), 9000);
     return () => clearTimeout(id);
   }, [active]);
+  // A page guide that arrives silently (before any tap, when the browser blocks sound) still shows as a bubble.
+  const guideLine = !active && lastJ?.tools?.some((x) => x.name === "guide") ? lastJ.id : null;
+  useEffect(() => {
+    if (guideLine == null) return;
+    setLinger(true);
+    setHidden(false);
+    const id = setTimeout(() => setLinger(false), 14000);
+    return () => clearTimeout(id);
+  }, [guideLine]);
   const lastYou = useMemo(() => [...a.lines].reverse().find((l) => l.who === "you"), [a.lines]);
   const youLast = !!lastYou && (!lastJ || lastYou.id > lastJ.id);
   const ears = a.mode === "listening" || a.mode === "hearing";
@@ -778,6 +854,9 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                   ))}
                 </select>
               )}
+              <button className={`btn btn-glass btn-icon !p-2 ${a.guideOn ? "text-[var(--st-bright)]" : ""}`} onClick={() => a.setGuideOn(!a.guideOn)} aria-pressed={a.guideOn} aria-label={t("Page guide", "पेज गाइड")} title={a.guideOn ? t("Page guide on — I speak up when you open a page", "पेज गाइड चालू — पेज खुलने पर बताता हूँ") : t("Page guide off", "पेज गाइड बंद")}>
+                <Compass size={15} />
+              </button>
               <button className="btn btn-glass btn-icon !p-2" onClick={() => a.setVoice(!a.voice)} aria-label={a.voice ? t("Mute voice", "आवाज़ बंद") : t("Read replies aloud", "जवाब बोलकर सुनाएँ")} title={a.voice ? t("Mute voice", "आवाज़ बंद") : t("Read replies aloud", "जवाब बोलकर सुनाएँ")}>
                 {a.voice ? <Volume2 size={15} /> : <VolumeX size={15} />}
               </button>
@@ -871,7 +950,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.97 }}
               transition={{ type: "spring", damping: 26, stiffness: 300 }}
-              className="glass-strong relative mr-2 max-w-[min(380px,calc(100vw-40px))] rounded-2xl rounded-br-md px-4 py-3 text-[15px] leading-snug shadow-xl"
+              className="glass-strong relative mr-1 max-w-[min(320px,calc(100vw-40px))] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[14px] leading-snug shadow-xl"
               aria-live="polite"
             >
               <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-3)]">
@@ -896,26 +975,27 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             </motion.div>
           )}
         </AnimatePresence>
-        <div className="glass-strong flex items-center gap-1 rounded-full p-1 sm:pl-2">
+        {/* just the orb, with two small helpers beside it — no pill, no ring */}
+        <div className="flex items-center gap-1.5">
           {active ? (
-            <button className="grid h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)]" onClick={a.hangUp} aria-label={t("Stop", "रोकें")} title={t("Stop", "रोकें")}>
+            <button className="dock-mini" onClick={a.hangUp} aria-label={t("Stop", "रोकें")} title={t("Stop", "रोकें")}>
               {a.mode === "listening" ? <MicOff size={16} /> : <Square size={14} />}
             </button>
           ) : (
-            <button className="hidden h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)] sm:grid" onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
+            <button className="dock-mini !hidden sm:!grid" onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
               <Newspaper size={16} />
             </button>
           )}
-          <button className="hidden h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)] sm:grid" onClick={open ? onClose : onOpen} aria-label={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")} title={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")}>
+          <button className="dock-mini !hidden sm:!grid" onClick={open ? onClose : onOpen} aria-label={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")} title={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")}>
             <MessageCircle size={16} />
           </button>
           <button
-            className="relative grid h-[72px] w-[72px] place-items-center overflow-hidden rounded-full bg-[radial-gradient(circle,#13254a,#060d1c)]"
+            className="dock-orb relative grid h-[60px] w-[60px] place-items-center rounded-full"
             onClick={onOrb}
             aria-label={a.handsFree ? t("Stop talking to Jugnu", "जुगनू से बात बंद करें") : a.mode === "speaking" ? t("Cut in", "बीच में बोलें") : t("Talk to Jugnu", "जुगनू से बात करें")}
             title={t(...MODE_LABEL[a.handsFree && a.mode === "off" ? "listening" : a.mode])}
           >
-            <Orb mode={a.mode} level={a.levelNow} size={76} fallback={<Swarm mode={a.mode} level={a.levelNow} size={76} />} />
+            <Orb mode={a.mode} level={a.levelNow} size={72} fallback={<Swarm mode={a.mode} level={a.levelNow} size={60} />} />
           </button>
         </div>
       </div>

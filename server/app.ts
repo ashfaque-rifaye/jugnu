@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { readFollowUp } from "./ai/followup";
-import { agentBrief, agentTurn } from "./ai/agent";
+import { agentBrief, agentPageGuide, agentTurn } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
 import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
@@ -152,6 +152,12 @@ app.post("/api/agent/brief", requireOfficer, rateLimit("agent", 150, 600000), as
   const body = z.object({ facts: z.array(z.string().max(400)).min(1).max(30), lang: z.enum(["en", "hi"]), name: z.string().max(80).optional() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "facts and lang are required" });
   res.json(await agentBrief(body.data.facts, body.data.lang, body.data.name));
+});
+
+app.post("/api/agent/page", requireOfficer, rateLimit("agent", 200, 600000), async (req, res) => {
+  const body = z.object({ page: z.string().min(1).max(60), screen: z.string().max(4000), facts: z.array(z.string().max(400)).max(30), lang: z.enum(["en", "hi"]) }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "page, screen, facts and lang are required" });
+  res.json(await agentPageGuide(body.data.page, body.data.screen, body.data.facts, body.data.lang));
 });
 
 // ---------------------------------------------------------------- voice: speech in, speech out

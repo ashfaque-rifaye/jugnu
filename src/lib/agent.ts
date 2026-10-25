@@ -226,6 +226,7 @@ export function parseCommand(text: string, schools: School[], blocks: string[]):
 
 /** Labels for the work chips under a reply. */
 export const TOOL_LABEL: Record<string, [string, string]> = {
+  guide: ["Page guide", "पेज गाइड"],
   go_to: ["Opened the page", "पेज खोला"],
   open_school: ["Opened the school", "स्कूल खोला"],
   show_on_map: ["Showed it on the map", "नक्शे पर दिखाया"],
