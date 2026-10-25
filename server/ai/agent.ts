@@ -5,9 +5,14 @@
 // runs them and sends the results back with the conversation.
 import type Anthropic from "@anthropic-ai/sdk";
 import type { BetaMessageParam, BetaToolUnion } from "@anthropic-ai/sdk/resources/beta";
+import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { z } from "zod";
 import type { PipelineState } from "../../src/engine/pipeline";
 import { claudeAvailable, describeError, getClient, PRICES } from "../claude";
 import { db, now } from "../db";
+import { writeEvent } from "../eventlog";
+import { enqueue, enqueueForAction, listJobs } from "../scheduler";
+import { CallError, placeCall } from "../telephony";
 import { SAFETY } from "./interviewer";
 import { officerTools } from "./officer";
 
@@ -94,6 +99,119 @@ export interface AgentContext {
   school?: string | null;
   lang: "en" | "hi";
   role?: string | null;
+  /** The block key the console is on (`seed:231205` or `import:…`); write tools need it. */
+  block?: string | null;
+}
+
+const ACTOR = "Jugnu AI";
+const STEPS = { note: "voice note", visit: "peer visit", review: "BEO review", call: "follow-up call" } as const;
+const phoneOk = (s: string) => /^\+?[0-9]{10,15}$/.test(s.replace(/[\s-]/g, ""));
+
+/**
+ * Tools that change things: dial a teacher now, put a follow-up on Jugnu's clock, escalate to the
+ * BEO, or move an action on the board. Every one of them lands in the block's shared log as
+ * "Jugnu AI" so the officer sees exactly what was done. They need the block key; without it (the
+ * home page, for instance) they explain why rather than guess.
+ */
+export function writeTools(st: PipelineState, ctx: AgentContext) {
+  const block = ctx.block ?? null;
+  const byName = (name: string) => {
+    const q = name.trim().toLowerCase();
+    return st.block.schools.find((s) => s.name.toLowerCase() === q) ?? st.block.schools.find((s) => s.name.toLowerCase().includes(q)) ?? st.block.schools.find((s) => s.teacher.toLowerCase().includes(q));
+  };
+  const need = () => (block ? null : "No block is open on screen, so nothing can be written. Ask the officer to open a block first.");
+  return [
+    betaZodTool({
+      name: "move_action",
+      description: "Move an action on the plan board for a school: step = note (peer voice note) | visit (peer visit) | review (BEO review) | call (follow-up call); status = todo | scheduled | done | stuck. Scheduling a step puts its follow-up on Jugnu's clock automatically.",
+      inputSchema: z.object({
+        school: z.string().describe("School name as the block tools return it"),
+        step: z.enum(["note", "visit", "review", "call"]),
+        status: z.enum(["todo", "scheduled", "done", "stuck"]),
+        note: z.string().max(400).optional().describe("Why, in one line"),
+      }),
+      run: async ({ school, step, status, note }) => {
+        const miss = need();
+        if (miss) return miss;
+        const s = byName(school);
+        if (!s) return `No school called "${school}" in this block.`;
+        const ref = `${s.id}-${step}`;
+        await writeEvent(block!, "action", ref, { status, note }, ACTOR);
+        const job = await enqueueForAction(block!, ref, status, { note, teacher: s.teacher, school: s.name });
+        return `${STEPS[step]} for ${s.name} (${s.teacher}) is now "${status}".${job ? ` Jugnu will ${job.kind.replace("_", " ")} on ${job.due_at.slice(0, 10)}.` : ""}`;
+      },
+    }),
+    betaZodTool({
+      name: "schedule_followup",
+      description: "Put a follow-up on Jugnu's clock for a school: a reminder, a visit check, or a follow-up call in N days. The call is dialled for real on the day if a phone number is given, otherwise it is handed to the CRP.",
+      inputSchema: z.object({
+        school: z.string(),
+        kind: z.enum(["reminder", "visit_check", "followup_call"]),
+        inDays: z.number().int().min(0).max(90),
+        to: z.string().optional().describe("Teacher's phone number with country code, only if the officer gave it"),
+        language: z.enum(["hi", "en"]).optional(),
+      }),
+      run: async ({ school, kind, inDays, to, language }) => {
+        const miss = need();
+        if (miss) return miss;
+        const s = byName(school);
+        if (!s) return `No school called "${school}" in this block.`;
+        if (to && !phoneOk(to)) return "That phone number does not look right — ask for it again with the country code.";
+        const step = kind === "reminder" ? "note" : kind === "visit_check" ? "visit" : "call";
+        const due = new Date(Date.now() + inDays * 86_400_000).toISOString();
+        const job = await enqueue(block!, kind, `${s.id}-${step}`, due, { to, teacher: s.teacher, school: s.name, language });
+        if (!job) return `A ${kind.replace("_", " ")} for ${s.name} is already on the clock.`;
+        await writeEvent(block!, "note", s.id, { text: `${kind.replace("_", " ")} for ${s.teacher} put on Jugnu's clock for ${due.slice(0, 10)}.` }, ACTOR);
+        return `Done: ${kind.replace("_", " ")} for ${s.name} on ${due.slice(0, 10)} (job ${job.id}).`;
+      },
+    }),
+    betaZodTool({
+      name: "escalate_to_beo",
+      description: "Escalate a school to the Block Education Officer now: marks the action stuck and opens a BEO review with the reason.",
+      inputSchema: z.object({ school: z.string(), step: z.enum(["note", "visit", "call"]).default("visit"), reason: z.string().max(400) }),
+      run: async ({ school, step, reason }) => {
+        const miss = need();
+        if (miss) return miss;
+        const s = byName(school);
+        if (!s) return `No school called "${school}" in this block.`;
+        await writeEvent(block!, "action", `${s.id}-${step}`, { status: "stuck", note: reason }, ACTOR);
+        await writeEvent(block!, "action", `${s.id}-review`, { status: "scheduled", note: `Escalated by Jugnu: ${reason}` }, ACTOR);
+        return `${s.name} is escalated: ${STEPS[step]} marked stuck and a BEO review opened. Reason recorded: ${reason}`;
+      },
+    }),
+    betaZodTool({
+      name: "dial_teacher",
+      description: "Place a real phone call to a teacher right now through Jugnu's phone line (the AI interviewer talks to them in Hindi or English). Only with a number the officer gave in this conversation; never invent one.",
+      inputSchema: z.object({ school: z.string(), to: z.string().describe("Phone number with country code"), language: z.enum(["hi", "en"]).default("hi") }),
+      run: async ({ school, to, language }) => {
+        const miss = need();
+        if (miss) return miss;
+        const s = byName(school);
+        if (!s) return `No school called "${school}" in this block.`;
+        if (!phoneOk(to)) return "That phone number does not look right — ask for it again with the country code.";
+        try {
+          const call = await placeCall({ to, teacherName: s.teacher, schoolName: s.name, schoolId: s.id, group: "live", language });
+          await writeEvent(block!, "note", s.id, { text: `Jugnu is calling ${s.teacher} (${s.name}) now via ${call.provider}; interview ${call.interview?.id ?? "?"}.` }, ACTOR);
+          return `Calling ${s.teacher} at ${s.name} now (${call.provider}). The transcript will appear under Interviews when the call ends.`;
+        } catch (e) {
+          const err = e as CallError;
+          return `Could not place the call: ${err.message}`;
+        }
+      },
+    }),
+    betaZodTool({
+      name: "list_followups",
+      description: "What is on Jugnu's clock for this block: pending reminders, visit checks, follow-up calls and escalations with their due dates.",
+      inputSchema: z.object({}),
+      run: async () => {
+        const miss = need();
+        if (miss) return miss;
+        const jobs = await listJobs(block!, "pending");
+        if (!jobs.length) return "Nothing is pending on Jugnu's clock for this block.";
+        return jobs.map((j) => `${j.kind.replace("_", " ")} · ${st.block.schools.find((s) => s.id === j.school_id)?.name ?? j.ref} · due ${j.due_at.slice(0, 10)}`).join("\n");
+      },
+    }),
+  ];
 }
 
 export interface AgentTurn {
@@ -119,6 +237,7 @@ How to work:
 - Look numbers and names up with the block tools; never guess. Name schools exactly as the tools return them.
 - Do things on screen with the UI tools when asked ("open", "show", "go to", "fill", "mark", "record"). Use read_screen before click or fill.
 - Write to the shared log (record) only when the officer clearly asked for it; repeat back what you recorded.
+- You can also act: move_action moves a step on the plan board, schedule_followup puts a reminder, visit check or follow-up call on Jugnu's clock, escalate_to_beo opens a BEO review, dial_teacher places a real phone call, list_followups shows what is pending. Act when asked plainly ("schedule", "escalate", "call", "mark done"); confirm first only for a phone call with no number given. Say what you did in one sentence.
 - Replies are read aloud: ${ctx.lang === "hi" ? "answer in simple Hindi (Devanagari)" : "answer in plain English"} — but if the officer speaks another language (Tamil, Marathi, …) answer in theirs, in its own script. 1–3 short sentences, no lists, no markdown, numbers as digits.
 - Never shame or rank teachers; a suspicious score means "revisit respectfully".
 - Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.
@@ -137,7 +256,7 @@ async function trace(ref: string, usage: { i: number; o: number }, ok: boolean, 
 export async function agentTurn(messages: BetaMessageParam[], st: PipelineState, ctx: AgentContext): Promise<AgentTurn> {
   if (!claudeAvailable()) return { messages, calls: [], results: [], looked: [], say: null, source: "offline" };
   const started = Date.now();
-  const server = officerTools(st);
+  const server = [...officerTools(st), ...writeTools(st, ctx)];
   const tools: BetaToolUnion[] = [...server.map((t) => {
       const { name, description, input_schema } = t as unknown as { name: string; description: string; input_schema: Record<string, unknown> };
       return { name, description, input_schema } as BetaToolUnion;

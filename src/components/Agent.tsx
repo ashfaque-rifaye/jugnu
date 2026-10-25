@@ -483,6 +483,8 @@ export function useAgent() {
             school: loc.pathname.startsWith("/schools/") ? (st.block.schools.find((s) => loc.pathname.endsWith(s.id))?.name ?? null) : null,
             lang: l,
             role: r?.kind === "crp" ? "cluster coordinator" : r?.kind === "beo" ? "block officer" : "guest",
+            // Same key the store polls with, so what the agent writes shows up on screen within seconds.
+            block: st.block.source === "simulated" ? `seed:${st.block.seed}` : `import:${st.block.name}:${st.block.schools.length}`,
           };
           const base = st.block.source === "imported" ? { block: st.block } : { seed: sd, track: !!st.track };
           let messages: ApiMessage[] = [...history.current.slice(-16), { role: "user", content: q }];

@@ -195,3 +195,72 @@ describe("coder, writer and officer guardrails", () => {
     expect(wav.length).toBe(44 + 16);
   });
 });
+
+describe("scheduler and agent write tools", () => {
+  const block = "seed:231205";
+
+  it("validates events and queues the follow-up an action implies, once", async () => {
+    const { writeEvent, EventError } = await import("./eventlog");
+    const { enqueueForAction, listJobs } = await import("./scheduler");
+    await expect(writeEvent(block, "action", "s001-call", { status: "flying" } as never)).rejects.toBeInstanceOf(EventError);
+    await expect(writeEvent(block, "note", "s001", { text: "" })).rejects.toBeInstanceOf(EventError);
+    const w = await writeEvent(block, "action", "s001-call", { status: "scheduled" }, "test");
+    expect(w.id).toBeGreaterThan(0);
+    const job = await enqueueForAction(block, "s001-call", "scheduled", { dueDays: 3, teacher: "A", to: "+916382844365" });
+    expect(job?.kind).toBe("followup_call");
+    expect(job?.school_id).toBe("s001");
+    expect(new Date(job!.due_at).getTime() - Date.now()).toBeGreaterThan(2.9 * 86_400_000);
+    expect(await enqueueForAction(block, "s001-call", "scheduled", {})).toBeNull();
+    expect((await listJobs(block, "pending")).length).toBe(1);
+    await enqueueForAction(block, "s001-call", "done");
+    expect((await listJobs(block, "pending")).length).toBe(0);
+    expect((await listJobs(block, "skipped")).length).toBe(1);
+  });
+
+  it("runs due jobs on tick and writes what it did to the block's log", async () => {
+    const { enqueue, tick } = await import("./scheduler");
+    const { db } = await import("./db");
+    const past = new Date(Date.now() - 1000).toISOString();
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    await enqueue(block, "reminder", "s002-note", past, { teacher: "Teacher B", school: "School B" });
+    await enqueue(block, "escalate", "s003-visit", past, { reason: "no CRP visit" });
+    await enqueue(block, "followup_call", "s004-call", past, { to: "+916382844365", teacher: "Teacher D" });
+    await enqueue(block, "visit_check", "s005-visit", future);
+    const { ran, results } = await tick();
+    expect(ran).toBe(3);
+    expect(results.map((r) => r.result).sort()).toEqual(["call handed to CRP", "escalated to BEO", "reminder posted"]);
+    const rows = await db.all<{ kind: string; ref: string; payload: string; actor: string }>(`SELECT kind, ref, payload, actor FROM events WHERE block = ? ORDER BY id`, block);
+    const review = rows.find((r) => r.ref === "s003-review");
+    expect(review?.kind).toBe("action");
+    expect(review?.actor).toBe("Jugnu AI");
+    expect(JSON.parse(review!.payload).note).toContain("no CRP visit");
+    const call = rows.find((r) => r.ref === "s004" && r.kind === "note");
+    expect(JSON.parse(call!.payload).text).toMatch(/could not dial|CRP, please call/);
+    expect((await tick()).ran).toBe(0);
+  });
+
+  it("agent write tools act on the open block and refuse without one", async () => {
+    const { writeTools } = await import("./ai/agent");
+    const { listJobs } = await import("./scheduler");
+    const { pipelineFor } = await import("./blocks");
+    const st = pipelineFor({ seed: 231205 });
+    const school = st.block.schools[0];
+    type Tool = { name: string; run: (input: unknown) => Promise<unknown> };
+    const use = (tools: unknown[], name: string, input: unknown) => (tools as Tool[]).find((t) => t.name === name)!.run(input).then(String);
+    const noBlock = writeTools(st, { page: "/", lang: "en" });
+    expect(await use(noBlock, "move_action", { school: school.name, step: "visit", status: "scheduled" })).toMatch(/open a block/i);
+    const tools = writeTools(st, { page: "/today", lang: "en", block });
+    expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["move_action", "schedule_followup", "escalate_to_beo", "dial_teacher", "list_followups"]));
+    expect(await use(tools, "move_action", { school: school.name, step: "visit", status: "scheduled", note: "ok" })).toContain(school.name);
+    expect((await listJobs(block, "pending")).some((j) => j.ref === `${school.id}-visit` && j.kind === "visit_check")).toBe(true);
+    expect(await use(tools, "escalate_to_beo", { school: school.name.toUpperCase(), step: "visit", reason: "teacher on leave" })).toMatch(/escalated/i);
+    expect(await use(tools, "dial_teacher", { school: school.name, to: "12", language: "hi" })).toMatch(/does not look right/);
+    expect(await use(tools, "dial_teacher", { school: school.name, to: "+916382844365", language: "hi" })).toMatch(/Could not place the call/);
+    expect(await use(tools, "schedule_followup", { school: school.name, kind: "followup_call", inDays: 5, to: "+916382844365", language: "hi" })).toMatch(/^Done:/);
+    expect(await use(tools, "schedule_followup", { school: school.name, kind: "followup_call", inDays: 5 })).toMatch(/already on the clock/);
+    const listed = await use(tools, "list_followups", {});
+    expect(listed).toContain("visit check");
+    expect(listed).toContain("followup call");
+    expect(await use(tools, "move_action", { school: "Nowhere School", step: "note", status: "done" })).toMatch(/No school/);
+  });
+});

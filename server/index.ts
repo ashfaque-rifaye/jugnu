@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { app } from "./app";
 import { claudeAvailable, MODEL } from "./claude";
 import { storage } from "./db";
+import { tick } from "./scheduler";
 import { attachTelephony, telephonyStatus } from "./telephony";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +26,9 @@ if (process.env.NODE_ENV === "production" && fs.existsSync(dist)) {
 const port = process.env.NODE_ENV === "production" ? Number(process.env.PORT || 8080) : Number(process.env.API_PORT || 8788);
 const server = http.createServer(app);
 attachTelephony(server);
+// Jugnu's own clock: due follow-ups, reminders and escalations run once a minute.
+const clock = setInterval(() => tick().catch((e) => console.error("scheduler tick failed", e)), 60_000);
+clock.unref();
 server.listen(port, () => {
   const t = telephonyStatus();
   const phone = t.active ? `${t.active} via ${t.publicUrl}` : "off (set TELEPHONY_PROVIDER + PUBLIC_URL)";

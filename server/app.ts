@@ -15,6 +15,7 @@ import { claudeAvailable, MODEL } from "./claude";
 import { db, storage } from "./db";
 import { answer, codeAndStore, codedForBlock, codingsOf, createInterview, eraseInterview, getById, getByToken, listInterviews, start, turnsOf } from "./interviews";
 import { events } from "./events";
+import { jobs } from "./scheduler";
 import { ivr, telephonyStatus } from "./telephony";
 import { reviews } from "./reviews";
 import { testing } from "./testing";
@@ -137,7 +138,13 @@ app.post("/api/agent", requireOfficer, rateLimit("agent", 150, 600000), async (r
   const body = z
     .object({
       messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.any() })).min(1).max(60),
-      context: z.object({ page: z.string().max(80), school: z.string().max(120).nullish(), lang: z.enum(["en", "hi"]), role: z.string().max(40).nullish() }),
+      context: z.object({
+        page: z.string().max(80),
+        school: z.string().max(120).nullish(),
+        lang: z.enum(["en", "hi"]),
+        role: z.string().max(40).nullish(),
+        block: z.string().max(80).nullish(), // the block key the console is on; write tools need it
+      }),
       seed: z.number().int().optional(),
       track: z.boolean().optional(),
       block: z.any().optional(),
@@ -200,6 +207,7 @@ app.use("/api/events", events);
 app.use("/api/reviews", reviews);
 app.use("/api/testing", testing);
 app.use("/api/ivr", ivr);
+app.use("/api/jobs", jobs);
 
 // Errors are logged and answered as JSON, never as an HTML stack trace.
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

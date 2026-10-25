@@ -133,6 +133,24 @@ CREATE TABLE IF NOT EXISTS ai_calls (
   error         TEXT,
   created_at    TEXT NOT NULL
 );
+
+-- Work Jugnu does on its own clock: day-1/7/14 follow-up calls after an action is scheduled, BEO
+-- escalation when something stays stuck, reminders. The scheduler tick runs due jobs in order.
+CREATE TABLE IF NOT EXISTS scheduled_jobs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  block        TEXT NOT NULL,
+  kind         TEXT NOT NULL,                     -- followup_call | escalate | reminder
+  ref          TEXT NOT NULL,                     -- action id
+  school_id    TEXT,
+  due_at       TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'pending',   -- pending | done | skipped | failed
+  payload      TEXT NOT NULL DEFAULT '{}',
+  result       TEXT,
+  created_at   TEXT NOT NULL,
+  done_at      TEXT
+);
+CREATE INDEX IF NOT EXISTS jobs_due ON scheduled_jobs(status, due_at);
+CREATE INDEX IF NOT EXISTS jobs_by_block ON scheduled_jobs(block, id);
 `;
 
 /** turso: lasting · sqlite: a local file that lasts · temporary: Vercel without Turso — lost on restart. */

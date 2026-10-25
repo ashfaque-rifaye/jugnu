@@ -376,15 +376,30 @@ ivr.get("/setup", requireOfficer, (_req, res) => {
   });
 });
 
-/** Dial a teacher. Body: { to, teacherName?, schoolName?, schoolId?, group?, language?, interviewId? }. */
-ivr.post("/call", requireOfficer, async (req, res) => {
+export type CallRequest = {
+  to: string;
+  teacherName?: string;
+  schoolName?: string;
+  schoolId?: string;
+  group?: InterviewRow["grp"];
+  language?: InterviewRow["language"];
+  interviewId?: string;
+};
+
+export class CallError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
+/** Place a real call to a teacher (used by the officer UI, the scheduler and the agent's dial tool). */
+export async function placeCall(b: CallRequest): Promise<{ interview: InterviewRow | undefined; callSid: string; provider: Provider }> {
   const provider = activeProvider();
-  if (!provider) return res.status(503).json({ error: "The phone line is off: no telephony provider is configured." });
-  if (!publicUrl()) return res.status(503).json({ error: "PUBLIC_URL is not set; the provider cannot reach this server." });
-  if (!voiceConfigured()) return res.status(503).json({ error: "Voice (GOOGLE_CLOUD_API_KEY) is not configured." });
-  const b = (req.body ?? {}) as Record<string, string | undefined>;
+  if (!provider) throw new CallError("The phone line is off: no telephony provider is configured.", 503);
+  if (!publicUrl()) throw new CallError("PUBLIC_URL is not set; the provider cannot reach this server.", 503);
+  if (!voiceConfigured()) throw new CallError("Voice (GOOGLE_CLOUD_API_KEY) is not configured.", 503);
   const to = normaliseIndianNumber(String(b.to ?? ""));
-  if (!to) return res.status(400).json({ error: "Enter an Indian mobile number (10 digits, or +91…)." });
+  if (!to) throw new CallError("Enter an Indian mobile number (10 digits, or +91…).", 400);
   const hash = phoneHash(to);
   let row = b.interviewId ? await getById(String(b.interviewId)) : null;
   if (!row) {
@@ -392,21 +407,32 @@ ivr.post("/call", requireOfficer, async (req, res) => {
       teacherName: b.teacherName,
       schoolName: b.schoolName,
       schoolId: b.schoolId,
-      group: (b.group as InterviewRow["grp"]) ?? "live",
-      language: (b.language as InterviewRow["language"]) ?? "hi",
+      group: b.group ?? "live",
+      language: b.language ?? "hi",
       channel: "phone",
       phoneHash: hash,
     });
   }
+  let callSid: string;
   try {
-    const callSid = provider === "exotel" ? await dialExotel(to, row.token) : await dialPlivo(to, row.token);
-    await db.run(
-      "UPDATE interviews SET call_sid = ?, call_status = 'dialing', channel = 'phone', phone_hash = ?, status = CASE WHEN status = 'completed' THEN status ELSE 'invited' END, updated_at = datetime('now') WHERE id = ?",
-      callSid, hash, row.id,
-    );
-    res.json({ interview: await getById(row.id), callSid, provider });
+    callSid = provider === "exotel" ? await dialExotel(to, row.token) : await dialPlivo(to, row.token);
   } catch (e) {
-    res.status(502).json({ error: `${provider === "exotel" ? "Exotel" : "Plivo"} could not place the call: ${(e as Error).message}` });
+    throw new CallError(`${provider === "exotel" ? "Exotel" : "Plivo"} could not place the call: ${(e as Error).message}`, 502);
+  }
+  await db.run(
+    "UPDATE interviews SET call_sid = ?, call_status = 'dialing', channel = 'phone', phone_hash = ?, status = CASE WHEN status = 'completed' THEN status ELSE 'invited' END, updated_at = datetime('now') WHERE id = ?",
+    callSid, hash, row.id,
+  );
+  return { interview: await getById(row.id), callSid, provider };
+}
+
+/** Dial a teacher. Body: { to, teacherName?, schoolName?, schoolId?, group?, language?, interviewId? }. */
+ivr.post("/call", requireOfficer, async (req, res) => {
+  try {
+    res.json(await placeCall((req.body ?? {}) as CallRequest));
+  } catch (e) {
+    const err = e as CallError;
+    res.status(err.status ?? 500).json({ error: err.message });
   }
 });
 

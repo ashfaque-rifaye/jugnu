@@ -252,4 +252,9 @@ export const TOOL_LABEL: Record<string, [string, string]> = {
   practice_evidence: ["Checked the evidence", "सबूत देखे"],
   action_board: ["Checked the actions", "काम देखे"],
   pilot_interviews: ["Read the interviews", "बातचीत पढ़ी"],
+  move_action: ["Moved an action", "काम आगे बढ़ाया"],
+  schedule_followup: ["Put it on the clock", "फ़ॉलो-अप तय किया"],
+  escalate_to_beo: ["Escalated to the BEO", "BEO को भेजा"],
+  dial_teacher: ["Called the teacher", "शिक्षक को फ़ोन किया"],
+  list_followups: ["Checked the clock", "फ़ॉलो-अप देखे"],
 };
