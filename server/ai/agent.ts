@@ -6,10 +6,14 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { BetaMessageParam, BetaToolUnion } from "@anthropic-ai/sdk/resources/beta";
 import type { PipelineState } from "../../src/engine/pipeline";
-import { claudeAvailable, describeError, getClient, MODEL } from "../claude";
+import { claudeAvailable, describeError, getClient, PRICES } from "../claude";
 import { db, now } from "../db";
 import { SAFETY } from "./interviewer";
 import { officerTools } from "./officer";
+
+/** The voice/chat agent may use Sonnet 5.5 (better at multi-step screen work); default Sonnet, override with AGENT_MODEL. */
+const wanted = process.env.AGENT_MODEL || "claude-sonnet-5-5";
+export const AGENT_MODEL = wanted in PRICES ? wanted : "claude-haiku-5-5";
 
 export const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "practices", "interviews", "district", "ai", "method", "about", "home"] as const;
 
@@ -115,15 +119,16 @@ How to work:
 - Look numbers and names up with the block tools; never guess. Name schools exactly as the tools return them.
 - Do things on screen with the UI tools when asked ("open", "show", "go to", "fill", "mark", "record"). Use read_screen before click or fill.
 - Write to the shared log (record) only when the officer clearly asked for it; repeat back what you recorded.
-- Replies are read aloud: ${ctx.lang === "hi" ? "answer in simple Hindi (Devanagari)" : "answer in plain English"}, 1–3 short sentences, no lists, no markdown, numbers as digits.
+- Replies are read aloud: ${ctx.lang === "hi" ? "answer in simple Hindi (Devanagari)" : "answer in plain English"} — but if the officer speaks another language (Tamil, Marathi, …) answer in theirs, in its own script. 1–3 short sentences, no lists, no markdown, numbers as digits.
 - Never shame or rank teachers; a suspicious score means "revisit respectfully".
-- Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.`;
+- Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.
+- Spoken requests come through speech recognition, so names can arrive misheard or in another script ("सपना कला" for Sasna Kalan, "Mahua Kalan" for Mahguwan Kalan). Match them to the closest school, cluster or teacher in the block and carry on; ask only if two are equally close.`;
 
 async function trace(ref: string, usage: { i: number; o: number }, ok: boolean, error: string | null, started: number, tools: string[]) {
   await db
     .run(
       `INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at) VALUES ('agent.turn', ?, 'claude', ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ref.slice(0, 80), MODEL, Date.now() - started, usage.i, usage.o, JSON.stringify([{ name: "tools", passed: true, detail: tools.join(", ") || "none" }]), ok ? 1 : 0, error, now(),
+      ref.slice(0, 80), AGENT_MODEL, Date.now() - started, usage.i, usage.o, JSON.stringify([{ name: "tools", passed: true, detail: tools.join(", ") || "none" }]), ok ? 1 : 0, error, now(),
     )
     .catch((e) => console.error("ai_calls trace failed:", e));
 }
@@ -147,7 +152,7 @@ export async function agentTurn(messages: BetaMessageParam[], st: PipelineState,
     for (let step = 0; step < 6; step++) {
       const res: Anthropic.Beta.BetaMessage = await getClient().beta.messages.create(
         {
-          model: MODEL,
+          model: AGENT_MODEL,
           max_tokens: 1500,
           system: system(st, ctx),
           tools,
@@ -193,5 +198,32 @@ async function runServer(server: unknown[], u: Anthropic.Beta.BetaToolUseBlock):
     return { type: "tool_result" as const, tool_use_id: u.id, content: typeof out === "string" ? out : JSON.stringify(out) };
   } catch (e) {
     return { type: "tool_result" as const, tool_use_id: u.id, content: `Error: ${(e as Error).message}`, is_error: true };
+  }
+}
+
+/** The spoken morning briefing: Claude turns the block's facts into a few natural sentences in the officer's language. */
+export async function agentBrief(facts: string[], lang: "en" | "hi", name?: string): Promise<{ lines: string[]; source: "claude" | "offline" }> {
+  if (!claudeAvailable()) return { lines: [], source: "offline" };
+  const started = Date.now();
+  try {
+    const res = await getClient().messages.create(
+      {
+        model: AGENT_MODEL,
+        max_tokens: 900,
+        system: `${SAFETY}
+You are Jugnu, briefing a Block Education Officer${name ? ` (${name})` : ""} out loud at the start of their day. Use only the facts given; never invent numbers or names.
+Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian colleague talks — English words like spot check or CRP are fine" : "in plain spoken Indian English"}.
+5 to 7 short sentences, one per line, no lists or markdown, numbers as digits. Open with a one-line greeting and the headline, put the most urgent thing second, end by offering one concrete next step as a question.`,
+        messages: [{ role: "user", content: facts.map((f) => `- ${f}`).join("\n") }],
+      },
+      { signal: AbortSignal.timeout(25000) },
+    );
+    const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
+    const lines = text.split(/\n+/).map((l) => l.replace(/^[-*•\d.\s]+/, "").trim()).filter(Boolean).slice(0, 8);
+    await trace("brief", { i: res.usage.input_tokens, o: res.usage.output_tokens }, true, null, started, []);
+    return { lines, source: "claude" };
+  } catch (e) {
+    await trace("brief", { i: 0, o: 0 }, false, describeError(e), started, []);
+    return { lines: [], source: "offline" };
   }
 }

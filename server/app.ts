@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { readFollowUp } from "./ai/followup";
-import { agentTurn } from "./ai/agent";
+import { agentBrief, agentTurn } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
 import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
@@ -18,13 +18,14 @@ import { events } from "./events";
 import { ivr, ivrConfigured } from "./ivr";
 import { reviews } from "./reviews";
 import { testing } from "./testing";
+import { synthesize, transcribe, voiceConfigured, VOICES } from "./voice";
 
 export const app = express();
 app.set("trust proxy", true);
 app.use(express.json({ limit: "4mb" }));
 
 app.get("/api/status", (_req, res) =>
-  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, ivr: ivrConfigured(), passcode: passcodeRequired(), storage: storage() }),
+  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: ivrConfigured(), passcode: passcodeRequired(), storage: storage() }),
 );
 
 app.post("/api/auth/check", (req, res) => res.json({ ok: !process.env.DEMO_PASSCODE || req.body?.passcode === process.env.DEMO_PASSCODE }));
@@ -145,6 +146,37 @@ app.post("/api/agent", requireOfficer, rateLimit("agent", 150, 600000), async (r
   if (!body.success) return res.status(400).json({ error: "messages and context are required" });
   const st = pipelineFor({ seed: body.data.seed, track: body.data.track, block: body.data.block });
   res.json(await agentTurn(body.data.messages as Parameters<typeof agentTurn>[0], st, body.data.context));
+});
+
+app.post("/api/agent/brief", requireOfficer, rateLimit("agent", 150, 600000), async (req, res) => {
+  const body = z.object({ facts: z.array(z.string().max(400)).min(1).max(30), lang: z.enum(["en", "hi"]), name: z.string().max(80).optional() }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "facts and lang are required" });
+  res.json(await agentBrief(body.data.facts, body.data.lang, body.data.name));
+});
+
+// ---------------------------------------------------------------- voice: speech in, speech out
+app.post("/api/voice/stt", requireOfficer, rateLimit("voice", 240, 600000), express.raw({ type: () => true, limit: "8mb" }), async (req, res) => {
+  const audio = req.body as Buffer;
+  if (!Buffer.isBuffer(audio) || audio.length < 800) return res.json({ text: "", language: null, engine: null });
+  const seed = Number(req.query.seed);
+  const st = Number.isFinite(seed) ? pipelineFor({ seed }) : null;
+  const hints = st ? [...new Set(st.block.schools.flatMap((s) => [s.name, s.nameHi ?? "", s.clusterName, s.teacher].filter(Boolean)))] : [];
+  try {
+    res.json(await transcribe(audio, String(req.get("content-type") ?? ""), String(req.query.lang ?? "en"), ["Jugnu", "spot check", "bright spot", "CRP", "BEO", ...hints]));
+  } catch (e) {
+    res.status(502).json({ error: (e as Error).message });
+  }
+});
+
+app.post("/api/voice/tts", rateLimit("voice", 400, 600000), async (req, res) => {
+  const body = z.object({ text: z.string().min(1).max(1200), lang: z.string().max(5), voice: z.enum(VOICES).optional() }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "text and lang are required" });
+  try {
+    const mp3 = await synthesize(body.data.text, body.data.lang, body.data.voice);
+    res.set({ "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400" }).send(mp3);
+  } catch (e) {
+    res.status(502).json({ error: (e as Error).message });
+  }
 });
 
 // ---------------------------------------------------------------- AI trace + evaluation

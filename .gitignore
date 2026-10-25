@@ -13,3 +13,5 @@ coverage/
 
 # demo recordings (large)
 demo/*.mp4
+demo/media-4k/
+tsconfig.tsbuildinfo

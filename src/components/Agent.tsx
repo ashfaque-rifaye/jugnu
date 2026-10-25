@@ -1,178 +1,152 @@
-// Jugnu, the assistant: a glowing orb (tap to talk) and a chat panel. Both drive the same agent —
-// it briefs the officer (each line appears as it is read aloud), answers from the block's data
-// and works the console: goes to pages, opens schools, flies the map, clicks, fills and records.
+// Jugnu, the assistant. Its face is a living orb of light (Orb.tsx) that ripples with the voice;
+// a swarm of fireflies stands in where WebGL is missing. Tap it for a full-screen voice
+// conversation (Google Chirp 3 hears Hindi, English, Tamil and more; Chirp 3 HD voices answer),
+// or open the chat panel. Both drive the same agent — it briefs the officer in their language,
+// answers from the block's data and works the console: pages, schools, the map, forms, records.
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { Check, Keyboard, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DAMOH } from "../engine/district";
-import { buildBriefing, clickByLabel, fillField, findSchool, parseCommand, readScreen, TOOL_LABEL } from "../lib/agent";
+import { briefingFacts, buildBriefing, clickByLabel, fillField, findSchool, parseCommand, readScreen, TOOL_LABEL } from "../lib/agent";
 import { postJSON, useStatus } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { useRole } from "../lib/role";
 import { canListen, listen, stopSpeaking } from "../lib/speech";
 import { usePipeline } from "../lib/store";
 import { useTheme } from "../lib/theme";
+import { audio, fetchSpeech, openMic, outLevel, play, stopPlayback, transcribe, type Mic as MicHandle } from "../lib/voice";
 import { fieldBase } from "./kit";
+import { Orb } from "./Orb";
 
-export type Mode = "off" | "listening" | "thinking" | "working" | "speaking" | "error";
+export type Mode = "off" | "listening" | "hearing" | "thinking" | "working" | "speaking" | "error";
 
-// ---------------------------------------------------------------- the orb (WebGL)
+// ---------------------------------------------------------------- the swarm (canvas)
 
 type RGB = [number, number, number];
-// Firefly light: warm amber and lime glow over deep teal and indigo.
-const PALETTE: Record<Mode, [RGB, RGB, RGB]> = {
-  off: [[1, 0.78, 0.3], [0.36, 0.84, 0.72], [0.55, 0.6, 1]],
-  listening: [[0.84, 1, 0.3], [0.39, 0.82, 1], [1, 0.78, 0.3]],
-  thinking: [[0.62, 0.55, 1], [0.39, 0.82, 1], [1, 0.78, 0.3]],
-  working: [[1, 0.66, 0.3], [0.84, 1, 0.3], [0.39, 0.82, 1]],
-  speaking: [[1, 0.8, 0.32], [0.84, 1, 0.3], [0.39, 0.82, 1]],
-  error: [[1, 0.42, 0.42], [1, 0.7, 0.36], [0.6, 0.62, 1]],
+const AMBER: RGB = [255, 213, 107];
+const LIME: RGB = [198, 243, 107];
+const TEAL: RGB = [127, 227, 208];
+const ROSE: RGB = [255, 120, 120];
+const VIOLET: RGB = [170, 160, 255];
+
+/** How the swarm behaves in each mode: spread (how far out), swirl (speed), ring (pull onto a circle), glow. */
+const MOTION: Record<Mode, { spread: number; swirl: number; ring: number; glow: number; tint: RGB }> = {
+  off: { spread: 1, swirl: 0.22, ring: 0, glow: 0.5, tint: AMBER },
+  listening: { spread: 0.62, swirl: 0.35, ring: 0.35, glow: 0.65, tint: LIME },
+  hearing: { spread: 0.5, swirl: 1.4, ring: 0.85, glow: 0.7, tint: TEAL },
+  thinking: { spread: 0.55, swirl: 1.9, ring: 0.9, glow: 0.7, tint: VIOLET },
+  working: { spread: 0.6, swirl: 1.6, ring: 0.75, glow: 0.75, tint: TEAL },
+  speaking: { spread: 0.7, swirl: 0.5, ring: 0.2, glow: 0.85, tint: AMBER },
+  error: { spread: 0.8, swirl: 0.15, ring: 0, glow: 0.45, tint: ROSE },
 };
 
-const FRAG = `
-precision highp float;
-uniform vec2 uRes; uniform float uT; uniform float uAmp; uniform float uSpin; uniform vec3 uA; uniform vec3 uB; uniform vec3 uC;
-vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
-vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}
-vec4 permute(vec4 x){return mod289(((x*34.)+1.)*x);}
-vec4 tis(vec4 r){return 1.79284291400159-.85373472095314*r;}
-float snoise(vec3 v){
-  const vec2 C=vec2(1./6.,1./3.); const vec4 D=vec4(0.,.5,1.,2.);
-  vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
-  vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.-g; vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
-  vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy;
-  i=mod289(i);
-  vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));
-  float n_=.142857142857; vec3 ns=n_*D.wyz-D.xzx;
-  vec4 j=p-49.*floor(p*ns.z*ns.z);
-  vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.*x_);
-  vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.-abs(x)-abs(y);
-  vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
-  vec4 s0=floor(b0)*2.+1.; vec4 s1=floor(b1)*2.+1.; vec4 sh=-step(h,vec4(0.));
-  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-  vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
-  vec4 nr=tis(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-  p0*=nr.x; p1*=nr.y; p2*=nr.z; p3*=nr.w;
-  vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.); m=m*m;
-  return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+function sprite(c: RGB) {
+  const s = document.createElement("canvas");
+  s.width = s.height = 64;
+  const g = s.getContext("2d")!;
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,255,245,1)");
+  r.addColorStop(0.18, `rgba(${c.join(",")},0.95)`);
+  r.addColorStop(0.45, `rgba(${c.join(",")},0.28)`);
+  r.addColorStop(1, `rgba(${c.join(",")},0)`);
+  g.fillStyle = r;
+  g.fillRect(0, 0, 64, 64);
+  return s;
 }
-mat3 rY(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
-mat3 rX(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,s,0.,-s,c);}
-void main(){
-  vec2 uv=(gl_FragCoord.xy*2.-uRes)/min(uRes.x,uRes.y);
-  float R=.6+uAmp*.07+sin(uT*1.3)*.008;
-  float r=length(uv);
-  vec3 glowCol=mix(uA,uB,.5+.5*sin(uT*.5));
-  float g=exp(-max(r-R,0.)*8.)*(.18+uAmp*.6);
-  if(r>=R){ gl_FragColor=vec4(glowCol*g,g*.85); return; }
-  float z=sqrt(max(0.,1.-(r*r)/(R*R)));
-  vec3 n=vec3(uv/R,z);
-  vec3 q=rY(uSpin)*rX(uSpin*.55)*n;
-  float t=uT*(.22+uAmp*.8);
-  float n1=snoise(q*1.5+vec3(0.,t,t*.3));
-  float n2=snoise(q*3.2-vec3(t*.6,-t*.2,t*.4)+n1*.7);
-  float f=.5+.5*n1; float h=.5+.5*n2;
-  vec3 base=mix(uA,uB,smoothstep(.15,.85,f));
-  base=mix(base,uC,smoothstep(.5,.95,h)*.85);
-  float fil=pow(1.-abs(n2),10.)*(.45+uAmp*1.5);
-  vec3 inner=base*(.18+.7*pow(z,.8))+fil*mix(uB,vec3(1.),.4);
-  vec3 core=vec3(.015,.04,.05);
-  vec3 col=mix(core,inner,.35+.65*smoothstep(.0,.9,f*.6+h*.4+uAmp*.3));
-  float fres=pow(1.-z,2.6);
-  col+=mix(uC,vec3(1.),.35)*fres*.95;
-  vec3 L=normalize(vec3(-.45,.6,.65));
-  col+=pow(max(dot(reflect(-L,n),vec3(0.,0.,1.)),0.),40.)*.9;
-  col+=pow(max(dot(reflect(-normalize(vec3(.5,-.6,.6)),n),vec3(0.,0.,1.)),0.),18.)*.12*uB;
-  float edge=smoothstep(R,R-.015,r);
-  gl_FragColor=vec4(col*edge+glowCol*g*(1.-edge),max(edge,g*.85));
-}`;
 
-/** A small sphere of moving light: breathes when idle, leans in while listening, swirls while
- *  thinking and pulses with each spoken word. Falls back to a soft CSS orb without WebGL. */
-export function OrbGL({ mode, level, size }: { mode: Mode; level: MutableRefObject<number>; size: number }) {
+/** Jugnu's face: a few dozen fireflies around a warm core, moved by the voice (mic or speaker). */
+export function Swarm({ mode, level, size, count }: { mode: Mode; level: () => number; size: number; count?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const modeRef = useRef(mode);
   modeRef.current = mode;
-  const [fallback, setFallback] = useState(false);
+  const levelRef = useRef(level);
+  levelRef.current = level;
   useEffect(() => {
     const c = ref.current!;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     c.width = c.height = Math.round(size * dpr);
-    const gl = c.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: true });
-    if (!gl) return setFallback(true);
-    const sh = (type: number, src: string) => {
-      const s = gl.createShader(type)!;
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      return s;
-    };
-    const prog = gl.createProgram()!;
-    gl.attachShader(prog, sh(gl.VERTEX_SHADER, "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}"));
-    const fs = sh(gl.FRAGMENT_SHADER, FRAG);
-    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) return setFallback(true);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    gl.useProgram(prog);
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, "p");
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    const U = (n: string) => gl.getUniformLocation(prog, n);
-    const [uRes, uT, uAmp, uSpin, uA, uB, uC] = ["uRes", "uT", "uAmp", "uSpin", "uA", "uB", "uC"].map(U);
-    gl.uniform2f(uRes, c.width, c.height);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    const cols = PALETTE[modeRef.current].map((x) => [...x]);
-    let amp = 0;
-    let spin = 0;
-    let raf = 0;
-    const t0 = performance.now();
+    const g = c.getContext("2d")!;
+    const sprites = [AMBER, LIME, TEAL, ROSE, VIOLET].map(sprite);
+    const pick = (k: RGB) => sprites[[AMBER, LIME, TEAL, ROSE, VIOLET].indexOf(k)];
+    const n = count ?? (size > 140 ? 64 : 22);
+    const flies = Array.from({ length: n }, (_, i) => ({
+      a: (i / n) * Math.PI * 2 + Math.random(),
+      r: 0.28 + Math.random() * 0.68,
+      w: (0.5 + Math.random()) * (Math.random() < 0.5 ? -1 : 1),
+      ph: Math.random() * 10,
+      blink: 0.6 + Math.random() * 1.6,
+      s: 0.6 + Math.random() * 0.8,
+      col: i % 5 === 0 ? TEAL : i % 3 === 0 ? LIME : AMBER,
+      x: 0,
+      y: 0,
+    }));
+    const R = (c.width / 2) * 0.92;
+    const cx = c.width / 2;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const st = { ...MOTION.off, amp: 0, t: 0 };
+    let raf = 0;
+    let last = performance.now();
     const draw = (now: number) => {
-      const t = (now - t0) / 1000;
-      const m = modeRef.current;
-      level.current *= 0.9;
-      const target = m === "listening" || m === "speaking" ? 0.18 + Math.min(0.8, level.current) : m === "thinking" || m === "working" ? 0.32 : 0.06;
-      amp += (target - amp) * 0.16;
-      spin += reduced ? 0.002 : m === "thinking" || m === "working" ? 0.028 : 0.006 + amp * 0.02;
-      const goal = PALETTE[m];
-      for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) cols[k][j] += (goal[k][j] - cols[k][j]) * 0.06;
-      gl.viewport(0, 0, c.width, c.height);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(uT, reduced ? t * 0.2 : t);
-      gl.uniform1f(uAmp, amp);
-      gl.uniform1f(uSpin, spin);
-      gl.uniform3fv(uA, cols[0]);
-      gl.uniform3fv(uB, cols[1]);
-      gl.uniform3fv(uC, cols[2]);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      const dt = Math.min(0.05, (now - last) / 1000) * (reduced ? 0.3 : 1);
+      last = now;
+      st.t += dt;
+      const m = MOTION[modeRef.current];
+      const live = modeRef.current === "listening" || modeRef.current === "speaking" ? Math.min(1, levelRef.current()) : 0;
+      st.amp += (live - st.amp) * (live > st.amp ? 0.35 : 0.08);
+      for (const k of ["spread", "swirl", "ring", "glow"] as const) st[k] += (m[k] - st[k]) * 0.05;
+      g.clearRect(0, 0, c.width, c.height);
+      g.globalCompositeOperation = "lighter";
+      const coreR = R * (0.22 + st.amp * 0.16 + Math.sin(st.t * 1.4) * 0.012);
+      const core = g.createRadialGradient(cx, cx, 0, cx, cx, coreR);
+      const tc = m.tint.join(",");
+      core.addColorStop(0, `rgba(255,250,230,${0.16 * st.glow + st.amp * 0.18})`);
+      core.addColorStop(0.35, `rgba(${tc},${0.1 * st.glow + st.amp * 0.12})`);
+      core.addColorStop(1, `rgba(${tc},0)`);
+      g.fillStyle = core;
+      g.fillRect(0, 0, c.width, c.height);
+      if (st.amp > 0.05) {
+        g.strokeStyle = `rgba(${tc},${st.amp * 0.16})`;
+        g.lineWidth = 1.2 * dpr;
+        g.beginPath();
+        g.arc(cx, cx, R * (0.55 + st.amp * 0.4), 0, Math.PI * 2);
+        g.stroke();
+      }
+      for (const f of flies) {
+        f.a += dt * f.w * st.swirl;
+        const ringR = 0.62 + Math.sin(f.ph) * 0.05;
+        const rr = (f.r * (1 - st.ring) + ringR * st.ring) * st.spread * (1 + st.amp * 0.45) + Math.sin(st.t * 1.7 + f.ph) * 0.05;
+        const wob = Math.sin(st.t * 0.9 + f.ph * 2) * 0.06 * (1 - st.ring);
+        const tx = cx + Math.cos(f.a + wob) * rr * R;
+        const ty = cx + Math.sin(f.a + wob) * rr * R * 0.92;
+        f.x = f.x ? f.x + (tx - f.x) * 0.2 : tx;
+        f.y = f.y ? f.y + (ty - f.y) * 0.2 : ty;
+        const blink = Math.pow(0.5 + 0.5 * Math.sin(st.t * f.blink * 2 + f.ph), 3);
+        const alpha = Math.min(1, 0.18 + blink * 0.82 + st.amp * 0.3);
+        const s = R * (size > 140 ? 0.065 : 0.11) * f.s * (0.75 + blink * 0.55 + st.amp * 0.7);
+        g.globalAlpha = alpha;
+        g.drawImage(modeRef.current === "error" ? pick(ROSE) : modeRef.current === "thinking" && f.col === AMBER ? pick(VIOLET) : pick(f.col), f.x - s, f.y - s, s * 2, s * 2);
+      }
+      g.globalAlpha = 1;
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [size, level]);
-  if (fallback) return <span className="block rounded-full bg-[radial-gradient(circle_at_35%_30%,#fff6c8,#f5b942_45%,#1d6b62)] shadow-[0_0_24px_#f5b94288]" style={{ width: size * 0.62, height: size * 0.62 }} aria-hidden />;
+  }, [size, count]);
   return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden />;
 }
 
-// ---------------------------------------------------------------- speaking, word by word
+// ---------------------------------------------------------------- speaking
 
-function pickVoice(lang: string) {
-  const voices = window.speechSynthesis.getVoices();
-  return voices.find((v) => v.lang === lang && /google|natural|online/i.test(v.name)) ?? voices.find((v) => v.lang === lang) ?? voices.find((v) => v.lang.startsWith(lang.slice(0, 2)));
-}
-
-/** Read a line aloud; onWord fires at each word so the text and the orb keep pace with the voice. */
+/** Read a line aloud with the browser's own voice (when Google voices are not configured). */
 function sayLine(text: string, lang: string, onWord: (charIndex: number) => void): Promise<void> {
   return new Promise((resolve) => {
     if (!("speechSynthesis" in window)) return resolve();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
     u.rate = lang.startsWith("hi") ? 0.98 : 1.04;
-    const v = pickVoice(lang);
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find((x) => x.lang === lang && /google|natural|online/i.test(x.name)) ?? voices.find((x) => x.lang === lang);
     if (v) u.voice = v;
     u.onboundary = (e) => onWord(e.charIndex);
     u.onend = () => resolve();
@@ -180,6 +154,36 @@ function sayLine(text: string, lang: string, onWord: (charIndex: number) => void
     window.speechSynthesis.speak(u);
   });
 }
+
+/** Sentences, merged so very short ones travel with the next (fewer voice requests, natural pacing). */
+function sentences(text: string): string[] {
+  const parts = text.match(/[^.!?।]+[.!?।]*["”’)]*\s*/g)?.map((s) => s.trim()).filter(Boolean) ?? [text];
+  const out: string[] = [];
+  for (const p of parts) {
+    if (out.length && (out[out.length - 1].length < 40 || p.length < 12)) out[out.length - 1] += " " + p;
+    else out.push(p);
+  }
+  return out.length ? out : [text];
+}
+
+export const VOICE_CHOICES: { id: string; en: string; hi: string }[] = [
+  { id: "Aoede", en: "Aoede · warm", hi: "Aoede · गर्मजोशी" },
+  { id: "Kore", en: "Kore · clear", hi: "Kore · साफ़" },
+  { id: "Leda", en: "Leda · gentle", hi: "Leda · कोमल" },
+  { id: "Zephyr", en: "Zephyr · bright", hi: "Zephyr · चमकदार" },
+  { id: "Charon", en: "Charon · calm (male)", hi: "Charon · शांत (पुरुष)" },
+  { id: "Puck", en: "Puck · lively (male)", hi: "Puck · जोशीला (पुरुष)" },
+  { id: "Orus", en: "Orus · steady (male)", hi: "Orus · स्थिर (पुरुष)" },
+  { id: "Fenrir", en: "Fenrir · deep (male)", hi: "Fenrir · गहरा (पुरुष)" },
+];
+const VOICE_KEY = "jugnu-voice";
+const savedVoice = () => {
+  try {
+    return localStorage.getItem(VOICE_KEY) || "Aoede";
+  } catch {
+    return "Aoede";
+  }
+};
 
 // ---------------------------------------------------------------- the agent
 
@@ -233,18 +237,39 @@ export function useAgent() {
   const [mode, setMode] = useState<Mode>("off");
   const [lines, setLines] = useState<Line[]>([]);
   const [voice, setVoice] = useState(true);
+  const [voiceName, setVoiceNameState] = useState(savedVoice);
   const [handsFree, setHandsFree] = useState(false);
   const [heard, setHeard] = useState("");
-  const level = useRef(0);
+  const [engine, setEngine] = useState<string | null>(null);
+  const fake = useRef(0);
+  const mic = useRef<MicHandle | null>(null);
   const history = useRef<ApiMessage[]>([]);
   const busy = useRef(false);
   const stopRef = useRef<(() => void) | null>(null);
   const cancelled = useRef(false);
+  const hush = useRef(false);
   const nextId = useRef(1);
   // Live values for async loops (the conversation outlives a render).
-  const live = useRef({ state, events, allActions, lang, voice, location, seed, role });
-  live.current = { state, events, allActions, lang, voice, location, seed, role };
+  const live = useRef({ state, events, allActions, lang, voice, voiceName, location, seed, role, cloud: status.voice, mode });
+  live.current = { state, events, allActions, lang, voice, voiceName, location, seed, role, cloud: status.voice, mode };
   const speechLang = () => (live.current.lang === "hi" ? "hi-IN" : "en-IN");
+
+  const setVoiceName = (v: string) => {
+    setVoiceNameState(v);
+    try {
+      localStorage.setItem(VOICE_KEY, v);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  /** 0–1 loudness for the swarm: the microphone while listening, the voice while speaking. */
+  const levelNow = useCallback(() => {
+    const m = live.current.mode;
+    if (m === "listening") return mic.current?.level() ?? 0;
+    fake.current *= 0.92;
+    return Math.max(outLevel(), fake.current);
+  }, []);
 
   const patch = (id: number, f: (l: Line) => Line) => setLines((ls) => ls.map((l) => (l.id === id ? f(l) : l)));
   const add = (l: Omit<Line, "id">) => {
@@ -253,17 +278,41 @@ export function useAgent() {
     return id;
   };
 
-  /** Show a line of Jugnu's, streaming it in as it is read aloud (or typed out when muted). */
-  const speakOut = useCallback(async (text: string, extra: Partial<Line> = {}) => {
+  const speechFor = (text: string) => sentences(text).map((p) => ({ p, b: fetchSpeech(p, live.current.voiceName).catch(() => null) }));
+
+  /** Show a line of Jugnu's, revealing it as it is spoken (Google voice, else the browser's, else typed). */
+  const speakOut = useCallback(async (text: string, extra: Partial<Line> = {}, pre?: { p: string; b: Promise<AudioBuffer | null> }[]) => {
     const id = add({ who: "jugnu", text, shown: 0, tools: [], ...extra });
     if (cancelled.current) return patch(id, (l) => ({ ...l, shown: text.length }));
     setMode("speaking");
-    if (live.current.voice && "speechSynthesis" in window) {
+    hush.current = false;
+    const v = live.current;
+    if (v.voice && v.cloud) {
+      const parts = pre ?? speechFor(text);
+      let cursor = 0;
+      for (const { p, b } of parts) {
+        const start = Math.max(cursor, text.indexOf(p.slice(0, 12), cursor));
+        const end = Math.min(text.length, start + p.length);
+        const buf = await b;
+        if (cancelled.current || hush.current) break;
+        if (buf) {
+          const t0 = performance.now();
+          const dur = buf.duration * 1000;
+          const tick = setInterval(() => patch(id, (l) => ({ ...l, shown: Math.max(l.shown, Math.round(start + (end - start) * Math.min(1, (performance.now() - t0) / dur))) })), 60);
+          await play(buf);
+          clearInterval(tick);
+        } else {
+          await sayLine(p, speechLang(), () => (fake.current = 0.7));
+        }
+        cursor = end;
+        patch(id, (l) => ({ ...l, shown: Math.max(l.shown, end) }));
+      }
+    } else if (v.voice && "speechSynthesis" in window) {
       let last = 0;
       const typing = setInterval(() => patch(id, (l) => ({ ...l, shown: Math.min(text.length, Math.max(l.shown, last + 6)) })), 120);
       await sayLine(text, speechLang(), (i) => {
         last = i;
-        level.current = 0.55 + Math.random() * 0.35;
+        fake.current = 0.55 + Math.random() * 0.35;
         const end = text.indexOf(" ", i + 1);
         patch(id, (l) => ({ ...l, shown: Math.max(l.shown, end < 0 ? text.length : end) }));
       });
@@ -271,7 +320,7 @@ export function useAgent() {
     } else {
       for (let i = 0; i <= text.length && !cancelled.current; i += 3) {
         patch(id, (l) => ({ ...l, shown: i }));
-        level.current = 0.4;
+        fake.current = 0.4;
         await wait(14);
       }
     }
@@ -363,17 +412,31 @@ export function useAgent() {
     [navigate, regenerate, record, select, setLang, setTheme],
   );
 
+  /** The spoken briefing: Claude retells the block's facts in the console's language; the built-in lines are the fallback. */
   const brief = useCallback(async () => {
-    const { state: st, events: ev, lang: l } = live.current;
-    const hi = l === "hi";
-    const text = buildBriefing(st, ev, t, hi);
+    const { state: st, events: ev, lang: l, role: r } = live.current;
+    setMode("thinking");
+    let text: string[] = [];
+    const by = "briefing";
+    if (status.claude) {
+      try {
+        const res = await postJSON<{ lines: string[]; source: string }>("/api/agent/brief", { facts: briefingFacts(st, ev), lang: l, name: r?.kind === "crp" ? "cluster coordinator" : r?.kind === "beo" ? "Block Education Officer" : undefined });
+        text = res.lines;
+      } catch {
+        /* fall back below */
+      }
+    }
+    if (!text.length) {
+      text = buildBriefing(st, ev, t, l === "hi");
+    }
+    // Ask for every line's voice at once, then speak them in turn.
+    const pre = live.current.voice && live.current.cloud ? text.map(speechFor) : [];
     for (const [i, line] of text.entries()) {
       if (cancelled.current) break;
-      await speakOut(line, { brief: true, tools: i === 0 ? [{ name: "briefing", ok: true }] : [] });
+      await speakOut(line, { brief: true, tools: i === 0 ? [{ name: by, ok: true }] : [] }, pre[i]);
     }
-    history.current.push({ role: "user", content: "Brief me." }, { role: "assistant", content: `${text.join(" ")}
-[briefing built from the block's live data]` });
-  }, [speakOut, t]);
+    history.current.push({ role: "user", content: "Brief me." }, { role: "assistant", content: `${text.join(" ")}\n[briefing built from the block's live data]` });
+  }, [speakOut, status.claude, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The officer said or typed something: answer it, doing whatever it takes on screen. */
   const send = useCallback(
@@ -382,6 +445,7 @@ export function useAgent() {
       if (!q || busy.current) return;
       busy.current = true;
       cancelled.current = false;
+      stopPlayback();
       stopSpeaking();
       add({ who: "you", text: q, shown: q.length, tools: [] });
       setMode("thinking");
@@ -423,8 +487,7 @@ export function useAgent() {
             messages = [...messages, { role: "user", content: results }];
           }
           // Carry only the plain words forward (tool blocks would need their pairs); Claude can look things up again.
-          const basis = tools.length ? `
-[done with tools: ${[...new Set(tools.map((x) => x.name))].join(", ")}]` : "";
+          const basis = tools.length ? `\n[done with tools: ${[...new Set(tools.map((x) => x.name))].join(", ")}]` : "";
           if (said) history.current = [...history.current, { role: "user" as const, content: q }, { role: "assistant" as const, content: said + basis }].slice(-16);
         }
         if (!said) {
@@ -451,17 +514,45 @@ export function useAgent() {
     [brief, runTool, speakOut, status.claude, t],
   );
 
-  const listenOnce = useCallback(async () => {
+  /** Hear one turn. Google Chirp 3 when voice is configured (any Indian language); the browser's recogniser otherwise. */
+  const listenOnce = useCallback(async (): Promise<string | null> => {
+    stopPlayback();
+    stopSpeaking();
+    setHeard("");
+    if (live.current.cloud && typeof MediaRecorder !== "undefined" && navigator.mediaDevices) {
+      try {
+        audio();
+        mic.current ??= await openMic();
+      } catch {
+        setMode("error");
+        setHeard(t("I can't reach the microphone — allow it in the browser, or type.", "माइक्रोफ़ोन नहीं मिल रहा — ब्राउज़र में अनुमति दें, या लिखें।"));
+        return null;
+      }
+      setMode("listening");
+      stopRef.current = () => mic.current?.stopTurn();
+      const blob = await mic.current.turn({ waitMs: 9000, maxMs: 30000 });
+      stopRef.current = null;
+      if (!blob || cancelled.current) return null;
+      setMode("hearing");
+      try {
+        const r = await transcribe(blob, live.current.lang, live.current.seed);
+        setEngine(r.engine);
+        setHeard(r.text);
+        return r.text || null;
+      } catch (e) {
+        setMode("error");
+        setHeard((e as Error).message);
+        return null;
+      }
+    }
     if (!canListen()) {
       setMode("error");
       return null;
     }
-    stopSpeaking();
     setMode("listening");
-    setHeard("");
     const h = listen(speechLang(), (txt) => {
       setHeard(txt);
-      level.current = 0.6;
+      fake.current = 0.6;
     });
     stopRef.current = h.stop;
     try {
@@ -471,43 +562,56 @@ export function useAgent() {
     } finally {
       stopRef.current = null;
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Tap the orb: talk, hands-free — it listens again after each answer until you tap to stop. */
-  const talk = useCallback(async () => {
-    if (handsFree) {
-      cancelled.current = true;
-      setHandsFree(false);
-      stopRef.current?.();
-      stopSpeaking();
-      setMode("off");
-      return;
-    }
+  /** A spoken conversation: listen, answer, listen again — until silence, or the officer ends it. */
+  const converse = useCallback(async () => {
+    if (handsFree) return;
     setHandsFree(true);
     cancelled.current = false;
-    for (let i = 0; i < 12; i++) {
-      const said = await listenOnce();
-      if (cancelled.current) break;
-      if (!said) break;
-      await send(said);
-      if (cancelled.current) break;
+    try {
+      for (let i = 0; i < 20; i++) {
+        const said = await listenOnce();
+        if (cancelled.current || !said) break;
+        await send(said);
+        if (cancelled.current) break;
+      }
+    } finally {
+      setHandsFree(false);
+      if (!cancelled.current) setMode((m) => (m === "error" ? m : "off"));
     }
-    setHandsFree(false);
-    setMode("off");
   }, [handsFree, listenOnce, send]);
+
+  /** Cut Jugnu off mid-sentence (the conversation carries on and listens). */
+  const interrupt = useCallback(() => {
+    hush.current = true;
+    stopPlayback();
+    stopSpeaking();
+  }, []);
 
   const stop = useCallback(() => {
     cancelled.current = true;
     setHandsFree(false);
     stopRef.current?.();
+    stopPlayback();
     stopSpeaking();
     setMode("off");
   }, []);
+
+  /** Close the microphone (end of a voice session). */
+  const hangUp = useCallback(() => {
+    stop();
+    mic.current?.close();
+    mic.current = null;
+  }, [stop]);
+
+  useEffect(() => () => mic.current?.close(), []);
 
   const startBrief = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
     cancelled.current = false;
+    audio();
     try {
       await brief();
     } finally {
@@ -516,17 +620,38 @@ export function useAgent() {
     }
   }, [brief]);
 
-  return { mode, lines, voice, setVoice, handsFree, heard, level, send, talk, stop, brief: startBrief, listenOnce, clear: () => (setLines([]), (history.current = [])) };
+  return {
+    mode,
+    lines,
+    voice,
+    setVoice,
+    voiceName,
+    setVoiceName,
+    cloud: status.voice,
+    engine,
+    handsFree,
+    heard,
+    levelNow,
+    send,
+    converse,
+    interrupt,
+    stop,
+    hangUp,
+    brief: startBrief,
+    listenOnce,
+    clear: () => (setLines([]), (history.current = [])),
+  };
 }
 
-// ---------------------------------------------------------------- the dock and the panel
+// ---------------------------------------------------------------- the dock, the voice stage and the panel
 
 const MODE_LABEL: Record<Mode, [string, string]> = {
-  off: ["Talk", "बोलें"],
+  off: ["Tap to talk", "बात करने के लिए छुएँ"],
   listening: ["Listening", "सुन रहा हूँ"],
+  hearing: ["Understanding", "समझ रहा हूँ"],
   thinking: ["Thinking", "सोच रहा हूँ"],
-  working: ["Working", "काम कर रहा हूँ"],
-  speaking: ["Speaking", "बोल रहा हूँ"],
+  working: ["Working on it", "काम कर रहा हूँ"],
+  speaking: ["Speaking — tap to cut in", "बोल रहा हूँ — बीच में बोलने के लिए छुएँ"],
   error: ["Paused", "रुका"],
 };
 
@@ -538,16 +663,16 @@ const SUGGEST: [string, string][] = [
   ["Open the plan", "योजना खोलो"],
 ];
 
-function Chips({ tools }: { tools: Line["tools"] }) {
+function Chips({ tools, dark }: { tools: Line["tools"]; dark?: boolean }) {
   const t = useT();
   if (!tools.length) return null;
   const seen = new Set<string>();
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1">
+    <div className={`mt-1.5 flex flex-wrap gap-1 ${dark ? "justify-center" : ""}`}>
       {tools
         .filter((x) => (seen.has(x.name + x.ok) ? false : (seen.add(x.name + x.ok), true)))
         .map((x, i) => (
-          <span key={i} className={`chip !gap-1 !px-1.5 !py-0 !text-[10px] ${x.ok ? "" : "!text-rose-300"}`}>
+          <span key={i} className={dark ? `inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] ${x.ok ? "text-white/70" : "text-rose-300"}` : `chip !gap-1 !px-1.5 !py-0 !text-[10px] ${x.ok ? "" : "!text-rose-300"}`}>
             {x.ok ? <Check size={10} /> : <X size={10} />}
             {x.name === "briefing" ? t("Briefing", "ब्रीफ़िंग") : TOOL_LABEL[x.name] ? t(...TOOL_LABEL[x.name]) : x.name}
           </span>
@@ -556,12 +681,120 @@ function Chips({ tools }: { tools: Line["tools"] }) {
   );
 }
 
+type Agent = ReturnType<typeof useAgent>;
+
+/** Full-screen voice conversation: the swarm, live captions and a few controls. */
+function VoiceStage({ a, onClose, onChat }: { a: Agent; onClose: () => void; onChat: () => void }) {
+  const t = useT();
+  const { lang, setLang } = usePrefs();
+  const [size, setSize] = useState(300);
+  useEffect(() => {
+    const f = () => setSize(Math.round(Math.min(340, window.innerWidth * 0.72, window.innerHeight * 0.4)));
+    f();
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  const lastJ = useMemo(() => [...a.lines].reverse().find((l) => l.who === "jugnu"), [a.lines]);
+  const lastYou = useMemo(() => [...a.lines].reverse().find((l) => l.who === "you"), [a.lines]);
+  const youAfterJ = lastYou && (!lastJ || lastYou.id > lastJ.id);
+  const listeningish = a.mode === "listening" || a.mode === "hearing";
+  const onSwarm = () => {
+    if (a.mode === "speaking") a.interrupt();
+    else if (listeningish) a.stop();
+    else if (!a.handsFree && a.mode === "off") a.converse();
+  };
+  const said = listeningish ? a.heard : youAfterJ ? lastYou.text : "";
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[80] flex flex-col bg-[radial-gradient(ellipse_at_50%_38%,#0f2347_0%,#060d1c_55%,#03070f_100%)] text-white"
+      role="dialog"
+      aria-label={t("Talk to Jugnu", "जुगनू से बात करें")}
+    >
+      <div className="flex items-center gap-2 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-lg font-bold">{t("Jugnu", "जुगनू")}</div>
+          <div className="text-xs text-white/50">{a.cloud ? t("Speak in Hindi, English, Tamil or any Indian language", "हिंदी, अंग्रेज़ी, तमिल या किसी भी भारतीय भाषा में बोलें") : t("Browser voice (Google voice not configured)", "ब्राउज़र की आवाज़ (Google आवाज़ सेट नहीं)")}</div>
+        </div>
+        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5 text-xs">
+          {(["en", "hi"] as const).map((l) => (
+            <button key={l} onClick={() => setLang(l)} className={`rounded-full px-2.5 py-1 ${lang === l ? "bg-white/15 font-semibold" : "text-white/60"}`} aria-pressed={lang === l}>
+              {l === "en" ? "EN" : "हिं"}
+            </button>
+          ))}
+        </div>
+        {a.cloud && (
+          <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className="hidden rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/80 sm:block" aria-label={t("Voice", "आवाज़")}>
+            {VOICE_CHOICES.map((v) => (
+              <option key={v.id} value={v.id} className="bg-[#0b1a35]">
+                {t(v.en, v.hi)}
+              </option>
+            ))}
+          </select>
+        )}
+        <button className="grid h-9 w-9 place-items-center rounded-full bg-white/5 hover:bg-white/10" onClick={onClose} aria-label={t("Close", "बंद करें")}>
+          <X size={17} />
+        </button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5">
+        <button onClick={onSwarm} className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40" aria-label={t(...MODE_LABEL[a.mode])}>
+          <Orb mode={a.mode} level={a.levelNow} size={size} fallback={<Swarm mode={a.mode} level={a.levelNow} size={size} />} />
+        </button>
+        <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50" aria-live="polite">
+          {(a.mode === "thinking" || a.mode === "working" || a.mode === "hearing") && <Loader2 size={12} className="animate-spin" />}
+          {t(...MODE_LABEL[a.handsFree && a.mode === "off" ? "listening" : a.mode])}
+        </div>
+        <div className="mt-5 w-full max-w-2xl text-center" aria-live="polite">
+          {said && <p className="mb-3 text-sm italic text-white/55 md:text-base">“{said}”</p>}
+          {lastJ && !listeningish && (
+            <p className="font-display text-xl leading-snug md:text-[1.7rem] md:leading-snug">
+              <span>{lastJ.text.slice(0, lastJ.shown)}</span>
+              <span className="text-white/25">{lastJ.text.slice(lastJ.shown)}</span>
+            </p>
+          )}
+          {lastJ && !listeningish && <Chips tools={lastJ.tools} dark />}
+          {!a.lines.length && a.mode === "off" && !a.handsFree && (
+            <div className="mx-auto flex max-w-lg flex-wrap justify-center gap-2">
+              {SUGGEST.slice(1, 4).map(([en, hi]) => (
+                <button key={en} onClick={() => a.send(t(en, hi))} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/80 hover:bg-white/10">
+                  {t(en, hi)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-4 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
+        <button className="grid h-12 w-12 place-items-center rounded-full bg-white/5 hover:bg-white/10" onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
+          <Newspaper size={19} />
+        </button>
+        <button
+          className={`grid h-16 w-16 place-items-center rounded-full transition ${a.handsFree ? "bg-rose-500/90 hover:bg-rose-500" : "bg-[#ffd56b] text-[#0b1a35] hover:brightness-110"}`}
+          onClick={() => (a.handsFree ? a.stop() : a.converse())}
+          aria-label={a.handsFree ? t("Stop listening", "सुनना बंद करें") : t("Talk", "बोलें")}
+        >
+          {a.handsFree ? <MicOff size={24} /> : <Mic size={24} />}
+        </button>
+        <button className="grid h-12 w-12 place-items-center rounded-full bg-white/5 hover:bg-white/10" onClick={onChat} aria-label={t("Type instead", "लिखकर पूछें")} title={t("Type instead", "लिखकर पूछें")}>
+          <Keyboard size={19} />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: () => void; onClose: () => void }) {
   const t = useT();
   const a = useAgent();
   const [text, setText] = useState("");
+  const [stage, setStage] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const active = a.mode !== "off" || a.handsFree;
+  const canTalk = a.cloud || canListen();
   const lastJ = useMemo(() => [...a.lines].reverse().find((l) => l.who === "jugnu"), [a.lines]);
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -570,14 +803,28 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
   useEffect(() => {
     const h = (e: Event) => {
       const q = (e as CustomEvent<string>).detail;
-      onOpen();
-      if (q === "brief") a.brief();
-      else if (q) a.send(q);
+      if (q === "brief") {
+        setStage(true);
+        a.brief();
+      } else if (q) {
+        onOpen();
+        a.send(q);
+      }
     };
     window.addEventListener("jugnu:ask", h);
     return () => window.removeEventListener("jugnu:ask", h);
   });
-  const caption = a.mode === "listening" ? a.heard || t("I'm listening…", "सुन रहा हूँ…") : lastJ && active ? lastJ.text.slice(0, lastJ.shown) : "";
+  const openStage = () => {
+    audio();
+    onClose();
+    setStage(true);
+    if (!a.handsFree && a.mode === "off") a.converse();
+  };
+  const closeStage = () => {
+    a.hangUp();
+    setStage(false);
+  };
+  const caption = a.mode === "listening" || a.mode === "hearing" ? a.heard || t("I'm listening…", "सुन रहा हूँ…") : lastJ && active ? lastJ.text.slice(0, lastJ.shown) : "";
   const submit = () => {
     const q = text;
     setText("");
@@ -585,6 +832,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
   };
   return (
     <div data-agent className="no-print">
+      <AnimatePresence>{stage && <VoiceStage a={a} onClose={closeStage} onChat={() => (closeStage(), onOpen())} />}</AnimatePresence>
       <AnimatePresence>
         {open && (
           <motion.aside
@@ -636,7 +884,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                   </div>
                 ),
               )}
-              {(a.mode === "thinking" || a.mode === "working") && (
+              {(a.mode === "thinking" || a.mode === "working" || a.mode === "hearing") && (
                 <div className="flex items-center gap-2 text-xs text-[var(--color-ink-3)]">
                   <Loader2 size={13} className="animate-spin" /> {t(...MODE_LABEL[a.mode])}…
                 </div>
@@ -650,7 +898,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
               }}
             >
               <textarea
-                value={a.mode === "listening" ? a.heard : text}
+                value={a.mode === "listening" || a.mode === "hearing" ? a.heard : text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -663,7 +911,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                 aria-label={t("Message to Jugnu", "जुगनू के लिए संदेश")}
                 className={`${fieldBase} max-h-28 min-h-[40px] min-w-0 flex-1 resize-none !py-2 text-sm`}
               />
-              {canListen() && (
+              {canTalk && (
                 <button
                   type="button"
                   className="btn btn-glass btn-icon !p-2.5"
@@ -686,7 +934,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
 
       <div className="fixed bottom-[calc(92px+env(safe-area-inset-bottom))] right-3 z-[62] flex flex-col items-end gap-2 lg:bottom-5 lg:right-5">
         <AnimatePresence>
-          {!open && caption && (
+          {!open && !stage && caption && (
             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="glass-strong max-w-[min(340px,calc(100vw-90px))] rounded-2xl px-3.5 py-2.5 text-sm leading-snug" aria-live="polite">
               {a.mode === "listening" ? <span className="italic text-[var(--color-ink-2)]">“{caption}”</span> : caption}
             </motion.div>
@@ -698,7 +946,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
               {a.mode === "listening" ? <MicOff size={16} /> : <Square size={14} />}
             </button>
           ) : (
-            <button className="hidden h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)] sm:grid" onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
+            <button className="hidden h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)] sm:grid" onClick={() => (setStage(true), a.brief())} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
               <Newspaper size={16} />
             </button>
           )}
@@ -706,12 +954,12 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             <MessageCircle size={16} />
           </button>
           <button
-            className="relative grid h-14 w-14 place-items-center rounded-full"
-            onClick={canListen() ? a.talk : open ? onClose : onOpen}
-            aria-label={a.handsFree ? t("Stop talking to Jugnu", "जुगनू से बात बंद करें") : t("Talk to Jugnu", "जुगनू से बात करें")}
-            title={t(...MODE_LABEL[a.handsFree && a.mode === "off" ? "listening" : a.mode])}
+            className="relative grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-[radial-gradient(circle,#13254a,#081428)]"
+            onClick={canTalk ? openStage : open ? onClose : onOpen}
+            aria-label={t("Talk to Jugnu", "जुगनू से बात करें")}
+            title={t("Talk to Jugnu", "जुगनू से बात करें")}
           >
-            <OrbGL mode={a.mode} level={a.level} size={56} />
+            <Orb mode={a.mode} level={a.levelNow} size={56} fallback={<Swarm mode={a.mode} level={a.levelNow} size={56} />} />
           </button>
         </div>
       </div>

@@ -97,6 +97,30 @@ export function buildBriefing(st: PipelineState, events: BlockEvent[], t: T, hi:
   return lines;
 }
 
+/** The facts behind a spoken briefing (English; Claude retells them in the officer's language). */
+export function briefingFacts(st: PipelineState, events: BlockEvent[]): string[] {
+  const en: T = (a) => a;
+  const facts = buildBriefing(st, events, en, false).slice(0, -1);
+  facts[0] = facts[0].replace(/^Good \w+\. /, "");
+  const status = schoolStatuses(st);
+  const name = (id: string) => st.block.schools.find((x) => x.id === id)?.name ?? id;
+  const of = (k: string) => st.block.schools.filter((s) => status.get(s.id) === k).map((s) => s.name);
+  const due = of("check_due");
+  if (due.length) facts.push(`Waiting for a spot check: ${due.slice(0, 4).join(", ")}${due.length > 4 ? ` and ${due.length - 4} more` : ""}.`);
+  const dataCheck = of("check_data");
+  if (dataCheck.length) facts.push(`Reported results look too good to be true at ${dataCheck.slice(0, 3).join(", ")} — the spot check disagreed.`);
+  facts.push(`${of("support").length} schools are getting help this term from a nearby school that does better.`);
+  const actions = st.recs.flatMap((r) => r.actions);
+  for (const a of actions.filter((x) => x.status === "stuck").slice(0, 3)) facts.push(`Stuck: "${a.task}" at ${name(a.schoolId)}; owner ${a.owner} (${a.ownerRole})${a.note ? `; note: ${a.note}` : ""}.`);
+  const overdue = actions.filter((a) => a.due < 0 && a.status !== "done" && a.status !== "stuck");
+  if (overdue.length) facts.push(`${overdue.length} actions are past their due date, for example "${overdue[0].task}" at ${name(overdue[0].schoolId)} (${overdue[0].owner}).`);
+  const soon = actions.filter((a) => a.due >= 0 && a.due <= 3 && a.status !== "done").length;
+  if (soon) facts.push(`${soon} actions fall due in the next 3 days.`);
+  const now = new Date();
+  facts.push(`It is ${now.toLocaleDateString("en-IN", { weekday: "long" })}, ${now.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}.`);
+  return facts.map((f) => f.slice(0, 400)).slice(0, 30);
+}
+
 // ---------------------------------------------------------------- screen helpers
 
 const visible = (el: Element) => {
