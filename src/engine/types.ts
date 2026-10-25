@@ -6,6 +6,8 @@ export const NEXT_CYCLE = "2025-26";
 export interface School {
   id: string;
   name: string;
+  /** Devanagari name, when the village is a real one */
+  nameHi?: string;
   village: string;
   cluster: number;
   clusterName: string;
@@ -23,6 +25,21 @@ export interface School {
   teacherGender: "f" | "m";
   reading: number[]; // reported % Grade 3 proficient, per cycle
   numeracy: number[];
+  /** student attendance per cycle (share of enrolled children present on an average day) */
+  attendanceByCycle: number[];
+  /** Grades 1–5 in the latest cycle. Grade 3 is the officially assessed cohort (reading/numeracy above). */
+  grades: GradeRow[];
+  /** real village location (OpenStreetMap), when the block is a real one */
+  lat?: number;
+  lon?: number;
+}
+
+export interface GradeRow {
+  grade: 1 | 2 | 3 | 4 | 5;
+  enrolled: number;
+  attendance: number; // share present on an average day
+  reading: number; // % at grade level
+  numeracy: number; // % at grade level
 }
 
 /** Hidden truth — only the simulator reads this. */

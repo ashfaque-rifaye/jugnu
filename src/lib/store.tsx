@@ -3,6 +3,7 @@
 // real teacher interviews. Every page reads the same derived state, so the loop stays connected.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { generateBlock } from "../engine/block";
+import { DEFAULT_SEED } from "../engine/district";
 import { runFind } from "../engine/find";
 import { evaluate, runPipeline, runTrackStage, type Evaluation, type FieldData, type PipelineState } from "../engine/pipeline";
 import { PRACTICE_IDS, type PracticeId } from "../engine/practices";
@@ -99,8 +100,8 @@ const isPractice = (p: string | null): p is PracticeId => !!p && (PRACTICE_IDS a
 
 export function PipelineProvider({ children }: { children: ReactNode }) {
   const [role] = useRole();
-  const [seed, setSeed] = useState(2024);
-  const [block, setBlock] = useState<Block>(() => generateBlock(2024));
+  const [seed, setSeed] = useState(DEFAULT_SEED);
+  const [block, setBlock] = useState<Block>(() => generateBlock(DEFAULT_SEED));
   const [tracked, setTracked] = useState(false);
   const [selected, select] = useState<string | null>(null);
   const [events, setEvents] = useState<BlockEvent[]>([]);

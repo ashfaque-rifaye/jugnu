@@ -2,6 +2,7 @@
 // by its seed (the engine is shared TypeScript), an imported block is posted once. This lets the
 // officer agent query the block through tools instead of trusting a JSON dump from the browser.
 import { generateBlock } from "../src/engine/block";
+import { DEFAULT_SEED } from "../src/engine/district";
 import { runFind } from "../src/engine/find";
 import { runPipeline, runTrackStage, type PipelineState } from "../src/engine/pipeline";
 import type { Block } from "../src/engine/types";
@@ -24,7 +25,7 @@ export function pipelineFor(args: { seed?: number; block?: Block; track?: boolea
     const verify = runVerify(args.block, find, () => null);
     return remember(key, { block: args.block, find, verify, bright: [], comparison: [], interviews: [], evidence: [], recs: [], track: null, adopted: [] });
   }
-  const seed = args.seed ?? 2024;
+  const seed = args.seed ?? DEFAULT_SEED;
   const key = `seed:${seed}:${args.track ? 1 : 0}`;
   const hit = cache.get(key);
   if (hit) return hit;

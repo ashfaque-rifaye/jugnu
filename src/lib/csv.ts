@@ -96,6 +96,8 @@ export function parseCsv(text: string): Block {
       teacherGender: "f",
       reading: CYCLES.map((c) => num(row, `reading_${c}`)),
       numeracy: CYCLES.map((c) => num(row, `numeracy_${c}`)),
+      attendanceByCycle: CYCLES.map(() => num(row, "attendance")),
+      grades: [],
     };
   });
   if (schools.length < 20) throw new Error("Need at least 20 schools to model expected scores");

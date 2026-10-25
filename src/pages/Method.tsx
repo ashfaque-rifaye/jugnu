@@ -5,6 +5,7 @@ import { Glass, SectionTitle } from "../components/ui";
 import { HeroMedia } from "../components/media";
 import { MEDIA } from "../lib/clips";
 import { ASER_2024, generateBlock } from "../engine/block";
+import { DEFAULT_SEED } from "../engine/district";
 import { evaluate, runPipeline, runTrackStage, type Evaluation } from "../engine/pipeline";
 import { PRACTICES } from "../engine/practices";
 import { CSV_COLUMNS, parseCsv, templateCsv } from "../lib/csv";
@@ -79,7 +80,7 @@ export default function MethodPage() {
                 <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
               </label>
               {state.block.source === "imported" && (
-                <button className="btn btn-glass" onClick={() => regenerate(2024)}>
+                <button className="btn btn-glass" onClick={() => regenerate(DEFAULT_SEED)}>
                   Back to simulated block
                 </button>
               )}

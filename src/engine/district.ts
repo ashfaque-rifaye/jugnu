@@ -32,6 +32,9 @@ export const DAMOH: BlockProfile[] = [
   { block: "Tendukheda", code: 231205, schools: 266, govtSchoolPct: 85.71, studentsPerClassroom: 19, internetPct: 57.89, enrolment: 30291, stEnrolmentPct: 29.53, scEnrolmentPct: 15.1, teachers: 1308, femaleTeacherPct: 33.18, contractTeacherPct: 48.01 },
 ];
 
+/** The block the console opens on: Tendukheda, Damoh's most tribal block (29.5% ST enrolment). */
+export const DEFAULT_SEED = 231205;
+
 export const profileFor = (seed: number) => DAMOH.find((p) => p.code === seed) ?? null;
 
 /** Government schools with classes 1–3 (about 9 in 10 government schools are elementary). */

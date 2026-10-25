@@ -10,3 +10,6 @@ data/runtime/
 *.db-*
 coverage/
 .vercel/
+
+# demo recordings (large)
+demo/*.mp4

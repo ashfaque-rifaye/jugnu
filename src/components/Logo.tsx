@@ -1,7 +1,10 @@
-// The Jugnu mark: a lowercase "j" whose dot is a glowing firefly and whose stroke is its flight.
-// Same drawing as public/logo.svg; ids are per-instance so several marks can share a page.
+// The Jugnu mark: a village school whose doorway is lit, and a firefly carrying that light out to
+// the next school — what Jugnu does. Same drawing as public/logo.svg; ids are per-instance so
+// several marks can share a page.
 import { useId } from "react";
 import { cx } from "./ui";
+
+const TRAIL = "M23 39.3c7.4-.4 11.5-6.3 16-13.4 3.6-5.6 6.8-9.6 11.2-11.5l2.2 4.6c-3.9 1.7-6.6 5.2-9.9 10.6-5.3 8.6-10.4 11.7-19.5 11.4z";
 
 export function LogoMark({ size = 36, tile = true, className }: { size?: number; tile?: boolean; className?: string }) {
   const id = useId().replace(/:/g, "");
@@ -9,42 +12,35 @@ export function LogoMark({ size = 36, tile = true, className }: { size?: number;
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden>
       <defs>
-        <radialGradient id={u("bg")} cx="50%" cy="30%" r="80%">
-          <stop offset="0" stopColor="#132a46" />
-          <stop offset="0.55" stopColor="#0a1626" />
-          <stop offset="1" stopColor="#04080f" />
+        <linearGradient id={u("bg")} x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0" stopColor="#17305a" />
+          <stop offset="1" stopColor="#070d18" />
+        </linearGradient>
+        <radialGradient id={u("lit")} cx="50%" cy="35%" r="75%">
+          <stop offset="0" stopColor="#fffbe0" />
+          <stop offset="0.45" stopColor="#fde047" />
+          <stop offset="1" stopColor="#f59e0b" />
         </radialGradient>
         <radialGradient id={u("halo")} cx="50%" cy="50%" r="50%">
           <stop offset="0" stopColor="#fde047" stopOpacity="0.9" />
-          <stop offset="0.45" stopColor="#facc15" stopOpacity="0.28" />
+          <stop offset="0.4" stopColor="#facc15" stopOpacity="0.32" />
           <stop offset="1" stopColor="#facc15" stopOpacity="0" />
         </radialGradient>
-        <radialGradient id={u("orb")} cx="42%" cy="38%" r="62%">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="0.35" stopColor="#fef3a2" />
-          <stop offset="0.8" stopColor="#facc15" />
-          <stop offset="1" stopColor="#eab308" />
-        </radialGradient>
-        <linearGradient id={u("wing")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#f0f9ff" stopOpacity="0.75" />
-          <stop offset="1" stopColor="#bae6fd" stopOpacity="0.25" />
-        </linearGradient>
-        <linearGradient id={u("trail")} x1="0" y1="0" x2="0.35" y2="1">
-          <stop offset="0" stopColor="#fef08a" />
-          <stop offset="0.45" stopColor="#facc15" />
-          <stop offset="0.8" stopColor="#2dd4bf" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#2dd4bf" stopOpacity="0.25" />
+        <linearGradient id={u("trail")} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#f59e0b" stopOpacity="0.55" />
+          <stop offset="0.55" stopColor="#fde047" />
+          <stop offset="1" stopColor="#fffbe0" />
         </linearGradient>
       </defs>
-      {tile && <rect width="64" height="64" rx="15" fill={`url(#${u("bg")})`} />}
-      <circle cx="36" cy="16.5" r="15" fill={`url(#${u("halo")})`} className="logo-halo" />
-      <path d="M32.6 28.6a3.45 3.45 0 0 1 6.9 0V43c0 8.6-7.4 12.9-17.6 9.9 6.9.2 10.7-3.3 10.7-9.9z" fill={`url(#${u("trail")})`} />
-      <ellipse cx="31.4" cy="11.6" rx="4.3" ry="2.1" transform="rotate(-28 31.4 11.6)" fill={`url(#${u("wing")})`} />
-      <ellipse cx="40.6" cy="11.6" rx="4.3" ry="2.1" transform="rotate(28 40.6 11.6)" fill={`url(#${u("wing")})`} />
-      <circle cx="36" cy="17" r="5.4" fill={`url(#${u("orb")})`} />
-      <circle cx="17.5" cy="49.5" r="1.25" fill="#5eead4" fillOpacity="0.85" />
-      <circle cx="13.2" cy="45.2" r="0.85" fill="#5eead4" fillOpacity="0.55" />
-      <circle cx="45.5" cy="27" r="0.9" fill="#fde68a" fillOpacity="0.7" />
+      {tile && <rect width="64" height="64" rx="16" fill={`url(#${u("bg")})`} />}
+      <path d="M9.5 31 23 19.5 36.5 31M13.5 28.5v20h19v-20" fill="none" stroke={tile ? "#eef3ff" : "currentColor"} strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M19.4 48.5v-6.3a3.6 3.6 0 0 1 7.2 0v6.3z" fill={`url(#${u("lit")})`} />
+      {tile && <path d={TRAIL} fill="#0a1426" transform="translate(0.6 0.9)" />}
+      <path d={TRAIL} fill={`url(#${u("trail")})`} />
+      <circle cx="51.4" cy="16" r="12" fill={`url(#${u("halo")})`} className="logo-halo" />
+      <ellipse cx="48.2" cy="11.7" rx="3.8" ry="1.8" transform="rotate(-38 48.2 11.7)" fill="#e0f2fe" fillOpacity="0.8" />
+      <ellipse cx="55.2" cy="12.4" rx="3.8" ry="1.8" transform="rotate(28 55.2 12.4)" fill="#e0f2fe" fillOpacity="0.62" />
+      <circle cx="51.4" cy="16.2" r="4.4" fill={`url(#${u("lit")})`} />
     </svg>
   );
 }
