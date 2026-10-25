@@ -10,8 +10,11 @@ const base = (process.argv[2] ?? "http://localhost:8080").replace(/\/$/, "");
 const headers = { "content-type": "application/json", ...(process.env.JUGNU_PASS ? { "x-jugnu-pass": process.env.JUGNU_PASS } : {}) };
 const BLOCK = `flowcheck:${Date.now()}`;
 
+// Officer routes on a passcode-protected server without JUGNU_PASS: the flow is skipped, not failed.
+class NeedsPasscode extends Error {}
 async function call(method, url, body) {
   const r = await fetch(base + url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) throw new NeedsPasscode("needs the officer passcode");
   const text = await r.text();
   let data;
   try {
@@ -32,14 +35,16 @@ async function flow(name, who, fn) {
     if (!ok) throw new Error(`${label}${detail ? ` — ${detail}` : ""}`);
   };
   let error = null;
+  let skipped = false;
   try {
     await fn(step);
   } catch (e) {
+    skipped = e instanceof NeedsPasscode;
     error = e.message;
   }
   const ms = Date.now() - started;
-  results.push({ name, who, ok: !error, ms, steps, error });
-  console.log(`${error ? "FAIL" : "PASS"}  ${name.padEnd(34)} ${(ms / 1000).toFixed(1).padStart(5)} s  ${error ?? `${steps.length} steps`}`);
+  results.push({ name, who, ok: !error || skipped, skipped, ms, steps, error });
+  console.log(`${skipped ? "SKIP" : error ? "FAIL" : "PASS"}  ${name.padEnd(34)} ${(ms / 1000).toFixed(1).padStart(5)} s  ${error ?? `${steps.length} steps`}`);
 }
 
 const ANSWERS = {
@@ -106,6 +111,26 @@ await flow("Teacher web interview", "Teacher · BEO", async (step) => {
   step("Every quote found word for word", d.data.codings.every((c) => c.grounded), `${d.data.codings.length} quotes`);
   const said = d.data.turns.filter((t) => t.speaker === "teacher").map((t) => t.text).join(" ");
   step("Phone number removed from transcript", !said.includes("9876543210"), said.includes("9876543210") ? "number kept" : "scrubbed");
+});
+
+await flow("Teacher interview (public demo link)", "Teacher / judge", async (step) => {
+  const demo = await call("POST", "/api/talk/demo", { language: "hi", schoolName: "Flow check" });
+  step("Anyone can open a practice interview", demo.status === 200, demo.data.token);
+  const token = demo.data.token;
+  const st = await call("POST", `/api/talk/${token}/start`);
+  step("Jugnu greets and asks consent", st.data.turns?.length > 0, st.data.turns?.at(-1)?.text);
+  let reply = { kind: "consent", topic: null };
+  let n = 0;
+  const sources = new Set();
+  for (let i = 0; i < 20; i++) {
+    const r = await call("POST", `/api/talk/${token}/answer`, { text: answerFor(reply), source: "typed" });
+    sources.add(r.data.source);
+    n++;
+    reply = r.data.reply;
+    if (r.data.status === "completed") break;
+  }
+  step(`Interview completes (${n} answers)`, reply.done || reply.kind === "closing", reply.say);
+  step("Questions written by Claude", sources.has("claude"), [...sources].join(", "));
 });
 
 await flow("Teacher says no to consent", "Teacher", async (step) => {
@@ -214,8 +239,9 @@ await flow("Clean up", "—", async (step) => {
 });
 
 // ------------------------------------------------------------------------------------------ report
-const passed = results.filter((r) => r.ok).length;
-console.log(`\n${passed}/${results.length} flows passed against ${base}`);
+const passed = results.filter((r) => r.ok && !r.skipped).length;
+const skippedN = results.filter((r) => r.skipped).length;
+console.log(`\n${passed}/${results.length - skippedN} flows passed against ${base}${skippedN ? ` · ${skippedN} skipped (need the officer passcode: JUGNU_PASS=…)` : ""}`);
 fs.mkdirSync(path.resolve("data/runtime"), { recursive: true });
 fs.writeFileSync(path.resolve("data/runtime/flowcheck.json"), JSON.stringify({ base, ranAt: new Date().toISOString(), results }, null, 2));
-process.exit(passed === results.length ? 0 : 1);
+process.exit(results.every((r) => r.ok) ? 0 : 1);
