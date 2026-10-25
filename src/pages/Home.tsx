@@ -283,6 +283,37 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
           </div>
         </section>
 
+        {/* meet the assistant */}
+        <section className="card on-dark relative isolate overflow-hidden">
+          <div className="grid items-center gap-2 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="relative mx-auto aspect-square w-full max-w-[420px] [mask-image:radial-gradient(circle,#000_52%,transparent_71%)]">
+              {lite ? <img src={MEDIA.orbPoster} alt="" aria-hidden className="h-full w-full object-cover mix-blend-screen" /> : <video src={MEDIA.orb} poster={MEDIA.orbPoster} autoPlay muted loop playsInline aria-hidden className="h-full w-full object-cover mix-blend-screen" />}
+            </div>
+            <div className="p-6 md:p-10 md:pl-2">
+              <span className="chip text-[11px]">{t("Meet Jugnu", "जुगनू से मिलिए")}</span>
+              <h2 className={cx("mt-4 text-3xl font-bold leading-tight text-white md:text-4xl", hi)}>{t("Just talk to it — in your language.", "बस बात कीजिए — अपनी भाषा में।")}</h2>
+              <p className={cx("mt-3 max-w-xl leading-relaxed text-white/75", hi)}>
+                {t(
+                  "Ask in Hindi, English, Tamil or any Indian language. Jugnu briefs you on your block, answers from the block's own data, and does the work on screen: opens a school, shows it on the map, records a visit. You see your words as you speak, and its answer as it talks.",
+                  "हिंदी, अंग्रेज़ी, तमिल या किसी भी भारतीय भाषा में पूछिए। जुगनू आपके ब्लॉक की ब्रीफ़िंग देता है, ब्लॉक के अपने डेटा से जवाब देता है, और स्क्रीन पर काम भी करता है: स्कूल खोलना, नक्शे पर दिखाना, दौरा दर्ज करना। बोलते समय आपके शब्द दिखते हैं, और जवाब देते समय उसके।",
+                )}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    enter("/today");
+                    setTimeout(() => window.dispatchEvent(new CustomEvent("jugnu:ask", { detail: "brief" })), 900);
+                  }}
+                >
+                  <Mic size={15} /> {t("Brief me now", "अभी ब्रीफ़ करो")}
+                </button>
+              </div>
+            </div>
+          </div>
+          <AIVideoLabel className="absolute bottom-3 right-3" />
+        </section>
+
         {/* made for a real block */}
         <section>
           <SectionHead eyebrow={t("Made for a real block", "असली ब्लॉक के लिए बना")} title={t("Built around the people who will use it", "उन लोगों के हिसाब से, जो इसे चलाएँगे")} />
