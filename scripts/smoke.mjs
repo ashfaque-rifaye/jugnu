@@ -34,8 +34,12 @@ for (let i = 0; i < 20; i++) {
   reply = r.reply;
   if (r.status === "completed") break;
 }
-await new Promise((ok) => setTimeout(ok, 1500));
-const d = await j("GET", `/api/interviews/${interview.id}`);
+// Coding runs after the last answer; Claude needs a few seconds for a whole transcript.
+let d = await j("GET", `/api/interviews/${interview.id}`);
+for (let i = 0; i < 30 && d.codings.length === 0; i++) {
+  await new Promise((ok) => setTimeout(ok, 1000));
+  d = await j("GET", `/api/interviews/${interview.id}`);
+}
 console.log(`\n${d.codings.length} codings:`);
 for (const c of d.codings) console.log(" -", (c.practice ?? c.new_name).padEnd(16), `spec ${c.specificity}`, c.grounded ? "grounded" : "UNGROUNDED", c.coder);
 const practices = new Set(d.codings.map((c) => c.practice));
