@@ -1,6 +1,6 @@
 // Real villages of Damoh district's 7 blocks (tehsils), from OpenStreetMap (© OpenStreetMap
 // contributors, ODbL): village boundaries (admin level 9) and place nodes, retrieved 25 Oct 2026,
-// de-duplicated by name within 4 km. Devanagari spellings were written once with Gemini and are
+// de-duplicated by name within 4 km. Devanagari spellings were drafted once with an LLM and are
 // data only. Each entry: [name, नाम, lat, lon]. Generated file — do not edit by hand.
 
 export type Village = [name: string, nameHi: string, lat: number, lon: number];
