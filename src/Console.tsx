@@ -3,6 +3,7 @@ import {
   BookOpen,
   BrainCircuit,
   CalendarCheck2,
+  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   Clapperboard,
@@ -12,6 +13,7 @@ import {
   Handshake,
   House,
   Landmark,
+  MapPin,
   Info,
   LineChart,
   MessageCircleQuestion,
@@ -33,11 +35,13 @@ import { describeEvent } from "./components/ActivityFeed";
 import { DemoProvider, useDemo } from "./components/Demo";
 import { FEEDBACK_EVENT, FeedbackButton, useSession } from "./components/Feedback";
 import { AppBackground, SPRING } from "./components/kit";
+import { Locator } from "./components/Locator";
 import { LogoMark, Wordmark } from "./components/Logo";
 import { TutorialPlayer } from "./components/media";
 import { PasscodeGate } from "./components/Passcode";
 import { AIStatus, cx } from "./components/ui";
 import { Welcome } from "./components/Welcome";
+import { DAMOH, profileFor } from "./engine/district";
 import { usePoll } from "./lib/api";
 import { TOUR } from "./lib/clips";
 import { markJourney, setWelcomed, useWelcomed } from "./lib/journey";
@@ -275,6 +279,7 @@ function Console() {
         <main ref={mainRef} className="mx-auto max-w-[1400px] px-3 pb-36 pt-5 md:px-5 lg:pb-14">
           {/* only movement here: the page's cards fade in themselves (see useReveal), so the glass keeps blurring */}
           <motion.div key={location.pathname} initial={{ y: 18 }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 220, damping: 30 }}>
+            <WhereBar />
             <Suspense fallback={<Loading />}>
               <Routes location={location}>
                 <Route path="/today" element={<TodayPage onAsk={() => setAsk(true)} onRole={() => setRoleSheet(true)} onTour={startTour} />} />
@@ -430,6 +435,63 @@ function Console() {
       />
       <PasscodeGate />
     </>
+  );
+}
+
+/** Where you are, always: state › district › block (› cluster › school), with the block lit on a
+ *  tiny map and a switcher to any of Damoh's 7 real blocks. */
+function WhereBar() {
+  const t = useT();
+  const { lang } = usePrefs();
+  const { state, regenerate } = usePipeline();
+  const school = useMatch("/schools/:id");
+  const s = school ? state.block.schools.find((x) => x.id === school.params.id) : undefined;
+  const profile = profileFor(state.block.seed);
+  const crumb = "text-[var(--color-ink-3)]";
+  const sep = <ChevronRight size={12} className="shrink-0 opacity-50" aria-hidden />;
+  if (!profile)
+    return (
+      <div className="no-print mb-3 flex items-center gap-1.5 text-xs text-[var(--color-ink-3)]">
+        <MapPin size={13} /> {state.block.name} · {state.block.source === "imported" ? t("your data", "आपका डेटा") : t("simulated block (not a real place)", "सिम्युलेटेड ब्लॉक (असली जगह नहीं)")}
+      </div>
+    );
+  return (
+    <nav className="no-print mb-3 flex min-w-0 items-center gap-2 text-xs" aria-label={t("Where you are", "आप कहाँ हैं")}>
+      <Locator block={profile.block} size={0.5} className="hidden sm:inline-flex" />
+      <span className="flex min-w-0 flex-wrap items-center gap-1">
+        <span className={crumb}>{t("Madhya Pradesh", "मध्य प्रदेश")}</span>
+        {sep}
+        <NavLink to="/district" className={cx(crumb, "hover:text-[var(--color-ink)] hover:underline")}>
+          {t("Damoh district", "दमोह ज़िला")}
+        </NavLink>
+        {sep}
+        <label className="relative inline-flex items-center">
+          <select
+            className="cursor-pointer appearance-none rounded-full bg-[var(--chip)] py-0.5 pl-2 pr-5 font-semibold text-[var(--color-ink)] outline-none"
+            value={profile.code}
+            onChange={(e) => regenerate(Number(e.target.value))}
+            aria-label={t("Block", "ब्लॉक")}
+          >
+            {DAMOH.map((p) => (
+              <option key={p.code} value={p.code}>
+                {t(`${p.block} block`, `${p.block} ब्लॉक`)}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={11} className="pointer-events-none absolute right-1.5" />
+        </label>
+        {s && (
+          <>
+            {sep}
+            <span className={crumb}>
+              {s.clusterName} {t("cluster", "क्लस्टर")}
+            </span>
+            {sep}
+            <span className="font-semibold">{lang === "hi" && s.nameHi ? s.nameHi : s.name}</span>
+          </>
+        )}
+      </span>
+    </nav>
   );
 }
 
@@ -666,7 +728,7 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
   const hits = useMemo(() => {
     const k = q.trim().toLowerCase();
     if (k.length < 2) return [];
-    return state.block.schools.filter((s) => `${s.name} ${s.village} ${s.teacher} ${s.clusterName}`.toLowerCase().includes(k)).slice(0, 8);
+    return state.block.schools.filter((s) => `${s.name} ${s.nameHi ?? ""} ${s.village} ${s.teacher} ${s.clusterName}`.toLowerCase().includes(k)).slice(0, 8);
   }, [q, state.block]);
   const status = useMemo(() => schoolStatuses(state), [state]);
   useEffect(() => {

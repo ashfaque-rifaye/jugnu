@@ -83,7 +83,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
             </div>
           </div>
           <div className="relative h-[440px] md:h-[560px]">
-            <LivingMap schools={state.block.schools} status={status} z={z} links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} height={540} autoRotate className="h-full overflow-hidden rounded-3xl" />
+            <LivingMap mode="3d" schools={state.block.schools} status={status} z={z} links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} height={540} autoRotate className="h-full overflow-hidden rounded-3xl" />
             <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-center text-xs text-white/60">
               {t("Live map of the demo block · fireflies = bright spots · arcs = who learns from whom", "डेमो ब्लॉक का लाइव नक्शा · जुगनू = अच्छे स्कूल · रेखाएँ = कौन किससे सीखता है")}
             </div>

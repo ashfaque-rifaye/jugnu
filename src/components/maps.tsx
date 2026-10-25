@@ -1,5 +1,6 @@
 // Maps of the block, coloured by each school's status (bright spot, needs support, ...).
-// LivingMap = the 3D scene when the device can afford it, the flat map in low-data mode.
+// LivingMap = the real map (OpenStreetMap / satellite) for a real block, the 3D night scene as a
+// showpiece (mode "3d"), and the flat drawing in low-data mode or for blocks without positions.
 import { lazy, Suspense, useMemo, useState } from "react";
 import type { School } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
@@ -7,6 +8,7 @@ import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
 import { cx } from "./ui";
 
 const BlockScene = lazy(() => import("./BlockScene"));
+const RealMap = lazy(() => import("./RealMap"));
 
 export interface MapProps {
   schools: School[];
@@ -21,10 +23,29 @@ export interface MapProps {
   className?: string;
 }
 
-export function LivingMap(props: MapProps & { mode?: "auto" | "2d" | "3d"; autoRotate?: boolean }) {
+export interface LivingMapProps extends MapProps {
+  mode?: "auto" | "2d" | "3d";
+  autoRotate?: boolean;
+  block?: string;
+  card?: boolean;
+  onOpen?: (id: string) => void;
+  focusId?: string | null;
+  showLinks?: boolean;
+  onBlock?: (name: string) => void;
+}
+
+export function LivingMap(props: LivingMapProps) {
   const { lite } = usePrefs();
-  const use3d = props.mode === "3d" || (props.mode !== "2d" && !lite);
   const h = props.height ?? 420;
+  const real = props.mode !== "3d" && props.mode !== "2d" && !lite && props.schools.some((s) => s.lat != null);
+  if (real)
+    return (
+      <Suspense fallback={<div className="skeleton rounded-[1.4rem]" style={{ height: h }} />}>
+        {/* on the real map a tap opens the school's card; "Open school" there does what a tap did before */}
+        <RealMap {...props} onSelect={undefined} onOpen={props.onOpen ?? props.onSelect} height={h} />
+      </Suspense>
+    );
+  const use3d = props.mode !== "2d" && !lite;
   if (!use3d) return <StatusMap {...props} />;
   return (
     <Suspense

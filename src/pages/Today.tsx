@@ -9,6 +9,7 @@ import { AIVideoLabel, Card, Empty, Rings, SPRING } from "../components/kit";
 import { LoopFlow } from "../components/LoopFlow";
 import { LivingMap, MapLegend } from "../components/maps";
 import { cx } from "../components/ui";
+import { DAMOH, profileFor } from "../engine/district";
 import { CountUp, EASE, Tilt, WordReveal } from "../lib/motion";
 import { usePoll } from "../lib/api";
 import { MEDIA } from "../lib/clips";
@@ -55,7 +56,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
   const { lite, lang } = usePrefs();
   const [role] = useRole();
   const demo = useDemo();
-  const { state, events, select } = usePipeline();
+  const { state, events, select, regenerate } = usePipeline();
   const [reviews] = usePoll<unknown[]>("/api/reviews?status=pending", 15000);
   const [pilot] = usePoll<PilotRow[]>("/api/interviews", 15000);
   const tasks = useTasks(state, role, reviews?.length ?? 0);
@@ -162,7 +163,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
         <NeedsYou tasks={tasks} />
         <Card
           tour="map"
-          title={role?.kind === "crp" && crp ? t(`${crp.clusterName} cluster tonight`, `आज रात ${crp.clusterName} क्लस्टर`) : t("The block tonight", "आज रात ब्लॉक")}
+          title={role?.kind === "crp" && crp ? t(`${crp.clusterName} cluster on the map`, `नक्शे पर ${crp.clusterName} क्लस्टर`) : t("Your block on the map", "नक्शे पर आपका ब्लॉक")}
           icon={MapIcon}
           tone="var(--st-bright)"
           right={
@@ -179,8 +180,13 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               links={links}
               highlight={role?.kind === "crp" ? new Set(mine.map((s) => s.id)) : filter ? new Set(state.block.schools.filter((s) => status.get(s.id) === filter).map((s) => s.id)) : undefined}
               onSelect={(id) => (select(id), nav(`/schools/${id}`))}
-              height={380}
+              height={460}
               autoRotate
+              block={profileFor(state.block.seed)?.block}
+              onBlock={(name) => {
+                const p = DAMOH.find((x) => x.block === name);
+                if (p) regenerate(p.code);
+              }}
             />
           </div>
           <div className="mt-3">
@@ -190,8 +196,8 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
             {lite
               ? t("Each dot is a school. Tap one to open it.", "हर बिंदु एक स्कूल है। खोलने के लिए छुएँ।")
               : t(
-                  "Each house is a school — brighter windows mean children are doing better than expected. Fireflies mark bright spots; arcs of light show who is learning from whom. Drag to turn, tap a house to open it.",
-                  "हर घर एक स्कूल है — खिड़कियाँ जितनी चमकीली, बच्चे अपेक्षा से उतना बेहतर। जुगनू अच्छे स्कूल दिखाते हैं; रोशनी की रेखाएँ बताती हैं कौन किससे सीख रहा है। घुमाने के लिए खींचें, स्कूल खोलने के लिए घर छुएँ।",
+                  "Each dot is a school, on its real village. Tap one for its card — attendance, grades 1–5 and the distance to the nearest bright spot. The ruler measures between any two schools; the link button shows who learns from whom.",
+                  "हर बिंदु एक स्कूल है, अपने असली गाँव पर। कार्ड के लिए छुएँ — उपस्थिति, कक्षा 1–5 और सबसे पास के अच्छे स्कूल की दूरी। पैमाना किन्हीं दो स्कूलों की दूरी नापता है; लिंक बटन बताता है कौन किससे सीखता है।",
                 )}
           </p>
         </Card>

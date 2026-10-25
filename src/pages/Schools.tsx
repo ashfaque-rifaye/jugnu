@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, fieldBase, fieldClass, PageHeader, Segmented, StatusChip } from "../components/kit";
 import { LivingMap, MapLegend } from "../components/maps";
 import { cx } from "../components/ui";
-import { profileFor } from "../engine/district";
+import { DAMOH, profileFor } from "../engine/district";
 import { CYCLES } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
 import { useRole } from "../lib/role";
@@ -23,7 +23,7 @@ export default function SchoolsPage() {
   const status = useMemo(() => schoolStatuses(state), [state]);
   const z = useMemo(() => meanZ(state), [state]);
   const clusters = useMemo(() => [...new Map(state.block.schools.map((s) => [s.cluster, s.clusterName])).entries()].sort((a, b) => a[0] - b[0]), [state.block]);
-  const [view, setView] = useState<"list" | "map">("list");
+  const [view, setView] = useState<"list" | "map">(params.get("view") === "map" || params.get("focus") ? "map" : "list");
   const [q, setQ] = useState("");
   const [cluster, setCluster] = useState<number | "all">(role?.kind === "crp" ? role.cluster : "all");
   const [sortBy, setSortBy] = useState<"status" | "reading" | "maths" | "name">("status");
@@ -40,7 +40,7 @@ export default function SchoolsPage() {
     return state.block.schools
       .filter((s) => cluster === "all" || s.cluster === cluster)
       .filter((s) => !filter || status.get(s.id) === filter)
-      .filter((s) => !k || `${s.name} ${s.village} ${s.teacher}`.toLowerCase().includes(k))
+      .filter((s) => !k || `${s.name} ${s.nameHi ?? ""} ${s.village} ${s.teacher}`.toLowerCase().includes(k))
       .sort((a, b) => {
         if (sortBy === "name") return a.name.localeCompare(b.name);
         if (sortBy === "reading") return gapPts(state, b.id, "reading") - gapPts(state, a.id, "reading");
@@ -130,7 +130,21 @@ export default function SchoolsPage() {
 
       {view === "map" ? (
         <Card>
-          <LivingMap schools={state.block.schools} status={status} z={z} onSelect={open} highlight={new Set(rows.map((r) => r.id))} height={560} />
+          <LivingMap
+            schools={state.block.schools}
+            status={status}
+            z={z}
+            onSelect={open}
+            highlight={new Set(rows.map((r) => r.id))}
+            height={620}
+            block={profileFor(state.block.seed)?.block}
+            links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))}
+            focusId={params.get("focus")}
+            onBlock={(name) => {
+              const p = DAMOH.find((x) => x.block === name);
+              if (p) regenerate(p.code);
+            }}
+          />
         </Card>
       ) : (
         <Card pad={false}>
@@ -142,9 +156,9 @@ export default function SchoolsPage() {
                 <button className="card-inset w-full p-3 text-left" onClick={() => open(s.id)}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="font-semibold">{s.name}</div>
+                      <div className="font-semibold">{lang === "hi" && s.nameHi ? s.nameHi : s.name}</div>
                       <div className="text-xs text-[var(--color-ink-3)]">
-                        {s.teacher} · {s.clusterName}
+                        {s.teacher} · {s.clusterName} · {Math.round(s.attendanceByCycle[last] * 100)}% {t("attend", "उपस्थित")}
                       </div>
                     </div>
                     <StatusChip status={status.get(s.id)!} size="sm" />
@@ -170,6 +184,7 @@ export default function SchoolsPage() {
                   <th>{t("Cluster", "क्लस्टर")}</th>
                   <th>{t(`Reading (Grade 3, ${CYCLES[last]})`, `पढ़ना (कक्षा 3, ${CYCLES[last]})`)}</th>
                   <th>{t("Maths", "गणित")}</th>
+                  <th>{t("Attendance", "उपस्थिति")}</th>
                   <th>{t("3 years vs expected", "3 साल, अपेक्षा से")}</th>
                   <th>{t("Status", "स्थिति")}</th>
                   <th>{t("Next step", "अगला कदम")}</th>
@@ -181,7 +196,7 @@ export default function SchoolsPage() {
                   return (
                     <tr key={s.id} onClick={() => open(s.id)}>
                       <td>
-                        <div className="font-semibold">{s.name}</div>
+                        <div className="font-semibold">{lang === "hi" && s.nameHi ? s.nameHi : s.name}</div>
                         <div className="text-xs text-[var(--color-ink-3)]">{s.teacher}</div>
                       </td>
                       <td className="text-[var(--color-ink-2)]">{s.clusterName}</td>
@@ -190,6 +205,10 @@ export default function SchoolsPage() {
                       </td>
                       <td>
                         <b className="tabular-nums">{s.numeracy[last]}%</b> <div>{gap(gapPts(state, s.id, "numeracy"))}</div>
+                      </td>
+                      <td className="tabular-nums">
+                        <b>{Math.round(s.attendanceByCycle[last] * 100)}%</b>
+                        <div className="text-xs text-[var(--color-ink-3)]">{s.enrolment} {t("enrolled", "नामांकित")}</div>
                       </td>
                       <td>
                         <Trend values={state.find.z[s.id]} />

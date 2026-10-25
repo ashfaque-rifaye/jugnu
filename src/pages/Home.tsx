@@ -931,7 +931,7 @@ function BlockMap({ onOpen }: { onOpen: (id: string) => void }) {
         <span className={cx("text-xs text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{t("fireflies = bright spots · arcs = who learns from whom", "जुगनू = अच्छे स्कूल · रेखाएँ = कौन किससे सीखता है")}</span>
       </div>
       {show ? (
-        <LivingMap schools={state.block.schools} status={status} z={z} links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} onSelect={onOpen} height={380} autoRotate />
+        <LivingMap mode="3d" schools={state.block.schools} status={status} z={z} links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} onSelect={onOpen} height={380} autoRotate />
       ) : (
         <div className="h-[380px]" />
       )}

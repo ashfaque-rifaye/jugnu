@@ -1,9 +1,11 @@
-import { ArrowRight, Landmark, Stars } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowRight, Landmark, Map as MapIcon, Stars } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, PageHeader, Stat } from "../components/kit";
 import { cx } from "../components/ui";
 import { DISTRICT } from "../engine/district";
+import { BLOCK_HQ } from "../engine/villages";
+import { DAMOH_BLOCKS, type Ring } from "../lib/geo-shapes";
 import { PRACTICES } from "../engine/practices";
 import { summariseDistrict, type DistrictSummary } from "../engine/rollup";
 import { usePrefs, useT } from "../lib/prefs";
@@ -50,6 +52,10 @@ export default function DistrictPage() {
         <Stat label={t("Verified bright spots", "जाँचे गए अच्छे स्कूल")} value={d ? sum((b) => b.verified) : "…"} tone="var(--st-bright)" hint={t(`${d ? sum((b) => b.inflation) : "…"} flagged as possibly inflated`, `${d ? sum((b) => b.inflation) : "…"} पर बढ़ा-चढ़ाकर लिखने का शक`)} />
         <Stat label={t("Schools that need support", "जिन्हें मदद चाहिए")} value={d ? sum((b) => b.struggling) : "…"} hint={t("below what their context predicts", "हालात से अपेक्षित से नीचे")} />
       </div>
+
+      <Card title={t("The district on the map", "नक्शे पर ज़िला")} icon={MapIcon} className="mb-5">
+        <DistrictMap d={d} seed={seed} onOpen={open} />
+      </Card>
 
       <Card title={t("Blocks", "ब्लॉक")} icon={Landmark} pad={false} className="mb-5">
         <div className="overflow-x-auto">
@@ -129,6 +135,91 @@ export default function DistrictPage() {
           )}
         </p>
       </Card>
+    </div>
+  );
+}
+
+/** Damoh's 7 real blocks (OpenStreetMap outlines), shaded by Std III reading; tap one to work in it. */
+function DistrictMap({ d, seed, onOpen }: { d: DistrictSummary | null; seed: number; onOpen: (code: number) => void }) {
+  const t = useT();
+  const [hover, setHover] = useState<string | null>(null);
+  const W = 640;
+  const H = 460;
+  const proj = useMemo(() => {
+    const pts = Object.values(DAMOH_BLOCKS).flat();
+    const lat0 = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+    const k = Math.cos((lat0 * Math.PI) / 180);
+    const xs = pts.map((p) => p[0] * k);
+    const ys = pts.map((p) => p[1]);
+    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const s = Math.min((W - 24) / (maxX - minX), (H - 24) / (maxY - minY));
+    const ox = (W - (maxX - minX) * s) / 2;
+    const oy = (H - (maxY - minY) * s) / 2;
+    const xy = (lon: number, lat: number) => [ox + (lon * k - minX) * s, oy + (maxY - lat) * s] as const;
+    return { xy, path: (r: Ring) => "M" + r.map(([lon, lat]) => xy(lon, lat).map((v) => v.toFixed(1)).join(",")).join("L") + "Z" };
+  }, []);
+  const byName = new Map((d?.blocks ?? []).map((b) => [b.profile.block, b]));
+  const readings = (d?.blocks ?? []).map((b) => b.reading);
+  const [lo, hi] = [Math.min(...readings, 100), Math.max(...readings, 0)];
+  const shade = (r: number) => `color-mix(in srgb, var(--st-bright) ${Math.round(18 + ((r - lo) / Math.max(1, hi - lo)) * 62)}%, transparent)`;
+  const hb = hover ? byName.get(hover) : null;
+  return (
+    <div className="relative">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={t("Map of Damoh district's 7 blocks", "दमोह ज़िले के 7 ब्लॉक का नक्शा")}>
+        {Object.entries(DAMOH_BLOCKS).map(([name, ring]) => {
+          const b = byName.get(name);
+          const current = b?.profile.code === seed;
+          return (
+            <path
+              key={name}
+              d={proj.path(ring)}
+              fill={b ? shade(b.reading) : "var(--chip)"}
+              stroke={current ? "var(--st-bright)" : "var(--color-ink-3)"}
+              strokeWidth={current ? 3 : hover === name ? 2 : 1}
+              strokeOpacity={current || hover === name ? 1 : 0.55}
+              className="cursor-pointer transition-[stroke-width]"
+              onMouseEnter={() => setHover(name)}
+              onMouseLeave={() => setHover(null)}
+              onClick={() => b && onOpen(b.profile.code)}
+            />
+          );
+        })}
+        {Object.keys(DAMOH_BLOCKS).map((name) => {
+          const [lat, lon] = BLOCK_HQ[name];
+          const [x, y] = proj.xy(lon, lat);
+          const b = byName.get(name);
+          return (
+            <g key={name} className="pointer-events-none" transform={`translate(${x},${y})`}>
+              <circle r={3.5} fill="var(--color-ink)" />
+              <text y={-9} textAnchor="middle" className="fill-[var(--color-ink)] text-[13px] font-semibold" style={{ paintOrder: "stroke", stroke: "var(--bg)", strokeWidth: 3 }}>
+                {name}
+              </text>
+              {b && (
+                <text y={18} textAnchor="middle" className="fill-[var(--color-ink-2)] text-[11px]" style={{ paintOrder: "stroke", stroke: "var(--bg)", strokeWidth: 3 }}>
+                  {b.schools} {t("schools", "स्कूल")} · {b.verified} ★
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      {hb && (
+        <div className="chrome pointer-events-none absolute left-3 top-3 rounded-2xl px-3 py-2 text-xs">
+          <div className="text-sm font-semibold">{t(`${hb.profile.block} block`, `${hb.profile.block} ब्लॉक`)}</div>
+          <div className="text-[var(--color-ink-2)]">
+            {t(`Std III reading ${hb.reading}% · ${hb.verified} bright spots · ${hb.struggling} need support`, `कक्षा 3 पढ़ना ${hb.reading}% · ${hb.verified} अच्छे स्कूल · ${hb.struggling} को मदद चाहिए`)}
+          </div>
+          <div className="text-[var(--color-ink-3)]">{t("Tap to open this block", "यह ब्लॉक खोलने के लिए छुएँ")}</div>
+        </div>
+      )}
+      <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-ink-3)]">
+        <span>{t("Std III reading", "कक्षा 3 पढ़ना")}</span>
+        <span className="h-2 w-28 rounded-full" style={{ background: `linear-gradient(90deg, ${shade(lo)}, ${shade(hi)})` }} />
+        <span className="tabular-nums">
+          {d ? `${lo}% – ${hi}%` : "…"}
+        </span>
+        <span className="ml-auto">{t("Outlines: OpenStreetMap", "सीमाएँ: OpenStreetMap")}</span>
+      </div>
     </div>
   );
 }

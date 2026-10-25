@@ -5,6 +5,7 @@ import { ActionRow } from "../components/field";
 import { Card, Empty, fieldBase, MediaHeader, PageHeader, Segmented, Stat } from "../components/kit";
 import { LivingMap } from "../components/maps";
 import { cx } from "../components/ui";
+import { profileFor } from "../engine/district";
 import { PRACTICES } from "../engine/practices";
 import { MEDIA } from "../lib/clips";
 import type { Action } from "../engine/types";
@@ -229,7 +230,9 @@ export default function PlanPage() {
             z={z}
             links={waveRecs.map((r) => ({ from: r.demonstratorId, to: r.schoolId }))}
             onSelect={(id) => (select(id), nav(`/schools/${id}`))}
-            height={540}
+            height={580}
+            showLinks
+            block={profileFor(state.block.seed)?.block}
           />
           <p className="mt-2 text-xs text-[var(--color-ink-3)]">
             {t("Each arc runs from a bright-spot teacher to a school learning that practice from them.", "हर रेखा अच्छे स्कूल के शिक्षक से उस स्कूल तक जाती है जो उनसे वह तरीका सीख रहा है।")}

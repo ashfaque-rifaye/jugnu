@@ -1,11 +1,13 @@
-import { ArrowLeft, BadgeCheck, BookOpen, Check, ClipboardList, Footprints, History, Info, LineChart, Mic, PhoneCall, Quote, Search, Sparkles, Stethoscope, Users, Volume2, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, MapPin, BookOpen, Check, ClipboardList, Footprints, History, Info, LineChart, Mic, PhoneCall, Quote, Search, Sparkles, Stethoscope, Users, Volume2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ActionRow, FollowUpForm, SpotCheckForm, VoiceNote } from "../components/field";
 import { InviteForSchool } from "../components/Invite";
+import { SatThumb } from "../components/SchoolMapCard";
 import { Card, Empty, PageHeader, StatusChip, Tracker, useAgo, type TrackStep } from "../components/kit";
 import { cx } from "../components/ui";
 import { distanceKm } from "../engine/block";
+import { nearest } from "../engine/geo";
 import { PRACTICES } from "../engine/practices";
 import { CYCLES, type School } from "../engine/types";
 import { usePoll } from "../lib/api";
@@ -67,8 +69,8 @@ export default function SchoolPage() {
       </button>
       <PageHeader
         eyebrow={`${s.clusterName} ${t("cluster", "क्लस्टर")} · CRP ${s.crp}`}
-        title={s.name}
-        sub={`${s.teacher} · ${s.village} · ${s.enrolment} ${t("children", "बच्चे")}`}
+        title={lang === "hi" && s.nameHi ? s.nameHi : s.name}
+        sub={`${t("Govt. Primary School", "शासकीय प्राथमिक शाला")} · ${s.teacher} · ${s.enrolment} ${t("children", "बच्चे")}`}
         actions={<StatusChip status={st} />}
       />
 
@@ -140,6 +142,8 @@ export default function SchoolPage() {
               )}
             </p>
           </Card>
+
+          {s.grades.length > 0 && <GradesCard school={s} />}
 
           {rec && demo && (
             <Card title={t("Support plan", "मदद की योजना")} icon={Footprints} right={<span className="chip">{t(`Wave ${rec.wave}`, `लहर ${rec.wave}`)}</span>}>
@@ -250,6 +254,7 @@ export default function SchoolPage() {
         </div>
 
         <div className="space-y-5">
+          {s.lat != null && s.lon != null && <WhereCard school={s} />}
           {v && (
             <Card title={t("Is the bright spot real?", "क्या अच्छा स्कूल सच में अच्छा है?")} icon={BadgeCheck}>
               <ul className="space-y-2">
@@ -335,6 +340,123 @@ export default function SchoolPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Attendance over three years and grades 1–5 this year: who comes, and who is at grade level. */
+function GradesCard({ school: s }: { school: School }) {
+  const t = useT();
+  const pct = (x: number) => Math.round(x * 100);
+  const bar = (v: number, color: string) => (
+    <span className="relative block h-2 w-full overflow-hidden rounded-full bg-[var(--ring-track)]">
+      <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, v)}%`, background: color }} />
+    </span>
+  );
+  const last = s.attendanceByCycle.length - 1;
+  return (
+    <Card title={t("Attendance and grades 1–5", "उपस्थिति और कक्षा 1–5")} icon={Users}>
+      <div className="mb-4 flex flex-wrap items-end gap-5">
+        <div>
+          <div className="text-xs text-[var(--color-ink-3)]">{t("Children present on an average day", "औसत दिन मौजूद बच्चे")}</div>
+          <div className="text-2xl font-semibold tabular-nums">
+            {pct(s.attendanceByCycle[last])}%{" "}
+            <span className="text-sm font-normal text-[var(--color-ink-3)]">
+              ~{Math.round(s.enrolment * s.attendanceByCycle[last])} {t(`of ${s.enrolment}`, `/ ${s.enrolment}`)}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-end gap-2" aria-label={t("Attendance by year", "साल के अनुसार उपस्थिति")}>
+          {s.attendanceByCycle.map((a, i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <span className="text-[10px] tabular-nums text-[var(--color-ink-3)]">{pct(a)}</span>
+              <span className="w-7 rounded-t-md bg-[var(--tone-info)]" style={{ height: Math.max(4, (a - 0.4) * 90), opacity: i === last ? 1 : 0.45 }} />
+              <span className="text-[10px] text-[var(--color-ink-3)]">{CYCLES[i].slice(2)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[440px] text-sm">
+          <thead className="text-left text-xs text-[var(--color-ink-3)]">
+            <tr>
+              <th className="pb-2 font-medium">{t("Grade", "कक्षा")}</th>
+              <th className="pb-2 text-right font-medium">{t("Enrolled", "नामांकन")}</th>
+              <th className="w-[22%] pb-2 pl-3 font-medium">{t("Attending", "उपस्थिति")}</th>
+              <th className="w-[22%] pb-2 pl-3 font-medium">{t("Reading at level", "स्तर पर पढ़ना")}</th>
+              <th className="w-[22%] pb-2 pl-3 font-medium">{t("Maths at level", "स्तर पर गणित")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {s.grades.map((g) => (
+              <tr key={g.grade} className="border-t border-[var(--line)]">
+                <td className="py-2 font-semibold">
+                  {g.grade}
+                  {g.grade === 3 && <span className="chip ml-1.5 !px-1.5 !py-0 !text-[10px]">{t("assessed", "आकलित")}</span>}
+                </td>
+                <td className="py-2 text-right tabular-nums">{g.enrolled}</td>
+                <td className="py-2 pl-3">
+                  <div className="flex items-center gap-2">
+                    {bar(pct(g.attendance), "var(--tone-info)")}
+                    <span className="w-9 text-right text-xs tabular-nums">{pct(g.attendance)}%</span>
+                  </div>
+                </td>
+                <td className="py-2 pl-3">
+                  <div className="flex items-center gap-2">
+                    {bar(g.reading, "var(--tone-reading)")}
+                    <span className="w-9 text-right text-xs tabular-nums">{Math.round(g.reading)}%</span>
+                  </div>
+                </td>
+                <td className="py-2 pl-3">
+                  <div className="flex items-center gap-2">
+                    {bar(g.numeracy, "var(--st-bright)")}
+                    <span className="w-9 text-right text-xs tabular-nums">{Math.round(g.numeracy)}%</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs text-[var(--color-ink-3)]">
+        {t(
+          "Each grade against its own bar (letters and numbers in Grade 1 … a story and division in Grade 5). Grade 3 is the cohort the state assesses; the others come from the school's own records.",
+          "हर कक्षा अपने स्तर के हिसाब से (कक्षा 1 में अक्षर व अंक … कक्षा 5 में कहानी व भाग)। कक्षा 3 का आकलन राज्य करता है; बाकी स्कूल के अपने रिकॉर्ड से।",
+        )}
+      </p>
+    </Card>
+  );
+}
+
+/** Where the school is: from above, and how far the nearest bright spot is. */
+function WhereCard({ school: s }: { school: School }) {
+  const t = useT();
+  const { lang } = usePrefs();
+  const { state } = usePipeline();
+  const status = useMemo(() => schoolStatuses(state), [state]);
+  const near = useMemo(() => nearest(s, state.block.schools.filter((x) => status.get(x.id) === "bright")), [s, state.block, status]);
+  return (
+    <Card title={t("Where it is", "कहाँ है")} icon={MapPin} pad={false}>
+      <SatThumb lat={s.lat!} lon={s.lon!} className="h-40 w-full" />
+      <div className="space-y-2 p-4 text-sm">
+        <div className="text-[var(--color-ink-2)]">
+          {lang === "hi" && s.nameHi ? s.nameHi : s.village} · {s.clusterName} {t("cluster", "क्लस्टर")} · {s.lat!.toFixed(4)}, {s.lon!.toFixed(4)}
+        </div>
+        {near && status.get(s.id) !== "bright" && (
+          <div>
+            {t("Nearest bright spot", "सबसे पास का अच्छा स्कूल")}:{" "}
+            <Link to={`/schools/${near.school.id}`} className="font-semibold underline decoration-[rgb(var(--fg)/0.25)]">
+              {lang === "hi" && near.school.nameHi ? near.school.nameHi : near.school.name}
+            </Link>{" "}
+            <span className="text-[var(--color-ink-3)]">
+              · {near.trip.km} km · ~{near.trip.roadKm} km {t("by road", "सड़क से")} · ~{near.trip.minutes} min {t("by motorbike", "बाइक से")}
+            </span>
+          </div>
+        )}
+        <Link to={`/schools?focus=${s.id}`} className="btn btn-glass w-full justify-center">
+          <MapPin size={15} /> {t("Show on the map", "नक्शे पर दिखाएँ")}
+        </Link>
+      </div>
+    </Card>
   );
 }
 
