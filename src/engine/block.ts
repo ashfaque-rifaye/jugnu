@@ -4,6 +4,7 @@
 // Std I–II classrooms are multigrade; average student attendance 75.9%; library books in use
 // in 51.3% of schools. Each school also has hidden practices whose effects only the
 // simulator knows — Jugnu has to discover them.
+import { DISTRICT, govtElementary, profileFor, pupilsPerTeacher } from "./district";
 import { EFFECTIVE, PRACTICE_IDS, PRACTICES } from "./practices";
 import { chance, logit, mulberry32, pick, randInt, shuffle, sigmoid, type Rng } from "./rng";
 import { CYCLES, type Block, type School, type SchoolTruth } from "./types";
@@ -59,12 +60,18 @@ export function rateFor(s: School, t: Pick<SchoolTruth, "practices" | "fidelity"
   return trueRate(BASE[which], s, t, which, cycle);
 }
 
+// A seed that is a UDISE+ block code (see district.ts) builds that real block's shape: its number
+// of government elementary schools, tribal share, pupils per teacher and share of women teachers.
 export function generateBlock(seed = 2024, size = 200): Block {
+  const profile = profileFor(seed);
+  if (profile) size = govtElementary(profile);
   const rng = mulberry32(seed);
   const names = new Set<string>();
   const village = () => {
-    for (;;) {
-      const n = pick(rng, PREFIX) + pick(rng, SUFFIX);
+    for (let tries = 0; ; tries++) {
+      let n = pick(rng, PREFIX) + pick(rng, SUFFIX);
+      // Big blocks run out of plain names: villages then split, as real ones do (Kalan / Khurd).
+      if (names.has(n) && tries > 60) n = [`${n} Kalan`, `${n} Khurd`, `${n} Tola`, `${n} Chak`].find((v) => !names.has(v)) ?? n;
       if (!names.has(n)) {
         names.add(n);
         return n;
@@ -76,6 +83,19 @@ export function generateBlock(seed = 2024, size = 200): Block {
     const r = 5 + rng() * 9;
     return { x: Math.cos(angle) * r, y: Math.sin(angle) * r * 0.8 };
   });
+  // Real blocks: the most south-eastern clusters form the tribal belt, enough of them to match the
+  // block's ST enrolment share (schools there carry a little more than the average ST share).
+  const tribalClusters = profile
+    ? new Set(
+        centers
+          .map((c, i) => ({ i, se: c.x - c.y }))
+          .sort((a, b) => b.se - a.se)
+          .slice(0, Math.round((profile.stEnrolmentPct / 100) * CLUSTERS.length * 1.2))
+          .map((c) => c.i),
+      )
+    : null;
+  const femaleShare = profile ? profile.femaleTeacherPct / 100 : 0.5;
+  const ppt = profile ? pupilsPerTeacher(profile) : 0;
   const schools: School[] = [];
   const truth: Record<string, SchoolTruth> = {};
   for (let i = 0; i < size; i++) {
@@ -83,9 +103,9 @@ export function generateBlock(seed = 2024, size = 200): Block {
     const c = centers[cluster];
     const x = c.x + (rng() - 0.5) * 7;
     const y = c.y + (rng() - 0.5) * 6;
-    const tribal = x > 3 && y < -1; // south-east: tribal belt, other home languages
+    const tribal = tribalClusters ? tribalClusters.has(cluster) : x > 3 && y < -1; // south-east: tribal belt, other home languages
     const enrolment = chance(rng, ASER_2024.smallSchoolShare) ? randInt(rng, 22, 59) : randInt(rng, 60, 180);
-    const female = chance(rng, 0.5);
+    const female = chance(rng, femaleShare);
     const s: School = {
       id: `s${String(i + 1).padStart(3, "0")}`,
       name: "",
@@ -97,7 +117,7 @@ export function generateBlock(seed = 2024, size = 200): Block {
       y: Math.round(y * 10) / 10,
       enrolment,
       grade3: Math.max(6, Math.round(enrolment / 5.5 + (rng() - 0.5) * 4)),
-      ptr: Math.round(18 + rng() * 32),
+      ptr: profile ? Math.round(ppt * (0.55 + rng() * 0.9)) : Math.round(18 + rng() * 32),
       multigrade: chance(rng, enrolment < 60 ? 0.85 : 0.5),
       library: chance(rng, ASER_2024.libraryInUse),
       attendance: Math.round(Math.min(0.95, Math.max(0.5, ASER_2024.studentAttendance + (rng() - 0.5) * 0.24 - (tribal ? 0.04 : 0))) * 100) / 100,
@@ -143,6 +163,7 @@ export function generateBlock(seed = 2024, size = 200): Block {
       s.numeracy.push(num);
     });
   }
+  if (profile) return { name: `${profile.block} Block`, district: `${DISTRICT.name} (${DISTRICT.source})`, state: DISTRICT.state, source: "simulated", schools, truth, seed };
   return { name: "Sonagaon Block", district: "Simulated district", state: "Calibrated to ASER 2024 (rural India)", source: "simulated", schools, truth, seed };
 }
 

@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Handshake,
   House,
+  Landmark,
   Info,
   LineChart,
   MessageCircleQuestion,
@@ -61,6 +62,7 @@ const ReviewPage = lazy(() => import("./pages/Review"));
 const TestingPage = lazy(() => import("./pages/Testing"));
 const AIPage = lazy(() => import("./pages/AI"));
 const MethodPage = lazy(() => import("./pages/Method"));
+const DistrictPage = lazy(() => import("./pages/District"));
 const AboutPage = lazy(() => import("./pages/About"));
 
 /** While a page loads: glass placeholders in the shape of a page. */
@@ -153,6 +155,7 @@ function Console() {
   const TOP: NavItem[] = [
     { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
     { to: "/review", label: t("Approvals", "मंज़ूरी"), icon: ClipboardCheck, badge: pending?.length ?? 0 },
+    { to: "/district", label: t("District (Damoh)", "ज़िला (दमोह)"), icon: Landmark },
   ];
   const TOOLS: NavItem[] = [
     { to: "/", label: t("Home page", "होम पेज"), icon: House },
@@ -285,6 +288,7 @@ function Console() {
                 <Route path="/testing" element={<TestingPage />} />
                 <Route path="/ai" element={<AIPage />} />
                 <Route path="/method" element={<MethodPage />} />
+                <Route path="/district" element={<DistrictPage />} />
                 <Route path="/about" element={<AboutPage onTour={() => setFilm(true)} />} />
                 {/* older links */}
                 <Route path="/find" element={<Navigate to="/schools" replace />} />
