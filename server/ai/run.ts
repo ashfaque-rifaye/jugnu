@@ -105,7 +105,9 @@ export async function creditReport() {
   );
   const byModel = rows.map((r) => ({ model: r.model, calls: r.n, input_tokens: r.tin ?? 0, output_tokens: r.tout ?? 0, usd: costUSD(r.model, r.tin ?? 0, r.tout ?? 0) }));
   const spent = byModel.reduce((s, m) => s + m.usd, 0);
-  return { budget, spent, remaining: budget - spent, calls: byModel.reduce((s, m) => s + m.calls, 0), byModel };
+  // Which database this is (host only), so `npm run credits` never counts a shared Turso database twice.
+  const database = process.env.TURSO_DATABASE_URL ? new URL(process.env.TURSO_DATABASE_URL).hostname : null;
+  return { budget, spent, remaining: budget - spent, calls: byModel.reduce((s, m) => s + m.calls, 0), byModel, database };
 }
 
 export async function traceSummary() {
