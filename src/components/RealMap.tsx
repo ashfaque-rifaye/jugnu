@@ -1,17 +1,19 @@
-// The real map of a block: OpenStreetMap / satellite basemaps (MapLibre, no API key), the block and
-// district outlines, every school on its real village coloured by status, who-learns-from-whom
-// lines with their distances, a measuring tool, and a card for the school you pick.
+// The real map of a block: Google's photorealistic 3D earth when there is a Maps key, and
+// OpenStreetMap / satellite basemaps (MapLibre, no key) otherwise or on request; the block and
+// district outlines, every school where it stands coloured by status, who-learns-from-whom lines
+// with their distances, a measuring tool, and a card for the school you pick.
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MLMap, StyleSpecification } from "maplibre-gl";
 import type * as GeoJSON from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bike, Box, Crosshair, Footprints, Layers, Link2, Map as MapIcon, Moon, Ruler, Satellite, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Bike, Box, Crosshair, Footprints, Globe2, Layers, Link2, Map as MapIcon, Moon, Ruler, Satellite, X } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { trip, type Trip } from "../engine/geo";
 import type { School } from "../engine/types";
 import { DAMOH_BLOCKS, DAMOH_DISTRICT } from "../lib/geo-shapes";
+import { MAPS_KEY } from "../lib/gmaps";
 import { usePrefs, useT } from "../lib/prefs";
 import { STATUS_INFO, type SchoolStatus } from "../lib/status";
 import { useTheme } from "../lib/theme";
@@ -19,10 +21,15 @@ import { Locator } from "./Locator";
 import type { MapProps } from "./maps";
 import { SchoolMapCard } from "./SchoolMapCard";
 import { cx } from "./ui";
+import type { Camera, CameraTarget, LatLon, PinStyle } from "./Earth3D";
+
+const Earth3D = lazy(() => import("./Earth3D"));
 
 maplibregl.setWorkerUrl(workerUrl);
 
-type Base = "map" | "satellite" | "night";
+// "earth" is Google's 3D map; the others are MapLibre basemaps.
+type Base = "earth" | "map" | "satellite" | "night";
+type FlatBase = Exclude<Base, "earth">;
 
 // Dot colours per basemap: deep on the light street map, bright on satellite and night.
 const DOTS: Record<"light" | "dark", Record<SchoolStatus, string>> = {
@@ -32,7 +39,7 @@ const DOTS: Record<"light" | "dark", Record<SchoolStatus, string>> = {
 
 // OpenFreeMap (OpenStreetMap vector tiles, free, no key) for the street and night maps; Esri World
 // Imagery for satellite, with the street map's labels laid over it.
-const STYLE: Record<Base, string> = {
+const STYLE: Record<FlatBase, string> = {
   map: "https://tiles.openfreemap.org/styles/liberty",
   night: "https://tiles.openfreemap.org/styles/dark",
   satellite: "https://tiles.openfreemap.org/styles/liberty",
@@ -44,7 +51,7 @@ type FC = GeoJSON.FeatureCollection;
 const EMPTY: FC = { type: "FeatureCollection", features: [] };
 
 /** Jugnu's own sources and layers, laid over whichever basemap is showing. */
-function overlay(base: Base, data: Record<"schools" | "links" | "measure" | "clusters", FC>) {
+function overlay(base: FlatBase, data: Record<"schools" | "links" | "measure" | "clusters", FC>) {
   const dark = base !== "map";
   const ink = dark ? "#f8fafc" : "#0f172a";
   const halo = dark ? "rgba(2,6,23,0.85)" : "rgba(255,255,255,0.92)";
@@ -123,7 +130,13 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
   const map = useRef<MLMap | null>(null);
   const [styleRev, setStyleRev] = useState(0); // bumps each time a basemap finishes loading
   const ready = styleRev > 0;
-  const [base, setBase] = useState<Base>(mode === "dark" ? "night" : "map");
+  const flatDefault: FlatBase = mode === "dark" ? "night" : "map";
+  const [base, setBase] = useState<Base>(MAPS_KEY ? "earth" : flatDefault);
+  // MapLibre keeps running under the 3D earth, so falling back is instant.
+  const flat: FlatBase = base === "earth" ? flatDefault : base;
+  const earth = base === "earth";
+  const [cam, setCam] = useState<Camera>({ key: 0, kind: "fit", points: [] });
+  const fly = useCallback((c: CameraTarget) => setCam({ ...c, key: Date.now() }), []);
   const [tilt, setTilt] = useState(false);
   const [linksOn, setLinksOn] = useState(showLinks);
   const [measure, setMeasure] = useState(false);
@@ -132,7 +145,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
   const [hover, setHover] = useState<{ id: string; x: number; y: number } | null>(null);
   const byId = useMemo(() => new Map(schools.map((s) => [s.id, s])), [schools]);
   const located = useMemo(() => schools.filter((s) => s.lat != null && s.lon != null), [schools]);
-  const palette = DOTS[base === "map" ? "light" : "dark"];
+  const palette = DOTS[flat === "map" ? "light" : "dark"];
   const cb = useRef({ onSelect, measure, setPicks, setPicked });
   cb.current = { onSelect, measure, setPicks, setPicked };
   const data = useRef<Record<"schools" | "links" | "measure" | "clusters", FC>>({ schools: EMPTY, links: EMPTY, measure: EMPTY, clusters: EMPTY });
@@ -187,12 +200,12 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
   useEffect(() => {
     const m = map.current;
     if (!m) return;
-    m.setStyle(STYLE[base], {
+    m.setStyle(STYLE[flat], {
       transformStyle: (_prev, next) => {
-        const mine = overlay(base, data.current);
+        const mine = overlay(flat, data.current);
         let layers = next.layers;
         const sources = { ...next.sources, ...mine.sources };
-        if (base === "satellite") {
+        if (flat === "satellite") {
           sources.sat = { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, maxzoom: 18, attribution: "Imagery © Esri, Maxar, Earthstar Geographics" };
           layers = [
             { id: "sat", type: "raster", source: "sat" },
@@ -204,7 +217,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
         return { ...next, sources, layers: [...layers, ...mine.layers] };
       },
     });
-  }, [base]);
+  }, [flat]);
 
   // ---- the current block, highlighted; fit to it once
   const fitted = useRef<string | null>(null);
@@ -218,7 +231,8 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
     const b = new maplibregl.LngLatBounds();
     for (const s of located) b.extend([s.lon!, s.lat!]);
     m.fitBounds(b, { padding: 36, duration: 0 });
-  }, [block, styleRev, located]);
+    fly({ kind: "fit", points: located.map((s) => [s.lat!, s.lon!]) });
+  }, [block, styleRev, located, fly]);
 
   // ---- schools and cluster names
   useEffect(() => {
@@ -289,7 +303,8 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
     if (!s?.lat || !map.current || !ready) return;
     setPicked(s.id);
     map.current.flyTo({ center: [s.lon!, s.lat], zoom: 13, duration: 1400 });
-  }, [focusId, byId, ready]);
+    fly({ kind: "school", at: [s.lat, s.lon!] });
+  }, [focusId, byId, ready, fly]);
   useEffect(() => {
     if (selected) setPicked(selected);
   }, [selected]);
@@ -302,6 +317,39 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
     if (a?.lat && b?.lat && map.current) {
       const bb = new maplibregl.LngLatBounds([a.lon!, a.lat], [a.lon!, a.lat]).extend([b.lon!, b.lat]);
       map.current.fitBounds(bb, { padding: 90, maxZoom: 13, duration: 900 });
+      fly({ kind: "fit", points: [[a.lat, a.lon!], [b.lat, b.lon!]], tilt: 50 });
+    }
+  };
+
+  // ---- the 3D earth's view of the same state
+  const sel3 = picked ?? selected;
+  const pin = (s: School): PinStyle => {
+    const st = status.get(s.id) ?? "ok";
+    const isSel = s.id === sel3 || picks.includes(s.id);
+    if (isSel) return { color: DOTS.dark[st], ring: "#22d3ee", scale: 1.35 };
+    if (highlight && !highlight.has(s.id)) return { color: "#475569", ring: "#1e293b", scale: 0.6 };
+    return { color: DOTS.dark[st], ring: st === "bright" ? "#fff7d6" : "#0f172a", scale: st === "ok" ? 0.5 : st === "bright" ? 1.2 : 0.9 };
+  };
+  const pinKey = `${sel3}|${picks.join(",")}|${highlight ? [...highlight].join(",") : ""}|${located.map((s) => status.get(s.id) ?? "ok").join("")}`;
+  const lines3 = useMemo(
+    () =>
+      linksOn
+        ? links.flatMap((l): [LatLon, LatLon][] => {
+            const a = byId.get(l.from);
+            const b = byId.get(l.to);
+            return a?.lat && b?.lat ? [[[a.lat, a.lon!], [b.lat, b.lon!]]] : [];
+          })
+        : [],
+    [links, linksOn, byId],
+  );
+  const measure3: [LatLon, LatLon] | null = useMemo(() => (measured ? [[measured.a.lat!, measured.a.lon!], [measured.b.lat!, measured.b.lon!]] : null), [measured]);
+  const pick3 = (id: string) => {
+    if (measure) setPicks((p) => (p.length >= 2 ? [id] : p.includes(id) ? p : [...p, id]));
+    else {
+      setPicked(id);
+      onSelect?.(id);
+      const s = byId.get(id);
+      if (s?.lat) fly({ kind: "school", at: [s.lat, s.lon!] });
     }
   };
 
@@ -314,10 +362,30 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
     <div className={cx("real-map relative overflow-hidden rounded-[1.4rem]", className)} style={{ height }}>
       {/* inline: maplibre-gl.css sets .maplibregl-map { position: relative }, which would beat a class */}
       <div ref={el} style={{ position: "absolute", inset: 0 }} />
+      {earth && (
+        <Suspense fallback={<div className="skeleton absolute inset-0" />}>
+          <Earth3D
+            schools={located}
+            pin={pin}
+            pinKey={pinKey}
+            outline={block ? DAMOH_BLOCKS[block] : undefined}
+            links={lines3}
+            measure={measure3}
+            camera={cam}
+            language={lang}
+            onPick={pick3}
+            onFail={(why) => {
+              console.warn("3D map unavailable:", why);
+              setBase(flatDefault);
+            }}
+          />
+        </Suspense>
+      )}
       {/* basemap */}
       <div className="chrome absolute left-3 top-3 z-10 flex items-center gap-0.5 rounded-full p-1 text-xs font-semibold">
         {(
           [
+            ...(MAPS_KEY ? ([["earth", Globe2, t("3D", "3D")]] as const) : []),
             ["map", MapIcon, t("Map", "नक्शा")],
             ["satellite", Satellite, t("Satellite", "सैटेलाइट")],
             ["night", Moon, t("Night", "रात")],
@@ -338,9 +406,11 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
             <Link2 size={16} />
           </button>
         )}
-        <button className={cx(tool, tilt && on)} onClick={() => setTilt(!tilt)} title={t("Tilt the map (3D)", "नक्शा झुकाएँ (3D)")} aria-pressed={tilt}>
-          <Box size={16} />
-        </button>
+        {!earth && (
+          <button className={cx(tool, tilt && on)} onClick={() => setTilt(!tilt)} title={t("Tilt the map (3D)", "नक्शा झुकाएँ (3D)")} aria-pressed={tilt}>
+            <Box size={16} />
+          </button>
+        )}
         <button
           className={tool}
           onClick={() => {
@@ -348,6 +418,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
             const b = new maplibregl.LngLatBounds();
             for (const s of located) b.extend([s.lon!, s.lat!]);
             map.current?.fitBounds(b, { padding: 36, duration: 800 });
+            fly({ kind: "fit", points: located.map((s) => [s.lat!, s.lon!]) });
           }}
           title={t("Show the whole block", "पूरा ब्लॉक दिखाएँ")}
         >
@@ -423,6 +494,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
               setPicked(id);
               const s = byId.get(id);
               if (s?.lat) map.current?.flyTo({ center: [s.lon!, s.lat], zoom: Math.max(map.current.getZoom(), 12), duration: 900 });
+              if (s?.lat) fly({ kind: "school", at: [s.lat, s.lon!] });
             }}
           />
         )}
