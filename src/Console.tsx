@@ -30,7 +30,7 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useReveal, usePointerSheen, useScrollingDown } from "./lib/motion";
 import { Navigate, NavLink, Route, Routes, useLocation, useMatch, useNavigate, useSearchParams } from "react-router-dom";
-import { AskJugnu } from "./components/AskJugnu";
+import { AgentDock } from "./components/Agent";
 import { describeEvent } from "./components/ActivityFeed";
 import { DemoProvider, useDemo } from "./components/Demo";
 import { FEEDBACK_EVENT, FeedbackButton, useSession } from "./components/Feedback";
@@ -411,17 +411,7 @@ function Console() {
       </AnimatePresence>
 
       <TutorialPlayer clips={TOUR} open={film} onClose={() => setFilm(false)} />
-      <AskJugnu
-        open={ask}
-        onClose={() => setAsk(false)}
-        onSchool={(name) => {
-          const s = state.block.schools.find((x) => x.name === name);
-          if (s) {
-            select(s.id);
-            navigate(`/schools/${s.id}`);
-          }
-        }}
-      />
+      <AgentDock open={ask} onOpen={() => setAsk(true)} onClose={() => setAsk(false)} />
       <LiveToasts />
       <FeedbackButton />
       <Welcome

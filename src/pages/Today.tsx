@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, PartyPopper, Play, Search, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, Newspaper, PartyPopper, Play, Search, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ActivityFeed } from "../components/ActivityFeed";
@@ -114,6 +114,9 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
                   <Play size={16} /> {t("Play the term", "सत्र चलाकर देखें")}
                 </button>
               )}
+              <button className="btn btn-glass" onClick={() => window.dispatchEvent(new CustomEvent("jugnu:ask", { detail: "brief" }))}>
+                <Newspaper size={16} /> {t("Brief me", "ब्रीफ़ करो")}
+              </button>
               <button className="btn btn-glass" onClick={onAsk}>
                 <MessageCircleQuestion size={16} /> {t("Ask Jugnu", "जुगनू से पूछें")}
               </button>

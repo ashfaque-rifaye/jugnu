@@ -152,6 +152,25 @@ describe("coder, writer and officer guardrails", () => {
     expect(offlineAnswer("which schools may have inflated data?", st).schools.length).toBeGreaterThan(0);
   });
 
+  it("assistant: offline turn, commands, school lookup and briefing", async () => {
+    const { agentTurn } = await import("./ai/agent");
+    const { buildBriefing, findSchool, parseCommand } = await import("../src/lib/agent");
+    const { pipelineFor } = await import("./blocks");
+    const st = pipelineFor({ seed: 231205 });
+    const turn = await agentTurn([{ role: "user", content: "Brief me" }], st, { page: "/today", lang: "en" });
+    expect(turn.source).toBe("offline");
+    const s = st.block.schools[3];
+    expect(findSchool(st.block.schools, s.name)?.id).toBe(s.id);
+    if (s.nameHi) expect(findSchool(st.block.schools, s.nameHi)?.id).toBe(s.id);
+    expect(parseCommand("brief me", st.block.schools, ["Hatta"])).toEqual({ brief: true });
+    expect(parseCommand(`show ${s.name} on the map`, st.block.schools, ["Hatta"])).toEqual({ tool: "show_on_map", input: { name: s.name } });
+    expect(parseCommand("switch to Hatta block", st.block.schools, ["Hatta"])).toEqual({ tool: "switch_block", input: { block: "Hatta" } });
+    expect(parseCommand("open the plan", st.block.schools, ["Hatta"])).toEqual({ tool: "go_to", input: { page: "plan" } });
+    const lines = buildBriefing(st, [], (en) => en, false);
+    expect(lines[0]).toContain(`${st.block.schools.length} schools`);
+    expect(lines.length).toBeGreaterThan(3);
+  });
+
   it("scores the System Usability Scale", async () => {
     const { susScore } = await import("./testing");
     expect(susScore([3, 3, 3, 3, 3, 3, 3, 3, 3, 3])).toBe(50);

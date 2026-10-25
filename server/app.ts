@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { readFollowUp } from "./ai/followup";
+import { agentTurn } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
 import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
@@ -128,6 +129,22 @@ app.post("/api/ask", requireOfficer, rateLimit("ask", 60, 600000), async (req, r
   if (!body.success) return res.status(400).json({ error: "question is required" });
   const st = pipelineFor({ seed: body.data.seed, track: body.data.track, block: body.data.block });
   res.json(await askOfficer(body.data.question, st));
+});
+
+// ---------------------------------------------------------------- the voice / chat agent
+app.post("/api/agent", requireOfficer, rateLimit("agent", 150, 600000), async (req, res) => {
+  const body = z
+    .object({
+      messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.any() })).min(1).max(60),
+      context: z.object({ page: z.string().max(80), school: z.string().max(120).nullish(), lang: z.enum(["en", "hi"]), role: z.string().max(40).nullish() }),
+      seed: z.number().int().optional(),
+      track: z.boolean().optional(),
+      block: z.any().optional(),
+    })
+    .safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "messages and context are required" });
+  const st = pipelineFor({ seed: body.data.seed, track: body.data.track, block: body.data.block });
+  res.json(await agentTurn(body.data.messages as Parameters<typeof agentTurn>[0], st, body.data.context));
 });
 
 // ---------------------------------------------------------------- AI trace + evaluation

@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, List, Map as MapIcon, RefreshCw, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, fieldBase, fieldClass, PageHeader, Segmented, StatusChip } from "../components/kit";
 import { LivingMap, MapLegend } from "../components/maps";
@@ -24,7 +24,12 @@ export default function SchoolsPage() {
   const z = useMemo(() => meanZ(state), [state]);
   const clusters = useMemo(() => [...new Map(state.block.schools.map((s) => [s.cluster, s.clusterName])).entries()].sort((a, b) => a[0] - b[0]), [state.block]);
   const [view, setView] = useState<"list" | "map">(params.get("view") === "map" || params.get("focus") ? "map" : "list");
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(params.get("q") ?? "");
+  // The assistant searches by linking here with ?q=…
+  useEffect(() => {
+    const k = params.get("q");
+    if (k != null) setQ(k);
+  }, [params]);
   const [cluster, setCluster] = useState<number | "all">(role?.kind === "crp" ? role.cluster : "all");
   const [sortBy, setSortBy] = useState<"status" | "reading" | "maths" | "name">("status");
   const filter = (params.get("status") as SchoolStatus | null) ?? null;
