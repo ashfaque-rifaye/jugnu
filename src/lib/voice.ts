@@ -137,7 +137,7 @@ export async function openMic(): Promise<Mic> {
           } else {
             if (l < Math.max(0.05, noise * 1.8)) {
               quietSince ||= now;
-              if (now - quietSince > 950) stop?.();
+              if (now - quietSince > 1500) stop?.();
             } else quietSince = 0;
             if (now - t0 > maxMs) stop?.();
           }

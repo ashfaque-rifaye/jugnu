@@ -153,7 +153,9 @@ export async function agentTurn(messages: BetaMessageParam[], st: PipelineState,
       const res: Anthropic.Beta.BetaMessage = await getClient().beta.messages.create(
         {
           model: AGENT_MODEL,
-          max_tokens: 1500,
+          max_tokens: 6000,
+          // Think before answering: the officer would rather wait a moment for a considered reply.
+          thinking: { type: "adaptive" },
           system: system(st, ctx),
           tools,
           messages: convo,

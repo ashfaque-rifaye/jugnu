@@ -4,7 +4,7 @@
 // or open the chat panel. Both drive the same agent — it briefs the officer in their language,
 // answers from the block's data and works the console: pages, schools, the map, forms, records.
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Keyboard, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
+import { Check, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DAMOH } from "../engine/district";
@@ -529,15 +529,22 @@ export function useAgent() {
         return null;
       }
       setMode("listening");
+      // Words appear live as the officer speaks (the browser's quick recogniser, where it has one);
+      // the recording then goes to Chirp 3 for the accurate version, which replaces them.
+      const quick = canListen() ? listen(speechLang(), (txt) => setHeard(txt)) : null;
+      quick?.promise.catch(() => {});
       stopRef.current = () => mic.current?.stopTurn();
-      const blob = await mic.current.turn({ waitMs: 9000, maxMs: 30000 });
+      const blob = await mic.current.turn({ waitMs: 12000, maxMs: 40000 });
       stopRef.current = null;
+      quick?.stop();
       if (!blob || cancelled.current) return null;
       setMode("hearing");
       try {
         const r = await transcribe(blob, live.current.lang, live.current.seed);
         setEngine(r.engine);
-        setHeard(r.text);
+        if (r.text) setHeard(r.text);
+        // A short beat with the final words on screen before Jugnu answers.
+        await wait(500);
         return r.text || null;
       } catch (e) {
         setMode("error");
@@ -681,117 +688,10 @@ function Chips({ tools, dark }: { tools: Line["tools"]; dark?: boolean }) {
   );
 }
 
-type Agent = ReturnType<typeof useAgent>;
-
-/** Full-screen voice conversation: the swarm, live captions and a few controls. */
-function VoiceStage({ a, onClose, onChat }: { a: Agent; onClose: () => void; onChat: () => void }) {
-  const t = useT();
-  const { lang, setLang } = usePrefs();
-  const [size, setSize] = useState(300);
-  useEffect(() => {
-    const f = () => setSize(Math.round(Math.min(340, window.innerWidth * 0.72, window.innerHeight * 0.4)));
-    f();
-    window.addEventListener("resize", f);
-    return () => window.removeEventListener("resize", f);
-  }, []);
-  const lastJ = useMemo(() => [...a.lines].reverse().find((l) => l.who === "jugnu"), [a.lines]);
-  const lastYou = useMemo(() => [...a.lines].reverse().find((l) => l.who === "you"), [a.lines]);
-  const youAfterJ = lastYou && (!lastJ || lastYou.id > lastJ.id);
-  const listeningish = a.mode === "listening" || a.mode === "hearing";
-  const onSwarm = () => {
-    if (a.mode === "speaking") a.interrupt();
-    else if (listeningish) a.stop();
-    else if (!a.handsFree && a.mode === "off") a.converse();
-  };
-  const said = listeningish ? a.heard : youAfterJ ? lastYou.text : "";
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[80] flex flex-col bg-[radial-gradient(ellipse_at_50%_38%,#0f2347_0%,#060d1c_55%,#03070f_100%)] text-white"
-      role="dialog"
-      aria-label={t("Talk to Jugnu", "जुगनू से बात करें")}
-    >
-      <div className="flex items-center gap-2 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="min-w-0 flex-1">
-          <div className="font-display text-lg font-bold">{t("Jugnu", "जुगनू")}</div>
-          <div className="text-xs text-white/50">{a.cloud ? t("Speak in Hindi, English, Tamil or any Indian language", "हिंदी, अंग्रेज़ी, तमिल या किसी भी भारतीय भाषा में बोलें") : t("Browser voice (Google voice not configured)", "ब्राउज़र की आवाज़ (Google आवाज़ सेट नहीं)")}</div>
-        </div>
-        <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5 text-xs">
-          {(["en", "hi"] as const).map((l) => (
-            <button key={l} onClick={() => setLang(l)} className={`rounded-full px-2.5 py-1 ${lang === l ? "bg-white/15 font-semibold" : "text-white/60"}`} aria-pressed={lang === l}>
-              {l === "en" ? "EN" : "हिं"}
-            </button>
-          ))}
-        </div>
-        {a.cloud && (
-          <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className="hidden rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/80 sm:block" aria-label={t("Voice", "आवाज़")}>
-            {VOICE_CHOICES.map((v) => (
-              <option key={v.id} value={v.id} className="bg-[#0b1a35]">
-                {t(v.en, v.hi)}
-              </option>
-            ))}
-          </select>
-        )}
-        <button className="grid h-9 w-9 place-items-center rounded-full bg-white/5 hover:bg-white/10" onClick={onClose} aria-label={t("Close", "बंद करें")}>
-          <X size={17} />
-        </button>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5">
-        <button onClick={onSwarm} className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40" aria-label={t(...MODE_LABEL[a.mode])}>
-          <Orb mode={a.mode} level={a.levelNow} size={size} fallback={<Swarm mode={a.mode} level={a.levelNow} size={size} />} />
-        </button>
-        <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50" aria-live="polite">
-          {(a.mode === "thinking" || a.mode === "working" || a.mode === "hearing") && <Loader2 size={12} className="animate-spin" />}
-          {t(...MODE_LABEL[a.handsFree && a.mode === "off" ? "listening" : a.mode])}
-        </div>
-        <div className="mt-5 w-full max-w-2xl text-center" aria-live="polite">
-          {said && <p className="mb-3 text-sm italic text-white/55 md:text-base">“{said}”</p>}
-          {lastJ && !listeningish && (
-            <p className="font-display text-xl leading-snug md:text-[1.7rem] md:leading-snug">
-              <span>{lastJ.text.slice(0, lastJ.shown)}</span>
-              <span className="text-white/25">{lastJ.text.slice(lastJ.shown)}</span>
-            </p>
-          )}
-          {lastJ && !listeningish && <Chips tools={lastJ.tools} dark />}
-          {!a.lines.length && a.mode === "off" && !a.handsFree && (
-            <div className="mx-auto flex max-w-lg flex-wrap justify-center gap-2">
-              {SUGGEST.slice(1, 4).map(([en, hi]) => (
-                <button key={en} onClick={() => a.send(t(en, hi))} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/80 hover:bg-white/10">
-                  {t(en, hi)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center gap-4 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
-        <button className="grid h-12 w-12 place-items-center rounded-full bg-white/5 hover:bg-white/10" onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
-          <Newspaper size={19} />
-        </button>
-        <button
-          className={`grid h-16 w-16 place-items-center rounded-full transition ${a.handsFree ? "bg-rose-500/90 hover:bg-rose-500" : "bg-[#ffd56b] text-[#0b1a35] hover:brightness-110"}`}
-          onClick={() => (a.handsFree ? a.stop() : a.converse())}
-          aria-label={a.handsFree ? t("Stop listening", "सुनना बंद करें") : t("Talk", "बोलें")}
-        >
-          {a.handsFree ? <MicOff size={24} /> : <Mic size={24} />}
-        </button>
-        <button className="grid h-12 w-12 place-items-center rounded-full bg-white/5 hover:bg-white/10" onClick={onChat} aria-label={t("Type instead", "लिखकर पूछें")} title={t("Type instead", "लिखकर पूछें")}>
-          <Keyboard size={19} />
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
 export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: () => void; onClose: () => void }) {
   const t = useT();
   const a = useAgent();
   const [text, setText] = useState("");
-  const [stage, setStage] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const active = a.mode !== "off" || a.handsFree;
   const canTalk = a.cloud || canListen();
@@ -803,10 +703,8 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
   useEffect(() => {
     const h = (e: Event) => {
       const q = (e as CustomEvent<string>).detail;
-      if (q === "brief") {
-        setStage(true);
-        a.brief();
-      } else if (q) {
+      if (q === "brief") a.brief();
+      else if (q) {
         onOpen();
         a.send(q);
       }
@@ -814,17 +712,41 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
     window.addEventListener("jugnu:ask", h);
     return () => window.removeEventListener("jugnu:ask", h);
   });
-  const openStage = () => {
+  // The orb stays put: tap to talk (it keeps listening after each answer), tap while it speaks to
+  // cut in, tap while it listens to stop.
+  const onOrb = () => {
     audio();
-    onClose();
-    setStage(true);
-    if (!a.handsFree && a.mode === "off") a.converse();
+    if (!canTalk) return open ? onClose() : onOpen();
+    if (a.mode === "speaking") a.interrupt();
+    else if (a.handsFree || a.mode === "listening") a.hangUp();
+    else if (a.mode === "off" || a.mode === "error") a.converse();
   };
-  const closeStage = () => {
-    a.hangUp();
-    setStage(false);
-  };
-  const caption = a.mode === "listening" || a.mode === "hearing" ? a.heard || t("I'm listening…", "सुन रहा हूँ…") : lastJ && active ? lastJ.text.slice(0, lastJ.shown) : "";
+  // The bubble lingers a few seconds after Jugnu stops talking, so the last words can be read.
+  const [linger, setLinger] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    if (active) {
+      setLinger(true);
+      setHidden(false);
+      return;
+    }
+    const id = setTimeout(() => setLinger(false), 9000);
+    return () => clearTimeout(id);
+  }, [active]);
+  const lastYou = useMemo(() => [...a.lines].reverse().find((l) => l.who === "you"), [a.lines]);
+  const youLast = !!lastYou && (!lastJ || lastYou.id > lastJ.id);
+  const ears = a.mode === "listening" || a.mode === "hearing";
+  const bubble: { who: "you" | "jugnu"; text: string; rest?: string; note?: string } | null = hidden
+    ? null
+    : ears
+      ? { who: "you", text: a.heard, note: a.mode === "hearing" ? t("Understanding…", "समझ रहा हूँ…") : a.heard ? undefined : t("Listening — speak in any language", "सुन रहा हूँ — किसी भी भाषा में बोलें") }
+      : (a.mode === "thinking" || a.mode === "working") && youLast && lastYou
+        ? { who: "you", text: lastYou.text, note: a.mode === "working" ? t("Working on it…", "काम कर रहा हूँ…") : t("Thinking…", "सोच रहा हूँ…") }
+        : lastJ && !youLast && (active || linger)
+          ? { who: "jugnu", text: lastJ.text.slice(0, lastJ.shown), rest: lastJ.text.slice(lastJ.shown) }
+          : a.mode === "error" && a.heard
+            ? { who: "jugnu", text: a.heard }
+            : null;
   const submit = () => {
     const q = text;
     setText("");
@@ -832,7 +754,6 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
   };
   return (
     <div data-agent className="no-print">
-      <AnimatePresence>{stage && <VoiceStage a={a} onClose={closeStage} onChat={() => (closeStage(), onOpen())} />}</AnimatePresence>
       <AnimatePresence>
         {open && (
           <motion.aside
@@ -848,6 +769,15 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                 <div className="font-display text-base font-bold leading-tight">{t("Jugnu", "जुगनू")}</div>
                 <div className="text-xs text-[var(--color-ink-3)]">{t("Ask, or tell me what to do — I can open, show, fill and record.", "पूछें, या बताएँ क्या करना है — मैं खोल, दिखा, भर और दर्ज कर सकता हूँ।")}</div>
               </div>
+              {a.cloud && (
+                <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className={`${fieldBase} !h-8 !w-auto !py-0 text-xs`} aria-label={t("Voice", "आवाज़")} title={t("Voice", "आवाज़")}>
+                  {VOICE_CHOICES.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {t(v.en, v.hi)}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button className="btn btn-glass btn-icon !p-2" onClick={() => a.setVoice(!a.voice)} aria-label={a.voice ? t("Mute voice", "आवाज़ बंद") : t("Read replies aloud", "जवाब बोलकर सुनाएँ")} title={a.voice ? t("Mute voice", "आवाज़ बंद") : t("Read replies aloud", "जवाब बोलकर सुनाएँ")}>
                 {a.voice ? <Volume2 size={15} /> : <VolumeX size={15} />}
               </button>
@@ -934,19 +864,45 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
 
       <div className="fixed bottom-[calc(92px+env(safe-area-inset-bottom))] right-3 z-[62] flex flex-col items-end gap-2 lg:bottom-5 lg:right-5">
         <AnimatePresence>
-          {!open && !stage && caption && (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="glass-strong max-w-[min(340px,calc(100vw-90px))] rounded-2xl px-3.5 py-2.5 text-sm leading-snug" aria-live="polite">
-              {a.mode === "listening" ? <span className="italic text-[var(--color-ink-2)]">“{caption}”</span> : caption}
+          {!open && bubble && (
+            <motion.div
+              key={bubble.who}
+              initial={{ opacity: 0, y: 8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ type: "spring", damping: 26, stiffness: 300 }}
+              className="glass-strong relative mr-2 max-w-[min(380px,calc(100vw-40px))] rounded-2xl rounded-br-md px-4 py-3 text-[15px] leading-snug shadow-xl"
+              aria-live="polite"
+            >
+              <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-3)]">
+                <span className={`h-1.5 w-1.5 rounded-full ${bubble.who === "you" ? "bg-[#9cf06b]" : "bg-[#ffd56b]"} ${active ? "animate-pulse" : ""}`} />
+                {bubble.who === "you" ? t("You", "आप") : t("Jugnu", "जुगनू")}
+                <button className="-mr-1 ml-auto rounded p-0.5 hover:bg-[rgb(var(--fg)/0.08)]" onClick={() => setHidden(true)} aria-label={t("Hide", "छिपाएँ")}>
+                  <X size={12} />
+                </button>
+              </div>
+              {bubble.text && (
+                <p className={bubble.who === "you" ? "italic text-[var(--color-ink-2)]" : ""}>
+                  {bubble.who === "you" ? `“${bubble.text}”` : bubble.text}
+                  {bubble.rest && <span className="text-[var(--color-ink-3)] opacity-60">{bubble.rest}</span>}
+                </p>
+              )}
+              {bubble.note && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-[var(--color-ink-3)]">
+                  {(a.mode === "hearing" || a.mode === "thinking" || a.mode === "working") && <Loader2 size={12} className="animate-spin" />}
+                  {bubble.note}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
         <div className="glass-strong flex items-center gap-1 rounded-full p-1 sm:pl-2">
           {active ? (
-            <button className="grid h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)]" onClick={a.stop} aria-label={t("Stop", "रोकें")} title={t("Stop", "रोकें")}>
+            <button className="grid h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)]" onClick={a.hangUp} aria-label={t("Stop", "रोकें")} title={t("Stop", "रोकें")}>
               {a.mode === "listening" ? <MicOff size={16} /> : <Square size={14} />}
             </button>
           ) : (
-            <button className="hidden h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)] sm:grid" onClick={() => (setStage(true), a.brief())} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
+            <button className="hidden h-9 w-9 place-items-center rounded-full hover:bg-[rgb(var(--fg)/0.08)] sm:grid" onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
               <Newspaper size={16} />
             </button>
           )}
@@ -954,12 +910,12 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             <MessageCircle size={16} />
           </button>
           <button
-            className="relative grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-[radial-gradient(circle,#13254a,#081428)]"
-            onClick={canTalk ? openStage : open ? onClose : onOpen}
-            aria-label={t("Talk to Jugnu", "जुगनू से बात करें")}
-            title={t("Talk to Jugnu", "जुगनू से बात करें")}
+            className="relative grid h-[72px] w-[72px] place-items-center overflow-hidden rounded-full bg-[radial-gradient(circle,#13254a,#060d1c)]"
+            onClick={onOrb}
+            aria-label={a.handsFree ? t("Stop talking to Jugnu", "जुगनू से बात बंद करें") : a.mode === "speaking" ? t("Cut in", "बीच में बोलें") : t("Talk to Jugnu", "जुगनू से बात करें")}
+            title={t(...MODE_LABEL[a.handsFree && a.mode === "off" ? "listening" : a.mode])}
           >
-            <Orb mode={a.mode} level={a.levelNow} size={56} fallback={<Swarm mode={a.mode} level={a.levelNow} size={56} />} />
+            <Orb mode={a.mode} level={a.levelNow} size={76} fallback={<Swarm mode={a.mode} level={a.levelNow} size={76} />} />
           </button>
         </div>
       </div>

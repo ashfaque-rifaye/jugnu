@@ -109,7 +109,7 @@ export async function synthesize(text: string, lang: string, voice?: string): Pr
   const res = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${key}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ input: { text }, voice: { languageCode: locale, name }, audioConfig: { audioEncoding: "MP3", speakingRate: 1.04 } }),
+    body: JSON.stringify({ input: { text }, voice: { languageCode: locale, name }, audioConfig: { audioEncoding: "MP3", speakingRate: 0.97 } }),
     signal: AbortSignal.timeout(20000),
   });
   const d = (await res.json()) as { audioContent?: string; error?: { message: string } };
