@@ -50,7 +50,10 @@ export async function readFollowUp(reply: string, practice: string, ref?: string
     claude: (signal) =>
       askClaude({
         system: `${SAFETY}
-Read a teacher's answer to a follow-up call two weeks after they were invited to try a peer's practice. Classify honestly; "trying" when they started but not regularly.`,
+Read a teacher's answer to a follow-up call two weeks after they were invited to try a peer's practice. Classify honestly:
+- "barrier" whenever they name something that stops or limits them (missing materials, no time, no permission, not sure how) — even if they have started. A barrier becomes a task for whoever can remove it, so do not hide it under "trying".
+- "trying" when they started but not regularly, and name nothing in the way.
+- "adopted" when they do it regularly; "not_tried" when they have not started and give no reason.`,
         content: `Practice suggested: ${practice}\nTeacher said: ${reply}`,
         schema: Schema,
         effort: "low",

@@ -54,7 +54,8 @@ export function clarifyTurn(lang: Lang): NextTurn {
   };
 }
 
-const questionsAsked = (turns: LiveTurn[]) => turns.filter((t) => t.speaker === "jugnu" && (t.kind === "question" || t.kind === "follow_up")).length;
+// "Please say that again" counts too, so a bad phone line can never keep the interview going forever.
+const questionsAsked = (turns: LiveTurn[]) => turns.filter((t) => t.speaker === "jugnu" && (t.kind === "question" || t.kind === "follow_up" || t.kind === "clarify")).length;
 const topicsAsked = (turns: LiveTurn[]) => new Set(turns.filter((t) => t.speaker === "jugnu" && t.kind === "question" && t.topic).map((t) => t.topic!));
 
 /** The scripted interviewer: next uncovered topic, with one follow-up when an answer is vague. */
@@ -84,11 +85,14 @@ const NextSchema = z.object({
 export function guardTurn(out: NextTurn, turns: LiveTurn[], lang: Lang): { checks: Check[]; accept: boolean; value: NextTurn } {
   const previous = new Set(turns.filter((t) => t.speaker === "jugnu").map((t) => normalize(t.text)));
   const coveredEnough = topicsAsked(turns).size >= 5 || questionsAsked(turns) >= MAX_QUESTIONS;
+  const lastAsk = turns.filter((t) => t.speaker === "jugnu").at(-1);
+  const probingAgain = (out.kind === "follow_up" || out.kind === "clarify") && (lastAsk?.kind === "follow_up" || lastAsk?.kind === "clarify");
   const checks: Check[] = [
     checkSafeTopic(`${out.say} ${out.say_en}`),
     checkLength(out.say, 40, "short spoken turn"),
     checkLanguage(out.say, lang),
     { name: "does not repeat a question", passed: !previous.has(normalize(out.say)) },
+    { name: "one follow-up, then moves on", passed: !probingAgain, detail: probingAgain ? "second follow-up in a row" : undefined },
     { name: "closes only when the script is covered", passed: !out.done || coveredEnough, detail: out.done && !coveredEnough ? "tried to end early" : undefined },
   ];
   const accept = checks.every((c) => c.passed);
@@ -110,6 +114,7 @@ You are "Jugnu", conducting a 12-minute ${opts.group === "bright" ? "appreciativ
 Goal: surface SPECIFIC, transferable routines — what exactly happens, for how many minutes, with which materials, what children do, how often.
 Script areas (cover each once, in a natural order): ${SCRIPT.map((q) => `${q.id} = "${q.en}"`).join("; ")}.
 Rules:
+- The introduction and consent are already done. Go straight to the question; a short "धन्यवाद।" / "Thank you." before it is enough.
 - One question per turn. Under 35 words. Spoken, simple ${opts.lang === "hi" ? "Hindi in Devanagari (common English classroom words like 'group' are fine)" : "English"}.
 - If the teacher's last answer names a practice but gives no concrete detail, ask ONE follow-up for specifics (kind=follow_up) before moving on.
 - If the last answer was unclear or empty, ask them to repeat (kind=clarify).
