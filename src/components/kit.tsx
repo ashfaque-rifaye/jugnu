@@ -98,9 +98,9 @@ export function Card({
   style?: CSSProperties;
 }) {
   return (
-    <section className={cx("card", accent && "edge-top", pad && "p-4 md:p-5", className)} data-tour={tour} style={style}>
+    <section className={cx("card", accent && "edge-top", pad && "p-5 md:p-6", className)} data-tour={tour} style={style}>
       {(title || right) && (
-        <div className={cx("mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-2.5", !pad && "px-4 pt-4 md:px-5")}>
+        <div className={cx("mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-2.5", !pad && "px-5 pt-5 md:px-6")}>
           {title && (
             <h2 className="flex min-w-0 flex-[1_1_12rem] items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]">
               {Icon && (

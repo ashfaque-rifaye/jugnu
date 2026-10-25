@@ -307,8 +307,8 @@ function Console() {
         </main>
         <footer className="no-print mx-auto max-w-[1400px] px-6 pb-28 text-xs leading-relaxed text-[var(--color-ink-3)] lg:pb-8">
           {t(
-            "Jugnu · AI for Foundational Learning Hackathon, Challenge 4. Adults only, with consent; no child-level data. The demo block is simulated (calibrated to ASER 2024); live interviews are real. Background videos are AI-generated (Google Veo).",
-            "जुगनू · AI for Foundational Learning हैकाथॉन, चुनौती 4। सिर्फ़ वयस्क, सहमति से; बच्चों का कोई व्यक्तिगत डेटा नहीं। डेमो ब्लॉक सिम्युलेटेड है (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
+            "Jugnu · AI for Foundational Learning Hackathon, Challenge 4. Adults only, with consent; no child-level data. Places are real: Damoh's 7 blocks, their UDISE+ 2025-26 school counts and village locations (OpenStreetMap). School-level results are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated (Google Veo).",
+            "जुगनू · AI for Foundational Learning हैकाथॉन, चुनौती 4। सिर्फ़ वयस्क, सहमति से; बच्चों का कोई व्यक्तिगत डेटा नहीं। जगहें असली हैं: दमोह के 7 ब्लॉक, उनके UDISE+ 2025-26 स्कूल आँकड़े और गाँवों की जगहें (OpenStreetMap)। स्कूल-स्तर के नतीजे सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
           )}
         </footer>
       </div>
@@ -541,8 +541,8 @@ function useTourSteps(): TourStep[] {
       },
       {
         target: "map",
-        title: ["The block tonight", "आज रात ब्लॉक"],
-        body: ["Every house is a school. Brighter windows mean children are doing better than expected; arcs of light show who is learning from whom.", "हर घर एक स्कूल है। खिड़कियाँ जितनी चमकीली, बच्चे उतना बेहतर; रोशनी की रेखाएँ बताती हैं कौन किससे सीख रहा है।"],
+        title: ["Your block on the map", "नक्शे पर आपका ब्लॉक"],
+        body: ["Every dot is a real village school, coloured by how it is doing. Tap one for its card; the ruler measures the road between two schools.", "हर बिंदु एक असली गाँव का स्कूल है, रंग बताता है हाल। कार्ड के लिए छुएँ; पैमाना दो स्कूलों के बीच की दूरी नापता है।"],
       },
     ];
     if (school)
