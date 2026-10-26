@@ -205,6 +205,8 @@ class CallSession {
   private speaking = false;
   private busy = false;
   private closed = false;
+  /** A stream that has not named a live Jugnu call within 15 s is closed. */
+  private admit: ReturnType<typeof setTimeout>;
 
   constructor(
     private ws: WebSocket,
@@ -213,8 +215,9 @@ class CallSession {
     private token: string | null,
   ) {
     ws.on("message", (data) => void this.onMessage(data.toString()));
-    ws.on("close", () => (this.closed = true));
+    ws.on("close", () => ((this.closed = true), clearTimeout(this.admit)));
     ws.on("error", (e) => console.warn(`[${provider}] stream error`, e.message));
+    this.admit = setTimeout(() => !this.row && ws.close(), 15_000);
   }
 
   private async onMessage(raw: string) {
@@ -228,11 +231,13 @@ class CallSession {
       this.streamId = ev.streamId;
       const token = this.token ?? ev.custom.token ?? ev.custom.CustomField ?? null;
       this.row = (ev.callSid ? await getByCallSid(ev.callSid) : null) ?? (token ? await getByToken(token) : null) ?? null;
-      if (!this.row) {
-        console.warn(`[${this.provider}] stream for unknown call`, ev.callSid);
+      if (!this.row || this.row.channel !== "phone" || !LIVE_CALL.has(this.row.call_status ?? "")) {
+        console.warn(`[${this.provider}] stream for a call Jugnu did not place`, ev.callSid);
+        this.row = null;
         this.ws.close();
         return;
       }
+      clearTimeout(this.admit);
       if (ev.callSid && !this.row.call_sid) await db.run("UPDATE interviews SET call_sid = ? WHERE id = ?", ev.callSid, this.row.id);
       await db.run("UPDATE interviews SET call_status = 'in-call', updated_at = datetime('now') WHERE id = ?", this.row.id);
       const opening = await start(this.row);
@@ -331,11 +336,14 @@ export function attachTelephony(server: Server) {
     const url = new URL(req.url ?? "/", "http://x");
     const m = url.pathname.match(/^\/api\/ivr\/(exotel|plivo)\/stream$/);
     if (!m) return;
-    if (!keyOk(url.searchParams.get("key"))) {
+    const provider = m[1] as Provider;
+    // Plivo's stream URL is sent with each call by our API, so it carries the webhook key. Exotel's is
+    // typed once into the flow's Voicebot applet, so it carries no secret: a stream is admitted only
+    // when its call matches an interview Jugnu is dialling right now (see CallSession "start").
+    if (provider === "plivo" && !keyOk(url.searchParams.get("key"))) {
       socket.destroy();
       return;
     }
-    const provider = m[1] as Provider;
     wss.handleUpgrade(req, socket, head, (ws) => {
       new CallSession(ws, provider === "exotel" ? exotelFraming : plivoFraming, provider, url.searchParams.get("token"));
     });
@@ -358,7 +366,7 @@ ivr.get("/setup", requireOfficer, (_req, res) => {
     ...telephonyStatus(),
     exotel: {
       flowAppId: exotel().appId || null,
-      voicebotUrl: base ? `${wsBase}/api/ivr/exotel/stream?key=${key}` : null,
+      voicebotUrl: base ? `${wsBase}/api/ivr/exotel/stream` : null,
       statusCallback: base ? `${base}/api/ivr/exotel/status?key=${key}` : null,
       steps: [
         `Open App Bazaar → flow ${exotel().appId || "(EXOTEL_APP_ID)"} and make it: Start → Voicebot → Hangup.`,
@@ -434,6 +442,9 @@ ivr.post("/call", requireOfficer, async (req, res) => {
     res.status(err.status ?? 500).json({ error: err.message });
   }
 });
+
+/** Call states in which a provider may open the audio stream. */
+const LIVE_CALL = new Set(["dialing", "in-call"]);
 
 const terminal = new Set(["no-answer", "busy", "failed", "canceled", "cancelled", "NO_ANSWER", "BUSY", "FAILED"]);
 
