@@ -103,3 +103,26 @@ export function parseCsv(text: string): Block {
   if (schools.length < 20) throw new Error("Need at least 20 schools to model expected scores");
   return { name: "Imported block", district: "Your data", state: "Imported CSV", source: "imported", schools, truth: null, seed: 0 };
 }
+
+/** The header and a few rows of any CSV, for the column mapper. */
+export function headerAndSample(text: string, rows = 3): { headers: string[]; sample: string[][] } {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  return { headers: splitLine(lines[0] ?? "").map((h) => h.replace(/^﻿/, "")), sample: lines.slice(1, 1 + rows).map(splitLine) };
+}
+
+/** Rewrite a CSV into Jugnu's columns using a mapping (Jugnu column → source header) and optional scales. */
+export function remapCsv(text: string, mapping: Record<string, string | null>, scale: Record<string, number> = {}): string {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  const header = splitLine(lines[0]).map((h) => h.replace(/^﻿/, ""));
+  const idx = Object.fromEntries(CSV_COLUMNS.map((c) => [c, mapping[c] ? header.indexOf(mapping[c]!) : -1]));
+  const quote = (v: string) => (/[",]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const out = lines.slice(1).map((line) => {
+    const row = splitLine(line);
+    return CSV_COLUMNS.map((c) => {
+      const v = idx[c] >= 0 ? (row[idx[c]] ?? "") : "";
+      const k = scale[c];
+      return quote(k && v !== "" && Number.isFinite(Number(v)) ? String(Math.round(Number(v) * k * 1000) / 1000) : v);
+    }).join(",");
+  });
+  return [CSV_COLUMNS.join(","), ...out].join("\n");
+}

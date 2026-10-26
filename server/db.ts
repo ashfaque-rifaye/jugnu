@@ -151,6 +151,21 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
 );
 CREATE INDEX IF NOT EXISTS jobs_due ON scheduled_jobs(status, due_at);
 CREATE INDEX IF NOT EXISTS jobs_by_block ON scheduled_jobs(block, id);
+
+-- WhatsApp conversations Jugnu opened: which school and action a reply belongs to. Keyed by the
+-- salted hash of the number, so the number itself is never stored here.
+CREATE TABLE IF NOT EXISTS wa_contacts (
+  phone_hash   TEXT PRIMARY KEY,
+  block        TEXT NOT NULL,
+  school_id    TEXT,
+  ref          TEXT,                              -- the action a reply answers (s001-call)
+  teacher      TEXT,
+  practice     TEXT,
+  language     TEXT NOT NULL DEFAULT 'hi',
+  awaiting     TEXT,                              -- checkin | null
+  last_out_at  TEXT,
+  last_in_at   TEXT
+);
 `;
 
 /** turso: lasting · sqlite: a local file that lasts · temporary: Vercel without Turso — lost on restart. */

@@ -294,12 +294,12 @@ interface Telephony {
 }
 
 const CALL_STATE: Record<string, [string, string, string]> = {
-  dialing: ["Dialing", "??? ?? ??? ??", "var(--tone-warn)"],
-  "in-call": ["On the line", "???? ??", "var(--tone-teal)"],
-  completed: ["Call ended", "??? ????", "var(--tone-muted)"],
-  "no-answer": ["No answer", "???? ????", "var(--tone-bad)"],
-  busy: ["Busy", "??????", "var(--tone-bad)"],
-  failed: ["Failed", "????", "var(--tone-bad)"],
+  dialing: ["Dialing", "फ़ोन लग रहा है", "var(--tone-warn)"],
+  "in-call": ["On the line", "बात चल रही है", "var(--tone-teal)"],
+  completed: ["Call ended", "कॉल खत्म", "var(--tone-muted)"],
+  "no-answer": ["No answer", "जवाब नहीं", "var(--tone-bad)"],
+  busy: ["Busy", "व्यस्त", "var(--tone-bad)"],
+  failed: ["Failed", "नहीं लगा", "var(--tone-bad)"],
 };
 
 function PhoneLine() {
@@ -325,7 +325,7 @@ function PhoneLine() {
     setNote(null);
     try {
       const r = await postJSON<{ interview: PilotRow; callSid: string; provider: string }>("/api/ivr/call", { to, teacherName, schoolName, group, language: "hi" });
-      setNote({ kind: "ok", text: t(`Ringing ${to} via ${r.provider === "exotel" ? "Exotel" : "Plivo"} (call ${r.callSid.slice(0, 10)}?)`, `${to} ?? ??? ?? ??? ?? (${r.provider === "exotel" ? "Exotel" : "Plivo"})`) });
+      setNote({ kind: "ok", text: t(`Ringing ${to} via ${r.provider === "exotel" ? "Exotel" : "Plivo"} (call ${r.callSid.slice(0, 10)}…)`, `${to} पर फ़ोन लग रहा है (${r.provider === "exotel" ? "Exotel" : "Plivo"})`) });
       setOpen(r.interview.id);
       reload();
     } catch (err) {
@@ -340,66 +340,67 @@ function PhoneLine() {
       <div className="space-y-4">
         <Glass className="p-5">
           <SectionTitle
-            eyebrow={ready ? t(`Line open ? ${tel?.active === "exotel" ? "Exotel" : "Plivo"}`, `???? ???? ? ${tel?.active === "exotel" ? "Exotel" : "Plivo"}`) : t("Line closed", "???? ???")}
-            title={t("Dial a teacher", "?????? ?? ??? ????")}
-            sub={t("A real call on any basic phone. Jugnu speaks Hindi (Google Chirp), listens, and runs the same 12-minute interview as the web call.", "???? ?? ?????? ???? ?? ???? ???? ????? ????? ??? ????? ??, ????? ??, ?? ???-??? ???? ?? 12 ???? ?? ?????? ???? ???")}
+            eyebrow={ready ? t(`Line open · ${tel?.active === "exotel" ? "Exotel" : "Plivo"}`, `लाइन खुली · ${tel?.active === "exotel" ? "Exotel" : "Plivo"}`) : t("Line closed", "लाइन बंद")}
+            title={t("Dial a teacher", "शिक्षक को फ़ोन करें")}
+            sub={t("A real call on any basic phone. Jugnu speaks Hindi (Google Chirp), listens, and runs the same 12-minute interview as the web call.", "किसी भी साधारण फ़ोन पर असली कॉल। जुगनू हिंदी में बोलता है (Google Chirp), सुनता है, और वेब कॉल जैसी ही 12 मिनट की बातचीत करता है।")}
           />
           <form className="space-y-3" onSubmit={dial}>
             <label className="block">
-              <span className="label">{t("Mobile number", "?????? ????")}</span>
+              <span className="label">{t("Mobile number", "मोबाइल नंबर")}</span>
               <input value={to} onChange={(e) => setTo(e.target.value)} inputMode="tel" placeholder="+91 98765 43210" className="mt-1 w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 font-mono text-sm outline-none focus:border-amber-200/60" />
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <input value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder={t("Teacher (optional)", "?????? (????????)")} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none" />
-              <input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder={t("School (optional)", "????? (????????)")} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none" />
+              <input value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder={t("Teacher (optional)", "शिक्षक (वैकल्पिक)")} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none" />
+              <input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder={t("School (optional)", "स्कूल (वैकल्पिक)")} className="rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none" />
             </div>
             <div className="inline-flex rounded-full border border-white/10 bg-black/20 p-1 text-xs">
               {(["live", "bright", "comparison"] as const).map((g) => (
                 <button type="button" key={g} className={cx("rounded-full px-3 py-1", group === g ? "bg-white/15 text-white" : "text-[var(--color-ink-2)]")} onClick={() => setGroup(g)}>
-                  {g === "live" ? t("Live", "????") : g === "bright" ? t("Bright spot", "????? ?????") : t("Comparison", "?????")}
+                  {g === "live" ? t("Live", "लाइव") : g === "bright" ? t("Bright spot", "अच्छा स्कूल") : t("Comparison", "तुलना")}
                 </button>
               ))}
             </div>
             <button className="btn btn-primary w-full" disabled={busy || !ready}>
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />} {t("Place the call", "??? ?????")}
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />} {t("Place the call", "कॉल लगाएँ")}
             </button>
           </form>
           {note && <p className={cx("mt-3 text-xs", note.kind === "ok" ? "text-teal-200" : "text-red-300")}>{note.text}</p>}
           {!ready && (
             <p className="mt-3 text-xs text-[var(--color-ink-3)]">
               {!tel?.active
-                ? t("No telephony provider is configured on this server (EXOTEL_* or PLIVO_*).", "?? ????? ?? ??? ????????? ??????? ??? ???? ?? (EXOTEL_* ?? PLIVO_*)?")
+                ? t("No telephony provider is configured on this server (EXOTEL_* or PLIVO_*).", "इस सर्वर पर कोई टेलीफ़ोनी प्रदाता सेट नहीं है (EXOTEL_* या PLIVO_*)।")
                 : !tel.publicUrl
-                  ? t("PUBLIC_URL is not set ? the provider cannot reach this server for audio.", "PUBLIC_URL ??? ???? ?? ? ??????? ????? ?? ??? ?? ????? ?? ???? ????? ?????")
-                  : t("Voice (GOOGLE_CLOUD_API_KEY) is not configured.", "????? (GOOGLE_CLOUD_API_KEY) ??? ???? ???")}
+                  ? t("PUBLIC_URL is not set — the provider cannot reach this server for audio.", "PUBLIC_URL सेट नहीं है — प्रदाता आवाज़ के लिए इस सर्वर तक नहीं पहुँच सकता।")
+                  : t("Voice (GOOGLE_CLOUD_API_KEY) is not configured.", "आवाज़ (GOOGLE_CLOUD_API_KEY) सेट नहीं है।")}
             </p>
           )}
         </Glass>
         <Glass className="p-4 text-xs text-[var(--color-ink-2)]">
-          <div className="label mb-2">{t("Line details", "???? ?? ???????")}</div>
+          <div className="label mb-2">{t("Line details", "लाइन की जानकारी")}</div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-            <dt className="text-[var(--color-ink-3)]">{t("Provider", "???????")}</dt><dd>{tel?.active ?? "?"}{tel?.providers.plivo.configured && !tel.providers.plivo.from ? t(" ? Plivo waiting for an Indian number", " ? Plivo ?? ?????? ???? ?????") : ""}</dd>
-            <dt className="text-[var(--color-ink-3)]">{t("Caller ID", "???? ID")}</dt><dd className="font-mono">{from ?? "?"}</dd>
-            <dt className="text-[var(--color-ink-3)]">{t("Audio bridge", "????? ?????")}</dt><dd className="truncate font-mono" title={tel?.publicUrl ?? ""}>{tel?.publicUrl?.replace(/^https?:\/\//, "") ?? "?"}</dd>
-            <dt className="text-[var(--color-ink-3)]">{t("Voice", "?????")}</dt><dd>{tel?.voice ? "Google Chirp STT + TTS" : "?"}</dd>
+            <dt className="text-[var(--color-ink-3)]">{t("Provider", "प्रदाता")}</dt><dd>{tel?.active ?? "—"}{tel?.providers.plivo.configured && !tel.providers.plivo.from ? t(" · Plivo waiting for an Indian number", " · Plivo को भारतीय नंबर का इंतज़ार") : ""}</dd>
+            <dt className="text-[var(--color-ink-3)]">{t("Caller ID", "कॉलर ID")}</dt><dd className="font-mono">{from ?? "—"}</dd>
+            <dt className="text-[var(--color-ink-3)]">{t("Audio bridge", "ऑडियो ब्रिज")}</dt><dd className="truncate font-mono" title={tel?.publicUrl ?? ""}>{tel?.publicUrl?.replace(/^https?:\/\//, "") ?? "—"}</dd>
+            <dt className="text-[var(--color-ink-3)]">{t("Voice", "आवाज़")}</dt><dd>{tel?.voice ? "Google Chirp STT + TTS" : "—"}</dd>
+            <dt className="text-[var(--color-ink-3)]">WhatsApp</dt><dd>{status.whatsapp ? t("Connected (Cloud API)", "जुड़ा है (Cloud API)") : t("Not set up", "सेट नहीं")}</dd>
           </dl>
           <ul className="mt-3 space-y-1 text-[11px] text-[var(--color-ink-3)]">
-            <li>? {t("Consent first: ?Shall we begin? Say yes or no.? A no keeps nothing.", "???? ??????: ????? ?? ???? ?????? ? ?? ?? ??? ???? ??? ?????")}</li>
-            <li>? {t("Only a salted hash of the number is stored, never the number.", "???? ????, ?????? ???? salted ??? ??? ???? ???")}</li>
-            <li>? {t("Trial accounts can only ring numbers verified in the provider dashboard.", "?????? ???? ?????? ??????? ???????? ??? ???????? ?????? ?? ??? ?? ???? ????")}</li>
+            <li>• {t("Consent first: “Shall we begin? Say yes or no.” A no keeps nothing.", "पहले सहमति: “क्या हम शुरू करें? हाँ या ना बोलिए।” ना कहने पर कुछ भी नहीं रखा जाता।")}</li>
+            <li>• {t("Only a salted hash of the number is stored, never the number.", "नंबर कभी नहीं रखा जाता, केवल उसका salted हैश।")}</li>
+            <li>• {t("Trial accounts can only ring numbers verified in the provider dashboard.", "ट्रायल खाते केवल उन्हीं नंबरों पर कॉल कर सकते हैं जो प्रदाता के डैशबोर्ड में सत्यापित हैं।")}</li>
           </ul>
           {status.passcode && (
             <a className="mt-3 inline-flex items-center gap-1 text-[11px] text-amber-200" href="/api/ivr/setup" target="_blank" rel="noreferrer">
-              <ExternalLink size={11} /> {t("Provider setup JSON (webhook URLs)", "??????? ????? JSON (?????? URL)")}
+              <ExternalLink size={11} /> {t("Provider setup JSON (webhook URLs)", "प्रदाता सेटअप JSON (वेबहुक URL)")}
             </a>
           )}
         </Glass>
       </div>
       <div className="space-y-4">
         <Glass className="p-4">
-          <div className="label mb-2">{t("Phone calls", "???? ???")} ? {calls.length}</div>
+          <div className="label mb-2">{t("Phone calls", "फ़ोन कॉल")} · {calls.length}</div>
           {calls.length === 0 ? (
-            <p className="text-sm text-[var(--color-ink-3)]">{t("No phone calls yet. Dial a teacher on the left.", "??? ??? ???? ??? ????? ???? ?? ?? ?????? ?? ??? ?????")}</p>
+            <p className="text-sm text-[var(--color-ink-3)]">{t("No phone calls yet. Dial a teacher on the left.", "अभी तक कोई फ़ोन कॉल नहीं। बाईं ओर से किसी शिक्षक को फ़ोन करें।")}</p>
           ) : (
             <ul className="scroll-thin max-h-[320px] space-y-1 overflow-y-auto">
               {calls.map((r) => {
@@ -407,7 +408,7 @@ function PhoneLine() {
                 return (
                   <li key={r.id}>
                     <button className={cx("flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm", open === r.id ? "bg-white/12" : "hover:bg-white/6")} onClick={() => setOpen(r.id)}>
-                      <span className="min-w-0 truncate">{r.teacher_name || t("Teacher", "??????")} ? {r.school_name || "?"}</span>
+                      <span className="min-w-0 truncate">{r.teacher_name || t("Teacher", "शिक्षक")} · {r.school_name || "—"}</span>
                       <span className="flex shrink-0 items-center gap-1">
                         {cs && <span className="chip text-[10px]" style={{ borderColor: tint(cs[2], 55), background: tint(cs[2], 12) }}>{t(cs[0], cs[1])}</span>}
                         <StatusChip s={r.status} />

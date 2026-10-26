@@ -9,6 +9,7 @@ import { rateLimit, requireOfficer } from "./auth";
 import { db, json, now } from "./db";
 import { BlockKey, writeEvent } from "./eventlog";
 import { CallError, placeCall } from "./telephony";
+import { sendCheckin, sendText, sendVoiceNote, whatsappConfigured } from "./whatsapp";
 
 export type JobKind = "followup_call" | "escalate" | "reminder" | "visit_check";
 export type JobStatus = "pending" | "done" | "skipped" | "failed";
@@ -60,7 +61,7 @@ export async function enqueueForAction(block: string, ref: string, status: strin
   const step = ref.split("-").pop();
   const dueDays = typeof payload.dueDays === "number" && Number.isFinite(payload.dueDays) ? Math.max(0, Math.min(90, payload.dueDays)) : null;
   const carry: Record<string, unknown> = {};
-  for (const k of ["to", "teacher", "school", "language"]) if (payload[k] != null) carry[k] = payload[k];
+  for (const k of ["to", "teacher", "school", "language", "practice", "voiceNote"]) if (payload[k] != null) carry[k] = payload[k];
   if (status === "stuck") return enqueue(block, "escalate", ref, now(), { ...carry, reason: typeof payload.note === "string" ? payload.note : undefined });
   if (status === "scheduled") {
     if (step === "note") return enqueue(block, "reminder", ref, addDays(dueDays ?? 1), carry);
@@ -77,6 +78,7 @@ async function finish(job: Job, status: JobStatus, result: string) {
   await db.run(`UPDATE scheduled_jobs SET status = ?, result = ?, done_at = ? WHERE id = ?`, status, result.slice(0, 500), now(), job.id);
 }
 
+const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const who = (job: Job) => [job.payload.teacher, job.payload.school].filter(Boolean).join(", ") || job.school_id || job.ref;
 
 /** Run one job now. Each kind writes to the block's log so the console sees it. */
@@ -84,6 +86,21 @@ export async function runJob(job: Job): Promise<string> {
   const school = job.school_id ?? schoolOf(job.ref);
   switch (job.kind) {
     case "reminder": {
+      const to = typeof job.payload.to === "string" ? job.payload.to : "";
+      const note = typeof job.payload.voiceNote === "string" ? job.payload.voiceNote : "";
+      if (to && note && whatsappConfigured()) {
+        // Day 1: the demonstrator's voice note goes to the teacher on WhatsApp, spoken and written.
+        try {
+          await sendVoiceNote(to, note, job.payload.language === "en" ? "en" : "hi");
+          await writeEvent(job.block, "note", school, { text: `Day-1 peer voice note sent to ${who(job)} on WhatsApp.` }, ACTOR);
+          await finish(job, "done", "voice note sent on WhatsApp");
+          return "voice note sent on WhatsApp";
+        } catch (e) {
+          await writeEvent(job.block, "note", school, { text: `Jugnu could not send the voice note to ${who(job)} on WhatsApp (${(e as Error).message}). CRP, please share it.` }, ACTOR);
+          await finish(job, "failed", (e as Error).message);
+          return "voice note handed to CRP";
+        }
+      }
       await writeEvent(job.block, "note", school, { text: `Reminder: the peer voice note for ${who(job)} is scheduled — please check it was sent and heard.` }, ACTOR);
       await finish(job, "done", "reminder posted");
       return "reminder posted";
@@ -96,6 +113,11 @@ export async function runJob(job: Job): Promise<string> {
     case "escalate": {
       const reason = typeof job.payload.reason === "string" && job.payload.reason ? ` Reason: ${job.payload.reason}` : "";
       await writeEvent(job.block, "action", `${school}-review`, { status: "scheduled", note: `Escalated: ${job.ref} is stuck for ${who(job)}.${reason}` }, ACTOR);
+      const beo = (process.env.BEO_WHATSAPP ?? "").trim();
+      if (beo && whatsappConfigured())
+        await sendText(beo, `Jugnu: ${job.ref} is stuck for ${who(job)}.${reason} A BEO review is open in the console.`).catch((e) =>
+          console.warn("BEO WhatsApp alert failed:", (e as Error).message),
+        );
       await finish(job, "done", "escalated to BEO");
       return "escalated to BEO";
     }
@@ -116,6 +138,17 @@ export async function runJob(job: Job): Promise<string> {
           return "call placed";
         } catch (e) {
           const err = e as CallError;
+          // No phone line: ask on WhatsApp instead, when it is set up; the reply is read the same way.
+          if (err.status === 503 && whatsappConfigured()) {
+            try {
+              await sendCheckin(to, { block: job.block, schoolId: school, ref: job.ref, teacher: str(job.payload.teacher), practice: str(job.payload.practice), language: job.payload.language === "en" ? "en" : "hi" });
+              await writeEvent(job.block, "note", school, { text: `Day-14 check-in sent to ${who(job)} on WhatsApp (the phone line is off). Their reply will update the board.` }, ACTOR);
+              await finish(job, "done", "check-in sent on WhatsApp");
+              return "check-in sent on WhatsApp";
+            } catch {
+              // fall through to the CRP
+            }
+          }
           // No phone line (or a bad number): hand the call to the CRP instead of failing silently.
           await writeEvent(job.block, "note", school, { text: `Follow-up call due for ${who(job)} — Jugnu could not dial (${err.message}). CRP, please call and record the outcome.` }, ACTOR);
           await finish(job, err.status === 503 ? "done" : "failed", err.message);

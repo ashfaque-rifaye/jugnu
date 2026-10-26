@@ -1,4 +1,5 @@
 import { ChevronDown, Eye, EyeOff, FileCheck2, Loader2, Quote, Sparkles, Stars } from "lucide-react";
+import { PairsCard } from "../components/insights";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Dumbbell } from "../components/charts";
@@ -125,6 +126,9 @@ export default function PracticesPage() {
           )}
         </Card>
       )}
+      <div className="mt-5">
+        <PairsCard state={state} />
+      </div>
     </div>
   );
 }

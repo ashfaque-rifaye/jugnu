@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Keyboard, Loader2, Mic, Send, Square, Volume2, VolumeX, WifiOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { CoachBox } from "../components/Coach";
 import { LogoMark } from "../components/Logo";
 import { cx } from "../components/ui";
 import { ApiError, getJSON, postJSON } from "../lib/api";
@@ -367,6 +368,7 @@ export default function TalkPage() {
           )}
         </div>
       )}
+      {status === "completed" && <CoachBox lang={lang} />}
     </Shell>
   );
 }

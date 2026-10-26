@@ -104,7 +104,6 @@ async function dialExotel(to: string, token: string): Promise<string> {
     CallerId: e.from,
     Url: `http://my.exotel.com/${e.sid}/exoml/start_voice/${e.appId}`,
     StatusCallback: `${publicUrl()}/api/ivr/exotel/status?key=${webhookKey()}`,
-    StatusCallbackEvents: "terminal",
     StatusCallbackContentType: "application/json",
     CustomField: token,
     TimeLimit: "900",

@@ -8,7 +8,8 @@ import { ASER_2024, generateBlock } from "../engine/block";
 import { DEFAULT_SEED } from "../engine/district";
 import { evaluate, runPipeline, runTrackStage, type Evaluation } from "../engine/pipeline";
 import { PRACTICES } from "../engine/practices";
-import { CSV_COLUMNS, parseCsv, templateCsv } from "../lib/csv";
+import { CSV_COLUMNS, headerAndSample, parseCsv, remapCsv, templateCsv } from "../lib/csv";
+import { postJSON } from "../lib/api";
 import { useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
@@ -26,13 +27,28 @@ export default function MethodPage() {
     a.click();
     URL.revokeObjectURL(a.href);
   };
+  const [mapped, setMapped] = useState("");
   const onFile = async (f: File) => {
     setErr("");
+    setMapped("");
+    const text = await f.text();
     try {
-      importBlock(parseCsv(await f.text()));
+      importBlock(parseCsv(text));
       nav("/find");
     } catch (e) {
-      setErr((e as Error).message);
+      if (!(e as Error).message.startsWith("Missing columns")) return setErr((e as Error).message);
+      // A state's own export: let Jugnu map its columns onto ours, then try again.
+      try {
+        setMapped(tx("Reading your columns…", "आपके कॉलम पढ़ रहे हैं…"));
+        const { headers, sample } = headerAndSample(text);
+        const r = await postJSON<{ value: { mapping: Record<string, string | null>; scale: Record<string, number>; notes: string[] }; source: string }>("/api/import/map", { target: CSV_COLUMNS, headers, sample });
+        const pairs = Object.entries(r.value.mapping).filter(([, v]) => v);
+        setMapped(`${tx("Matched", "मिलाए गए")} ${pairs.length}/${CSV_COLUMNS.length}: ${pairs.map(([k, v]) => `${v} → ${k}`).join(" · ")}`);
+        importBlock(parseCsv(remapCsv(text, r.value.mapping, r.value.scale)));
+        nav("/find");
+      } catch (e2) {
+        setErr((e2 as Error).message);
+      }
     }
   };
 
@@ -85,6 +101,7 @@ export default function MethodPage() {
                 </button>
               )}
             </div>
+            {mapped && <p className="mt-2 text-xs text-[var(--color-ink-3)]">{mapped}</p>}
             {err && <p className="mt-2 text-xs text-rose-300">{err}</p>}
             <details className="mt-2 text-xs text-[var(--color-ink-3)]">
               <summary className="cursor-pointer">Columns</summary>

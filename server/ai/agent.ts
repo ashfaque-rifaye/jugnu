@@ -13,6 +13,8 @@ import { db, now } from "../db";
 import { writeEvent } from "../eventlog";
 import { enqueue, enqueueForAction, listJobs } from "../scheduler";
 import { CallError, placeCall } from "../telephony";
+import { rememberContact, sendCheckin, sendText, sendVoiceNote, whatsappConfigured } from "../whatsapp";
+import { PRACTICES } from "../../src/engine/practices";
 import { SAFETY } from "./interviewer";
 import { officerTools } from "./officer";
 
@@ -200,6 +202,44 @@ export function writeTools(st: PipelineState, ctx: AgentContext) {
       },
     }),
     betaZodTool({
+      name: "send_whatsapp",
+      description: "Send on WhatsApp to a teacher, with a number the officer gave in this conversation (never invent one): voice_note = the school's peer voice note from the plan, spoken in a Jugnu voice; checkin = the day-14 'did you try it?' question, whose reply updates the board; text = a short message the officer dictated.",
+      inputSchema: z.object({
+        school: z.string(),
+        to: z.string().describe("Phone number with country code"),
+        kind: z.enum(["voice_note", "checkin", "text"]),
+        text: z.string().max(1000).optional().describe("Only for kind=text"),
+        language: z.enum(["hi", "en"]).default("hi"),
+      }),
+      run: async ({ school, to, kind, text, language }) => {
+        const miss = need();
+        if (miss) return miss;
+        const s = byName(school);
+        if (!s) return `No school called "${school}" in this block.`;
+        if (!phoneOk(to)) return "That phone number does not look right — ask for it again with the country code.";
+        if (!whatsappConfigured()) return "WhatsApp is not set up on this server yet (WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID), so nothing was sent.";
+        const rec = st.recs.find((r) => r.schoolId === s.id);
+        const practice = rec ? PRACTICES[rec.practice].label : undefined;
+        try {
+          if (kind === "checkin") await sendCheckin(to, { block: block!, schoolId: s.id, ref: `${s.id}-call`, teacher: s.teacher, practice, language });
+          else if (kind === "voice_note") {
+            if (!rec) return `${s.name} has no peer voice note in the plan.`;
+            await sendVoiceNote(to, language === "en" ? rec.voiceNoteEn : rec.voiceNoteHi, language);
+            await rememberContact(to, { block: block!, schoolId: s.id, ref: `${s.id}-note`, teacher: s.teacher, practice, language });
+          } else {
+            if (!text) return "What should the message say?";
+            await sendText(to, text);
+            await rememberContact(to, { block: block!, schoolId: s.id, teacher: s.teacher, practice, language });
+          }
+          const what = { voice_note: "peer voice note", checkin: "day-14 check-in", text: "message" }[kind];
+          await writeEvent(block!, "note", s.id, { text: `WhatsApp ${what} sent to ${s.teacher} (${s.name}).` }, ACTOR);
+          return `Sent the ${what} to ${s.teacher} at ${s.name} on WhatsApp.`;
+        } catch (e) {
+          return `WhatsApp could not send it: ${(e as Error).message}`;
+        }
+      },
+    }),
+    betaZodTool({
       name: "list_followups",
       description: "What is on Jugnu's clock for this block: pending reminders, visit checks, follow-up calls and escalations with their due dates.",
       inputSchema: z.object({}),
@@ -238,7 +278,7 @@ How to work:
 - "What does X do that similar schools don't?" → contrast_pairs. "What if we send N CRPs / spread this practice to …?" → what_if; give the expected value with its range and name the biggest assumption (planning figure or wave-1 measurement).
 - Do things on screen with the UI tools when asked ("open", "show", "go to", "fill", "mark", "record"). Use read_screen before click or fill.
 - Write to the shared log (record) only when the officer clearly asked for it; repeat back what you recorded.
-- You can also act: move_action moves a step on the plan board, schedule_followup puts a reminder, visit check or follow-up call on Jugnu's clock, escalate_to_beo opens a BEO review, dial_teacher places a real phone call, list_followups shows what is pending. Act when asked plainly ("schedule", "escalate", "call", "mark done"); confirm first only for a phone call with no number given. Say what you did in one sentence.
+- You can also act: move_action moves a step on the plan board, schedule_followup puts a reminder, visit check or follow-up call on Jugnu's clock, escalate_to_beo opens a BEO review, dial_teacher places a real phone call, send_whatsapp sends a voice note, check-in or message on WhatsApp, list_followups shows what is pending. Act when asked plainly ("schedule", "escalate", "call", "mark done"); confirm first only for a phone call with no number given. Say what you did in one sentence.
 - Replies are read aloud: ${ctx.lang === "hi" ? "answer in simple Hindi (Devanagari)" : "answer in plain English"} — but if the officer speaks another language (Tamil, Marathi, …) answer in theirs, in its own script. 1–3 short sentences, no lists, no markdown, numbers as digits.
 - Never shame or rank teachers; a suspicious score means "revisit respectfully".
 - Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.

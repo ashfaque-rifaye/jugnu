@@ -7,6 +7,9 @@ import path from "node:path";
 import { z } from "zod";
 import { readFollowUp } from "./ai/followup";
 import { checkPhoto, PHOTO_TYPES } from "./ai/vision";
+import { askCoach } from "./ai/coach";
+import { mapColumns } from "./ai/mapper";
+import { exportsRouter } from "./exports";
 import { agentBrief, agentPageGuide, agentTurn } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
@@ -18,18 +21,20 @@ import { db, storage } from "./db";
 import { answer, codeAndStore, codedForBlock, codingsOf, createInterview, eraseInterview, getById, getByToken, listInterviews, start, turnsOf } from "./interviews";
 import { EventError, writeEvent } from "./eventlog";
 import { events } from "./events";
-import { jobs } from "./scheduler";
+import { jobs, tick } from "./scheduler";
 import { ivr, telephonyStatus } from "./telephony";
+import { whatsapp, whatsappStatus } from "./whatsapp";
 import { reviews } from "./reviews";
 import { testing } from "./testing";
 import { synthesize, transcribe, voiceConfigured, VOICES } from "./voice";
 
 export const app = express();
 app.set("trust proxy", true);
-app.use(express.json({ limit: "6mb" })); // a phone photo for the spot check, base64
+// 6 MB: a phone photo for the spot check, base64. The raw bytes are kept for webhook signatures (WhatsApp).
+app.use(express.json({ limit: "6mb", verify: (req, _res, buf) => void ((req as { rawBody?: Buffer }).rawBody = buf) }));
 
 app.get("/api/status", (_req, res) =>
-  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: telephonyStatus(), passcode: passcodeRequired(), storage: storage() }),
+  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: telephonyStatus(), whatsapp: whatsappStatus(), passcode: passcodeRequired(), storage: storage() }),
 );
 
 app.post("/api/auth/check", (req, res) => res.json({ ok: !process.env.DEMO_PASSCODE || req.body?.passcode === process.env.DEMO_PASSCODE }));
@@ -158,6 +163,21 @@ app.post("/api/evidence/photo", requireOfficer, rateLimit("photo", 40, 600000), 
   res.json(result);
 });
 
+// ---------------------------------------------------------------- import: map a state's columns onto Jugnu's
+app.post("/api/import/map", requireOfficer, rateLimit("ai", 120, 600000), async (req, res) => {
+  const body = z.object({ target: z.array(z.string().max(40)).min(1).max(40), headers: z.array(z.string().max(120)).min(1).max(200), sample: z.array(z.array(z.string().max(200)).max(200)).max(5).default([]) }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "target and headers are required" });
+  res.json(await mapColumns(body.data.target, body.data.headers, body.data.sample));
+});
+
+// ---------------------------------------------------------------- teacher coach
+// Open to teachers (no passcode), so it is rate-limited per address and answers only from the block's evidence.
+app.post("/api/coach", rateLimit("coach", 20, 600000), async (req, res) => {
+  const body = z.object({ question: z.string().min(4).max(500), lang: z.enum(["hi", "en"]).default("hi"), seed: z.number().int().optional(), schoolId: z.string().max(40).optional() }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "question is required" });
+  res.json(await askCoach(body.data.question, pipelineFor({ seed: body.data.seed }), body.data.lang, body.data.schoolId));
+});
+
 // ---------------------------------------------------------------- the officer asks the block
 app.post("/api/ask", requireOfficer, rateLimit("ask", 60, 600000), async (req, res) => {
   const body = z.object({ question: z.string().min(2).max(500), seed: z.number().int().optional(), track: z.boolean().optional(), block: z.any().optional() }).safeParse(req.body);
@@ -241,6 +261,15 @@ app.use("/api/reviews", reviews);
 app.use("/api/testing", testing);
 app.use("/api/ivr", ivr);
 app.use("/api/jobs", jobs);
+app.use("/api/whatsapp", whatsapp);
+app.use("/api/export", exportsRouter);
+
+// Jugnu's clock on hosts without a long-running process (Vercel Cron calls this with CRON_SECRET).
+app.get("/api/cron/tick", async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.get("authorization") !== `Bearer ${secret}`) return res.status(401).end();
+  res.json(await tick(50));
+});
 
 // Errors are logged and answered as JSON, never as an HTML stack trace.
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

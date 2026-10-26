@@ -9,6 +9,7 @@ import { usePrefs, useT } from "../lib/prefs";
 import { speak, stopSpeaking } from "../lib/speech";
 import { usePipeline } from "../lib/store";
 import { VoiceText } from "./Feedback";
+import { WhatsAppSend } from "./insights";
 import { fieldClass } from "./kit";
 import { cx } from "./ui";
 import { tint } from "../lib/status";
@@ -275,6 +276,7 @@ export function VoiceNote({ rec, school, demo }: { rec: Recommendation; school: 
   const t = useT();
   const { lang } = usePrefs();
   const status = useStatus();
+  const { blockKey } = usePipeline();
   const [reviews, , reload] = usePoll<ReviewItem[]>("/api/reviews?status=all", 10000);
   const mine = reviews?.filter((r) => r.kind === "voice_note" && r.ref === school.id) ?? [];
   const approved = mine.find((r) => r.status === "approved");
@@ -319,6 +321,11 @@ export function VoiceNote({ rec, school, demo }: { rec: Recommendation; school: 
           </button>
         )}
       </div>
+      {approved && (
+        <div className="mt-3 border-t border-white/8 pt-3">
+          <WhatsAppSend blockKey={blockKey} schoolId={school.id} teacher={school.teacher} practice={rec.practice} voiceNote={{ hi, en }} />
+        </div>
+      )}
       <p className="mt-2 text-xs text-[var(--color-ink-3)]">{t("Nothing reaches a teacher until a CRP or the BEO approves it.", "CRP या BEO की मंज़ूरी के बिना कुछ भी शिक्षक तक नहीं जाता।")}</p>
     </div>
   );

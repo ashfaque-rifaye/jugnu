@@ -2,6 +2,7 @@ import { Columns3, Footprints, Handshake, List, Map as MapIcon } from "lucide-re
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ActionRow } from "../components/field";
+import { ExportPlanButton, WhatIfCard } from "../components/insights";
 import { Card, Empty, fieldBase, MediaHeader, PageHeader, Segmented, Stat } from "../components/kit";
 import { LivingMap } from "../components/maps";
 import { cx } from "../components/ui";
@@ -27,7 +28,7 @@ export default function PlanPage() {
   const { lang } = usePrefs();
   const [role] = useRole();
   const [params] = useSearchParams();
-  const { state, select } = usePipeline();
+  const { state, select, blockKey, tracked } = usePipeline();
   const [wave, setWave] = useState<1 | 2>(1);
   const [view, setView] = useState<"board" | "schools" | "map">("board");
   const [owner, setOwner] = useState<"all" | "CRP" | "BEO" | "Jugnu AI">("all");
@@ -239,6 +240,12 @@ export default function PlanPage() {
           </p>
         </Card>
       )}
+      <div className="mt-5 space-y-5">
+        <WhatIfCard state={state} />
+        <div className="flex justify-end">
+          <ExportPlanButton blockKey={blockKey} tracked={tracked} />
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // Offline engine + in-memory database for every server test.
 process.env.JUGNU_DB = ":memory:";
@@ -291,5 +291,123 @@ describe("photo check", () => {
     expect(r.source).toBe("offline");
     expect(r.value.visible).toBe("cannot_tell");
     expect(r.value.seen).toEqual([]);
+  });
+});
+
+describe("WhatsApp (Cloud API, faked)", () => {
+  const calls: { url: string; body: unknown }[] = [];
+  let failNextWith: number | null = null;
+  const realFetch = globalThis.fetch;
+  beforeAll(() => {
+    process.env.WHATSAPP_TOKEN = "test-token";
+    process.env.WHATSAPP_PHONE_NUMBER_ID = "12345";
+    process.env.WHATSAPP_VERIFY_TOKEN = "verify-me";
+    process.env.WHATSAPP_TEMPLATE = "jugnu_checkin";
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
+      calls.push({ url: String(url), body });
+      if (failNextWith) {
+        const code = failNextWith;
+        failNextWith = null;
+        return new Response(JSON.stringify({ error: { message: "Re-engagement message", code } }), { status: 400 });
+      }
+      return new Response(JSON.stringify({ messages: [{ id: `wamid.${calls.length}` }] }), { status: 200 });
+    }) as typeof fetch;
+  });
+  afterAll(() => {
+    globalThis.fetch = realFetch;
+    for (const k of ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_TEMPLATE"]) delete process.env[k];
+  });
+
+  it("normalises numbers and checks signatures", async () => {
+    const { waNumber, signatureOk } = await import("./whatsapp");
+    const { createHmac } = await import("node:crypto");
+    expect(waNumber("98765 43210")).toBe("919876543210");
+    expect(waNumber("+91-98765-43210")).toBe("919876543210");
+    expect(waNumber("12")).toBeNull();
+    const raw = Buffer.from('{"a":1}');
+    const sig = "sha256=" + createHmac("sha256", "s3cret").update(raw).digest("hex");
+    expect(signatureOk(raw, sig, "s3cret")).toBe(true);
+    expect(signatureOk(raw, "sha256=00", "s3cret")).toBe(false);
+  });
+
+  it("sends a check-in, falls back to the template outside the 24-hour window, and reads the reply onto the board", async () => {
+    const { sendCheckin, handleIncoming } = await import("./whatsapp");
+    const { db } = await import("./db");
+    const block = "seed:wa-test";
+    failNextWith = 131047;
+    await sendCheckin("+919876543210", { block, schoolId: "s010", ref: "s010-call", teacher: "Sunita", practice: "Daily reading-level groups" });
+    expect(calls.at(-2)!.url).toContain("/12345/messages");
+    const tpl = calls.at(-1)!.body as { type: string; template: { name: string } };
+    expect(tpl.type).toBe("template");
+    expect(tpl.template.name).toBe("jugnu_checkin");
+
+    expect(await handleIncoming({ from: "919999999999", id: "x", type: "text", text: { body: "hello" } })).toMatch(/unknown number/);
+    const done = await handleIncoming({ from: "919876543210", id: "m1", type: "text", text: { body: "हाँ, रोज़ कर रहे हैं, अच्छा चल रहा है" } });
+    expect(done).toBe("follow-up: adopted");
+    const rows = await db.all<{ kind: string; ref: string; payload: string }>(`SELECT kind, ref, payload FROM events WHERE block = ? ORDER BY id`, block);
+    expect(rows.find((r) => r.kind === "followup")).toBeTruthy();
+    expect(JSON.parse(rows.find((r) => r.ref === "s010-call")!.payload).status).toBe("done");
+    expect((calls.at(-1)!.body as { text: { body: string } }).text.body).toMatch(/धन्यवाद/);
+
+    // A barrier escalates on its own.
+    await sendCheckin("+919876543210", { block, schoolId: "s010", ref: "s010-call", teacher: "Sunita" });
+    expect(await handleIncoming({ from: "919876543210", id: "m2", type: "text", text: { body: "सामग्री नहीं है, कार्ड नहीं मिले" } })).toBe("follow-up: barrier");
+    const job = await db.get<{ kind: string }>(`SELECT kind FROM scheduled_jobs WHERE block = ? AND kind = 'escalate'`, block);
+    expect(job?.kind).toBe("escalate");
+  });
+});
+
+describe("teacher coach and exports", () => {
+  it("answers only with practices proven in the block (offline)", async () => {
+    const { offlineCoach } = await import("./ai/coach");
+    const { pipelineFor } = await import("./blocks");
+    const st = pipelineFor({ seed: 231206 });
+    const proven = st.evidence.filter((e) => e.verdict === "distinctive").map((e) => e.practice);
+    const a = offlineCoach("मेरे बच्चे मात्रा में अटकते हैं, पढ़ नहीं पाते", st, "hi", st.find.struggling[0]);
+    expect(a.practice).not.toBeNull();
+    expect(proven).toContain(a.practice);
+    expect(a.demonstrator?.school).toBeTruthy();
+    expect(offlineCoach("स्कूल की छत टपकती है", st, "hi").practice).toBeNull();
+  });
+  it("exports the plan board with live statuses, and a visit invite", async () => {
+    const { actionsCsv, visitIcs } = await import("./exports");
+    const { writeEvent } = await import("./eventlog");
+    const { pipelineFor } = await import("./blocks");
+    const block = "seed:231206";
+    const st = pipelineFor({ seed: 231206 });
+    const ref = st.recs[0].actions[1].id;
+    await writeEvent(block, "action", ref, { status: "stuck", note: "bus, not running" }, "CRP");
+    const csv = await actionsCsv(block, false);
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    const row = csv.split("\r\n").find((l) => l.includes(",stuck,"));
+    expect(row).toContain('"bus, not running"');
+    const ics = visitIcs(block, st.recs[0].schoolId, new Date("2026-11-02T04:30:00Z"))!;
+    expect(ics).toContain("DTSTART:20261102T043000Z");
+    expect(ics).toContain("BEGIN:VEVENT");
+    expect(visitIcs(block, "nope", new Date())).toBeNull();
+  });
+});
+
+describe("column mapper (offline)", () => {
+  it("maps a UDISE-style export with Hindi headers onto Jugnu's columns", async () => {
+    const { offlineMap } = await import("./ai/mapper");
+    const { CSV_COLUMNS } = await import("../src/lib/csv");
+    const m = offlineMap(CSV_COLUMNS, ["UDISE Code", "विद्यालय का नाम", "Cluster", "Total Enrolment", "PTR", "Teacher Name"]);
+    expect(m.mapping.school_id).toBe("UDISE Code");
+    expect(m.mapping.school_name).toBe("विद्यालय का नाम");
+    expect(m.mapping.enrolment).toBe("Total Enrolment");
+    expect(m.mapping.pupil_teacher_ratio).toBe("PTR");
+    expect(m.mapping.teacher).toBe("Teacher Name");
+    expect(m.mapping.x_km).toBeNull();
+  });
+  it("rewrites a CSV through a mapping, scaling shares", async () => {
+    const { remapCsv, CSV_COLUMNS } = await import("../src/lib/csv");
+    const out = remapCsv("Code,Att\nA1,85\n", { school_id: "Code", attendance: "Att" }, { attendance: 0.01 });
+    const [head, row] = out.split("\n");
+    expect(head).toBe(CSV_COLUMNS.join(","));
+    const cells = row.split(",");
+    expect(cells[CSV_COLUMNS.indexOf("school_id")]).toBe("A1");
+    expect(cells[CSV_COLUMNS.indexOf("attendance")]).toBe("0.85");
   });
 });

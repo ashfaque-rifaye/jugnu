@@ -2,6 +2,7 @@ import { ArrowLeft, BadgeCheck, MapPin, BookOpen, Check, ClipboardList, Footprin
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ActionRow, FollowUpForm, SpotCheckForm, VoiceNote } from "../components/field";
+import { PhotoCheck, VisitInviteButton, WhatsAppSend } from "../components/insights";
 import { InviteForSchool } from "../components/Invite";
 import { SatThumb } from "../components/SchoolMapCard";
 import { Card, Empty, PageHeader, StatusChip, Tracker, useAgo, type TrackStep } from "../components/kit";
@@ -33,7 +34,7 @@ export default function SchoolPage() {
   const nav = useNavigate();
   const { lang } = usePrefs();
   const ago = useAgo();
-  const { state, events, spotChecks, followUps, refreshLive } = usePipeline();
+  const { state, events, spotChecks, followUps, refreshLive, blockKey, tracked } = usePipeline();
   const status = useMemo(() => schoolStatuses(state), [state]);
   const [pilot, , reloadPilot] = usePoll<PilotRow[]>("/api/interviews", 10000);
   const [recheck, setRecheck] = useState(false);
@@ -163,6 +164,9 @@ export default function SchoolPage() {
                 <span className="chip">{rec.distanceKm} km</span>
               </div>
               <VoiceNote rec={rec} school={s} demo={demo} />
+              <div className="mt-3">
+                <VisitInviteButton blockKey={blockKey} schoolId={s.id} tracked={tracked} />
+              </div>
               <div className="mt-4 space-y-2">
                 <div className="label">{t("Owned actions", "ज़िम्मेदारी वाले काम")}</div>
                 {rec.actions.map((a) => (
@@ -198,6 +202,9 @@ export default function SchoolPage() {
                 </p>
               )}
               <FollowUpForm school={s} practice={PRACTICES[rec.practice].label} />
+              <div className="mt-3 border-t border-white/8 pt-3">
+                <WhatsAppSend blockKey={blockKey} schoolId={s.id} teacher={s.teacher} practice={rec.practice} />
+              </div>
             </Card>
           )}
 
@@ -286,6 +293,7 @@ export default function SchoolPage() {
               )}
             </Card>
           )}
+          {v && <PhotoCheck schoolId={s.id} blockKey={blockKey} practices={state.evidence.filter((e) => e.verdict === "distinctive").map((e) => e.practice)} />}
 
           <Card title={t("About the school", "स्कूल के बारे में")} icon={ClipboardList}>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
