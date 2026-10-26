@@ -105,14 +105,19 @@ export function runFind(block: Block): FindResult {
 }
 
 /** Comparison schools: similar context, ordinary results — the contrast that makes practices visible. */
-export function matchComparisons(block: Block, find: FindResult, brightIds: string[], perBright = 1.5): string[] {
+/** Each school's context features, standardised across the block — the space comparisons are matched in. */
+export function featureVector(block: Block): (s: School) => number[] {
   const std = FEATURES.map((f) => {
     const vals = block.schools.map(f.get);
     const m = vals.reduce((a, b) => a + b, 0) / vals.length;
     const sd = Math.sqrt(vals.reduce((a, v) => a + (v - m) ** 2, 0) / vals.length) || 1;
     return { f, m, sd };
   });
-  const vec = (s: School) => std.map(({ f, m, sd }) => (f.get(s) - m) / sd);
+  return (s: School) => std.map(({ f, m, sd }) => (f.get(s) - m) / sd);
+}
+
+export function matchComparisons(block: Block, find: FindResult, brightIds: string[], perBright = 1.5): string[] {
+  const vec = featureVector(block);
   const ordinary = block.schools.filter((s) => {
     const mean = find.z[s.id].reduce((a, b) => a + b, 0) / find.z[s.id].length;
     return !find.candidates.includes(s.id) && mean > -0.8 && mean < 0.3;

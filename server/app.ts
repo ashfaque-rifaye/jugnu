@@ -6,14 +6,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { readFollowUp } from "./ai/followup";
+import { checkPhoto, PHOTO_TYPES } from "./ai/vision";
 import { agentBrief, agentPageGuide, agentTurn } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
 import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
 import { pipelineFor } from "./blocks";
+import { PRACTICE_IDS, PRACTICES, type PracticeId } from "../src/engine/practices";
 import { claudeAvailable, MODEL } from "./claude";
 import { db, storage } from "./db";
 import { answer, codeAndStore, codedForBlock, codingsOf, createInterview, eraseInterview, getById, getByToken, listInterviews, start, turnsOf } from "./interviews";
+import { EventError, writeEvent } from "./eventlog";
 import { events } from "./events";
 import { jobs } from "./scheduler";
 import { ivr, telephonyStatus } from "./telephony";
@@ -23,7 +26,7 @@ import { synthesize, transcribe, voiceConfigured, VOICES } from "./voice";
 
 export const app = express();
 app.set("trust proxy", true);
-app.use(express.json({ limit: "4mb" }));
+app.use(express.json({ limit: "6mb" })); // a phone photo for the spot check, base64
 
 app.get("/api/status", (_req, res) =>
   res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: telephonyStatus(), passcode: passcodeRequired(), storage: storage() }),
@@ -123,6 +126,36 @@ app.post("/api/followup/read", requireOfficer, rateLimit("ai", 120, 600000), asy
   const body = z.object({ reply: z.string().min(1).max(2000), practice: z.string(), schoolId: z.string().optional() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "reply and practice are required" });
   res.json(await readFollowUp(body.data.reply, body.data.practice, body.data.schoolId));
+});
+
+// ---------------------------------------------------------------- verify: a photo from the spot check
+// The photo is checked and dropped; only the verdict is kept (in the block's log, when a block is given).
+app.post("/api/evidence/photo", requireOfficer, rateLimit("photo", 40, 600000), async (req, res) => {
+  const body = z
+    .object({
+      image: z.string().min(100).max(5_500_000), // base64, or a data: URL
+      mediaType: z.enum(PHOTO_TYPES).optional(),
+      practice: z.enum(PRACTICE_IDS as [PracticeId, ...PracticeId[]]),
+      schoolId: z.string().max(40),
+      block: z.string().max(80).optional(),
+    })
+    .safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "image, practice and schoolId are required" });
+  const m = /^data:(image\/[a-z]+);base64,(.*)$/s.exec(body.data.image);
+  const mediaType = (m?.[1] ?? body.data.mediaType ?? "image/jpeg") as (typeof PHOTO_TYPES)[number];
+  if (!PHOTO_TYPES.includes(mediaType)) return res.status(415).json({ error: "Use a JPEG, PNG or WebP photo" });
+  const result = await checkPhoto({ image: m?.[2] ?? body.data.image, mediaType, practice: body.data.practice, ref: body.data.schoolId });
+  const v = result.value;
+  if (body.data.block && result.source === "claude" && !v.child_faces) {
+    const label = PRACTICES[body.data.practice].label;
+    const verdict = { yes: "visible", partly: "partly visible", no: "not visible", cannot_tell: "could not be judged" }[v.visible];
+    try {
+      await writeEvent(body.data.block, "note", body.data.schoolId, { text: `Photo check · ${label}: ${verdict}. ${v.seen.length ? `Seen: ${v.seen.join(", ")}.` : ""}`.trim() }, "Jugnu AI");
+    } catch (e) {
+      if (!(e instanceof EventError)) throw e;
+    }
+  }
+  res.json(result);
 });
 
 // ---------------------------------------------------------------- the officer asks the block

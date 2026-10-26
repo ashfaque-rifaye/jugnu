@@ -264,3 +264,32 @@ describe("scheduler and agent write tools", () => {
     expect(await use(tools, "move_action", { school: "Nowhere School", step: "note", status: "done" })).toMatch(/No school/);
   });
 });
+
+describe("officer insight tools", () => {
+  it("contrast_pairs and what_if answer from the block, without Claude", async () => {
+    const { officerTools } = await import("./ai/officer");
+    const { pipelineFor } = await import("./blocks");
+    const st = pipelineFor({ seed: 2024 });
+    const tools = officerTools(st);
+    const run = (name: string, input: object) => (tools.find((t) => t.name === name) as unknown as { run: (i: object) => string | Promise<string> }).run(input);
+    const pairs = JSON.parse(await run("contrast_pairs", { limit: 2 }));
+    expect(pairs.length).toBe(2);
+    expect(pairs[0].bright_spot).not.toBe(pairs[0].matched_with);
+    const practice = st.evidence.find((e) => e.verdict === "distinctive")!.practice;
+    const r = JSON.parse(await run("what_if", { practice, crps: 3, days_each: 3 }));
+    expect(r.schools).toBe(st.find.struggling.length);
+    expect(r.upliftPts.lo).toBeLessThanOrEqual(r.upliftPts.hi);
+    expect(r.assumptions.length).toBeGreaterThan(2);
+    expect(await run("what_if", { practice, schools: ["no such school"], crps: 1, days_each: 3 })).toMatch(/None of those/);
+  });
+});
+
+describe("photo check", () => {
+  it("falls back honestly when Claude is unavailable", async () => {
+    const { checkPhoto } = await import("./ai/vision");
+    const r = await checkPhoto({ image: "iVBORw0KGgo=", mediaType: "image/png", practice: "print_wall" });
+    expect(r.source).toBe("offline");
+    expect(r.value.visible).toBe("cannot_tell");
+    expect(r.value.seen).toEqual([]);
+  });
+});

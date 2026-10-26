@@ -3,7 +3,8 @@
 // with an API key, steered towards the block's school, cluster and teacher names. Text-to-speech:
 // Google Chirp 3 HD voices in Hindi, Indian English and other Indian languages.
 // All language-model work (understanding, answering, agent tools) is Claude — see ../claude.ts.
-// TODO(bhashini): add Sarvam / Bhashini as an alternative STT/TTS engine — see ./bhashini.ts.
+// TODO(bhashini): add Sarvam / Bhashini as an alternative engine behind transcribe() and synthesize()
+// (same Heard / Buffer contracts), chosen by a SPEECH_PROVIDER env. Tracked in PROJECT-HISTORY §12.
 import { GoogleAuth } from "google-auth-library";
 import { createHash } from "node:crypto";
 

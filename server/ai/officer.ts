@@ -4,7 +4,8 @@
 // names that really exist and require the answer to be based on at least one lookup.
 import { betaZodOutputFormat, betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { PRACTICES } from "../../src/engine/practices";
+import { contrastPairs, whatIf } from "../../src/engine/insights";
+import { PRACTICE_IDS, PRACTICES, type PracticeId } from "../../src/engine/practices";
 import type { PipelineState } from "../../src/engine/pipeline";
 import { claudeAvailable, describeError, getClient, MODEL } from "../claude";
 import { db, now } from "../db";
@@ -154,6 +155,44 @@ export function officerTools(st: PipelineState) {
               .map(({ practice, quote }) => ({ practice, quote })),
           })),
         );
+      },
+    }),
+    betaZodTool({
+      name: "contrast_pairs",
+      description: "Each verified bright spot beside the ordinary school most like it (matched on context), how far each is above or below expectation, what they have in common, and what each teacher said about every practice. Use for 'what does X do that similar schools don't?'.",
+      inputSchema: z.object({ school: z.string().optional().describe("Only the pair for this bright spot"), limit: z.number().int().min(1).max(12).default(4) }),
+      run: ({ school, limit }) => {
+        const name = (id: string) => st.block.schools.find((s) => s.id === id)?.name ?? id;
+        const target = school ? byName(school)?.id : null;
+        const pairs = contrastPairs(st).filter((p) => !target || p.bright.schoolId === target || p.comparison.schoolId === target);
+        if (!pairs.length) return school ? `${school} is not a verified bright spot or its match.` : "No interviewed bright spots yet, so there are no pairs.";
+        return JSON.stringify(
+          pairs.slice(0, limit).map((p) => ({
+            bright_spot: name(p.bright.schoolId),
+            above_expected_pts: p.bright.aboveExpected,
+            matched_with: name(p.comparison.schoolId),
+            match_above_expected_pts: p.comparison.aboveExpected,
+            alike: p.alike,
+            road_km_apart: p.roadKm,
+            practices: p.practices.map((x) => ({ practice: PRACTICES[x.practice].label, distinctive: x.distinctive, bright_said: x.bright, match_said: x.comparison })),
+          })),
+        );
+      },
+    }),
+    betaZodTool({
+      name: "what_if",
+      description: "Estimate what happens if CRPs spread one practice to chosen schools this fortnight: peer visits that fit in CRP time, expected adopters, change in Grade 3 proficiency (points, 90% range) and children reached, with every assumption. Defaults to the schools needing support.",
+      inputSchema: z.object({
+        practice: z.enum(PRACTICE_IDS as [PracticeId, ...PracticeId[]]),
+        schools: z.array(z.string()).max(60).optional().describe("School names; omit for all schools needing support"),
+        crps: z.number().int().min(0).max(30).default(3),
+        days_each: z.number().int().min(1).max(10).default(3).describe("CRP days per person given to peer visits"),
+      }),
+      run: ({ practice, schools, crps, days_each }) => {
+        const ids = schools?.length ? schools.map((n) => byName(n)?.id).filter((x): x is string => Boolean(x)) : st.find.struggling;
+        if (!ids.length) return "None of those names are schools in this block.";
+        const r = whatIf(st, { practice, schoolIds: ids, crps, daysEach: days_each });
+        return JSON.stringify({ ...r, practice: PRACTICES[practice].label, perSchool: undefined, unvisited: r.perSchool.filter((p) => !p.visited).length });
       },
     }),
   ];
