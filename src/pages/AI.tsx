@@ -102,6 +102,50 @@ const TASKS: { id: string; en: string; hi: string; input: string; model: string;
     output: "Answer, schools, one next step with an owner",
     fallback: "Rule-based answers for common questions",
   },
+  {
+    id: "agent.turn",
+    en: "Jugnu assistant (voice orb + chat)",
+    hi: "जुगनू सहायक (आवाज़ + चैट)",
+    input: "What the officer said or typed, the page on screen, the block's live state",
+    model: "Claude Sonnet agent: briefs, answers, and works the console through tools — go to a page, open a school, fill a form, move an action, schedule a follow-up, escalate, dial a teacher, send a WhatsApp voice note",
+    guard: "Writes only through the same validated event log as a person · every write logged as \"Jugnu AI\" · calls and WhatsApp only to a number the officer gave, format-checked · school names checked against the block",
+    evals: "Tools used per turn (in the trace); write actions visible in the activity log",
+    output: "Spoken (Chirp 3 HD) and shown as a speech bubble; the console moves on screen",
+    fallback: "Officer Q&A rules; the console works by hand",
+  },
+  {
+    id: "verify.photo",
+    en: "Spot-check photo check",
+    hi: "जाँच की फ़ोटो",
+    input: "A CRP's classroom photo + the practice being checked",
+    model: "Claude Haiku (vision): is the practice visible — yes / partly / no / cannot tell — and only what is seen",
+    guard: "Never identifies people · flags recognisable children's faces for a retake · the photo is never stored, only the verdict",
+    evals: "Agreement with the CRP's own judgement in pilot",
+    output: "Verdict in the school's log next to the spot check",
+    fallback: "\"Cannot tell — CRP decides\"",
+  },
+  {
+    id: "coach.answer",
+    en: "Teacher coach",
+    hi: "शिक्षक सलाहकार",
+    input: "A teacher's classroom problem, in Hindi or English",
+    model: "Claude Haiku answers only with practices proven in the teacher's own block",
+    guard: "Practice must be distinctive in this block · one quote, verbatim from a bright-spot teacher · answer in the teacher's language · names the nearest school that does it",
+    evals: "Grounding rate; teacher usefulness rating in testing",
+    output: "2–3 sentences, steps for tomorrow, a peer's words and who to visit",
+    fallback: "Keyword match to the block's proven practices",
+  },
+  {
+    id: "import.map_columns",
+    en: "State-data column mapper",
+    hi: "राज्य डेटा के कॉलम",
+    input: "Headers and 3 sample rows of a district's own spreadsheet (UDISE+ export, Hindi headers…)",
+    model: "Claude Haiku says which source column fills each Jugnu column, and any unit change (0–100 → 0–1)",
+    guard: "Every named column exists in the file · no column used twice · scales plausible",
+    evals: "Unit tests on real header sets",
+    output: "The file is re-shaped and runs through Find + Verify",
+    fallback: "Synonym table (English and Hindi names)",
+  },
 ];
 
 export default function AIPage() {
@@ -117,7 +161,7 @@ export default function AIPage() {
     <div className="space-y-5">
       <Glass strong className="p-5 md:p-7">
         <div className="label">{t("Effective AI use", "AI का सही इस्तेमाल")}</div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{t("Six AI tasks, each in five layers", "छह AI काम, हर एक पाँच परतों में")}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{t("Ten AI tasks, each in five layers", "दस AI काम, हर एक पाँच परतों में")}</h1>
         <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
           {t(
             "Claude does what language models are good at — conversation, reading meaning in code-mixed Hindi, writing from evidence, using tools. Statistics does the counting (who beats expectation, what is distinctive, did it work). Deterministic guardrails sit between the model and the user, and the offline engine answers whenever Claude is slow, unavailable or fails a check.",

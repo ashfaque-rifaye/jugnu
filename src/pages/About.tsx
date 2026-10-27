@@ -35,7 +35,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
   const TRY = [
     { to: "/talk", icon: Mic, title: t("Be the teacher", "शिक्षक बनकर देखें"), text: t("A 12-minute Hindi voice interview with Jugnu on your phone — no app, no login.", "अपने फ़ोन पर जुगनू से 12 मिनट की हिंदी आवाज़-बातचीत — न ऐप, न लॉगिन।"), ext: true },
     { to: "/interviews", icon: Phone, title: t("Phone line", "फ़ोन लाइन"), text: t("The same interview on a basic phone call, with the exact TwiML at each step.", "वही बातचीत साधारण फ़ोन कॉल पर — हर कदम का TwiML भी।"), ext: false },
-    { to: "/ai", icon: BrainCircuit, title: t("AI & guardrails", "AI व जाँच"), text: t("Six AI tasks in five layers, the live trace of every call, and the evaluation.", "छह AI काम पाँच परतों में, हर कॉल का लाइव ट्रेस, और मूल्यांकन।"), ext: false },
+    { to: "/ai", icon: BrainCircuit, title: t("AI & guardrails", "AI व जाँच"), text: t("Ten AI tasks in five layers, the live trace of every call, and the evaluation.", "दस AI काम पाँच परतों में, हर कॉल का लाइव ट्रेस, और मूल्यांकन।"), ext: false },
     { to: "/testing", icon: FlaskConical, title: t("User testing", "उपयोगकर्ता परीक्षण"), text: t("Sessions with teachers, CRPs and BEOs — tasks, usability survey, what we changed.", "शिक्षकों, CRP और BEO के साथ सत्र — काम, सर्वे, और जो बदला गया।"), ext: false },
   ];
 
