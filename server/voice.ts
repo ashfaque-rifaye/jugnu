@@ -59,7 +59,8 @@ export async function transcribe(audio: Buffer, mime: string, lang: string, hint
           config: {
             autoDecodingConfig: {},
             model: "chirp_3",
-            languageCodes: ["auto"],
+            // The interview language first, then the other one: "auto" guesses wrong on short phone answers ("हाँ").
+            languageCodes: [locale, ...["hi-IN", "en-IN"].filter((l) => l !== locale)],
             features: { enableAutomaticPunctuation: true },
             // (Chirp 3 takes no phrase hints; the agent matches misheard names to the block's schools.)
           },

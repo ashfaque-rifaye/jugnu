@@ -147,7 +147,7 @@ async function dialPlivo(to: string, token: string): Promise<string> {
 const SAMPLE_RATE = 8000;
 const BYTES_PER_MS = (SAMPLE_RATE * 2) / 1000;
 const SPEECH_RMS = 700; // 16-bit samples; a quiet phone line idles around 100–300
-const MIN_SPEECH_MS = 350;
+const MIN_SPEECH_MS = 250; // a short "हाँ" is ~300 ms
 const END_SILENCE_MS = 1000;
 const MAX_UTTERANCE_MS = 25000;
 const NO_SPEECH_MS = 9000; // nothing heard at all → Jugnu asks again
@@ -207,6 +207,8 @@ class CallSession {
   private closed = false;
   /** A stream that has not named a live Jugnu call within 15 s is closed. */
   private admit: ReturnType<typeof setTimeout>;
+  /** For the one-line summary logged when the stream closes. */
+  private stats = { opened: Date.now(), frames: 0, loud: 0, peak: 0, turns: 0 };
 
   constructor(
     private ws: WebSocket,
@@ -215,7 +217,12 @@ class CallSession {
     private token: string | null,
   ) {
     ws.on("message", (data) => void this.onMessage(data.toString()));
-    ws.on("close", () => ((this.closed = true), clearTimeout(this.admit)));
+    ws.on("close", (code) => {
+      this.closed = true;
+      clearTimeout(this.admit);
+      const s = this.stats;
+      if (this.row) console.log(`[${provider}] stream closed (${code}) after ${Math.round((Date.now() - s.opened) / 1000)} s: ${s.frames} audio frames in, ${s.loud} above the speech level, loudest ${Math.round(s.peak)}, ${s.turns} turns`);
+    });
     ws.on("error", (e) => console.warn(`[${provider}] stream error`, e.message));
     this.admit = setTimeout(() => !this.row && ws.close(), 15_000);
   }
@@ -248,7 +255,12 @@ class CallSession {
       this.ws.close();
       return;
     }
-    if (ev.type !== "media" || !this.row || this.speaking || this.busy) return;
+    if (ev.type !== "media" || !this.row) return;
+    const level = rms(ev.pcm);
+    this.stats.frames++;
+    this.stats.peak = Math.max(this.stats.peak, level);
+    if (level > SPEECH_RMS) this.stats.loud++;
+    if (this.speaking || this.busy) return;
     this.hear(ev.pcm);
   }
 
@@ -298,6 +310,7 @@ class CallSession {
         }
       }
       const result = await answer(this.row, text, { source: "asr", deadlineMs: 15000 });
+      this.stats.turns++;
       this.row = (await getById(this.row.id)) ?? this.row;
       await this.say(result.reply.say);
       if (result.status === "completed" || result.status === "declined") {
