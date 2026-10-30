@@ -22,3 +22,6 @@ tsconfig.tsbuildinfo
 
 # Local logo concept sheets (generated one-offs)
 demo/logo-concepts/
+
+# rendered films
+video/out/
