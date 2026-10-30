@@ -7,8 +7,8 @@
   --font-deva: "Noto Sans Devanagari", "Inter", sans-serif;
 
   --color-ink: rgb(255 255 255 / 0.95);
-  --color-ink-2: rgb(255 255 255 / 0.78);
-  --color-ink-3: rgb(255 255 255 / 0.58);
+  --color-ink-2: rgb(255 255 255 / 0.86);
+  --color-ink-3: rgb(255 255 255 / 0.72);
 
   --color-cause-concept: #3987e5;
   --color-cause-language: #d95926;
@@ -123,8 +123,8 @@
   --color-white: #fff;
   --color-black: #000;
   --color-ink: rgb(255 255 255 / 0.95);
-  --color-ink-2: rgb(255 255 255 / 0.76);
-  --color-ink-3: rgb(255 255 255 / 0.55);
+  --color-ink-2: rgb(255 255 255 / 0.86);
+  --color-ink-3: rgb(255 255 255 / 0.72);
   --color-amber-100: oklch(96.2% 0.059 95.617);
   --color-amber-200: oklch(92.4% 0.12 95.746);
   --color-amber-300: oklch(87.9% 0.169 91.605);
@@ -245,6 +245,8 @@ body {
   -webkit-tap-highlight-color: transparent;
   transition: background 0.4s ease;
 }
+/* html keeps the page colour; a body background would paint over .app-bg down to where the content ends. */
+body { background: transparent; }
 h1,
 h2,
 h3,
@@ -458,7 +460,7 @@ h3,
     animation: shimmer 8s linear infinite;
   }
   .label {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-ink-3);
@@ -593,7 +595,7 @@ h3,
   }
   .nav-item.active { color: var(--nav-active-ink); font-weight: 600; }
   .nav-pill { position: absolute; inset: 0; border-radius: 9999px; background: var(--nav-active); box-shadow: var(--seg-on-shadow); z-index: -1; }
-  .table-clean th { font-size: 0.72rem; font-weight: 600; color: var(--color-ink-3); text-align: left; padding: 0.6rem 0.9rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .table-clean th { font-size: 0.75rem; font-weight: 600; color: var(--color-ink-3); text-align: left; padding: 0.6rem 0.9rem; text-transform: uppercase; letter-spacing: 0.08em; }
   .table-clean td { padding: 0.7rem 0.9rem; border-top: 1px solid var(--line); vertical-align: middle; }
   .table-clean tbody tr { cursor: pointer; transition: background 0.12s; }
   .table-clean tbody tr:hover { background: var(--hover); }
@@ -790,3 +792,5 @@ main .grid > * { min-width: 0; }
   .tap-link { display: inline-flex; align-items: center; min-height: 2.625rem; }
   .real-map .maplibregl-ctrl-group button { width: 2.625rem; height: 2.625rem; }
 }
+
+.real-map .maplibregl-ctrl-scale { font-size: 12px; }

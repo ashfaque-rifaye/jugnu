@@ -14,7 +14,7 @@ export function Wordmark({ size = 34, sub, className }: { size?: number; sub?: s
         <span className="font-display text-[1.15rem] font-bold tracking-tight">
           Jugnu <span className="font-deva text-sm font-semibold text-[var(--color-ink-3)]">जुगनू</span>
         </span>
-        {sub && <span className="mt-1 block text-[11px] font-medium text-[var(--color-ink-3)]">{sub}</span>}
+        {sub && <span className="mt-1 block text-xs font-medium text-[var(--color-ink-3)]">{sub}</span>}
       </span>
     </span>
   );

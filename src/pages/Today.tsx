@@ -151,7 +151,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
           tone="var(--tone-teal)"
           className="lg:col-span-2 2xl:col-span-1"
           right={
-            <span className="chip !text-[11px]" style={{ color: "var(--tone-good)" }}>
+            <span className="chip !text-xs" style={{ color: "var(--tone-good)" }}>
               <span className="live-dot !h-1.5 !w-1.5" /> {t("all devices", "सभी डिवाइस")}
             </span>
           }
@@ -161,6 +161,10 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
           </div>
         </Card>
       </div>
+
+      <Card title={t("From data to action, this term", "डेटा से काम तक, इस सत्र")} icon={Workflow} tone="var(--tone-lime)" accent>
+        <LoopFlow compact />
+      </Card>
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
         <NeedsYou tasks={tasks} />
@@ -206,10 +210,6 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
         </Card>
       </div>
 
-      <Card title={t("From data to action, this term", "डेटा से काम तक, इस सत्र")} icon={Workflow} tone="var(--tone-lime)" accent>
-        <LoopFlow compact />
-      </Card>
-
       <Card
         title={t("Interviews from the field", "मैदान से बातचीत")}
         icon={Mic}
@@ -231,7 +231,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
                 <span className="min-w-0 truncate">
                   <b>{p.teacher_name || t("Teacher", "शिक्षक")}</b> <span className="text-[var(--color-ink-3)]">· {p.school_name || "—"}</span>
                 </span>
-                <span className="chip shrink-0 text-[11px]" style={p.status === "completed" ? { color: "var(--tone-good)" } : p.status === "in_progress" ? { color: "var(--tone-teal)" } : undefined}>
+                <span className="chip shrink-0 text-xs" style={p.status === "completed" ? { color: "var(--tone-good)" } : p.status === "in_progress" ? { color: "var(--tone-teal)" } : undefined}>
                   {p.status === "in_progress" && <span className="live-dot !h-1.5 !w-1.5" />}
                   {p.status === "completed"
                     ? t(`done · ${new Set(p.practices).size} practices`, `पूरी · ${new Set(p.practices).size} तरीके`)
@@ -259,7 +259,7 @@ function StartHere({ task, school, onOpen, more }: { task: Task; school?: { name
     <div className={cx("text-white", lang === "hi" && "font-deva")}>
       <div className="flex items-center justify-between">
         <span className="label !text-white/60">{t("Start here", "यहीं से शुरू करें")}</span>
-        {more > 0 && <span className="text-[11px] font-medium text-white/50">{t(`+${more} more below`, `+${more} और नीचे`)}</span>}
+        {more > 0 && <span className="text-xs font-medium text-white/50">{t(`+${more} more below`, `+${more} और नीचे`)}</span>}
       </div>
       <div className="mt-2.5 flex items-start gap-3">
         <span className="icon-tile h-11 w-11 rounded-[0.95rem]" style={{ "--tile": tone } as CSSProperties}>

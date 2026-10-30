@@ -82,16 +82,16 @@ export default function ResultsPage() {
                     <div className="text-xs text-[var(--color-ink-3)]">{lang === "hi" ? PRACTICES[r.practice].labelHi : PRACTICES[r.practice].label}</div>
                   </div>
                   {f ? (
-                    <span className="chip text-[11px]" style={{ borderColor: tint(OUTCOME[f.outcome].color, 55), color: OUTCOME[f.outcome].color }}>
+                    <span className="chip text-xs" style={{ borderColor: tint(OUTCOME[f.outcome].color, 55), color: OUTCOME[f.outcome].color }}>
                       {t(OUTCOME[f.outcome].en, OUTCOME[f.outcome].hi)}
                     </span>
                   ) : (
-                    <span className="chip text-[11px]">{t("Not called yet", "कॉल बाकी")}</span>
+                    <span className="chip text-xs">{t("Not called yet", "कॉल बाकी")}</span>
                   )}
                 </div>
                 {f?.said && <div className="mt-2 font-deva text-sm">“{f.said}”</div>}
                 {f && !mine && f.saidEn && <div className="text-xs text-[var(--color-ink-3)]">{f.saidEn}</div>}
-                {f && !mine && <div className="mt-1 text-[11px] text-[var(--color-ink-3)]">{t("Simulated call (demo term)", "सिम्युलेटेड कॉल (डेमो सत्र)")}</div>}
+                {f && !mine && <div className="mt-1 text-xs text-[var(--color-ink-3)]">{t("Simulated call (demo term)", "सिम्युलेटेड कॉल (डेमो सत्र)")}</div>}
                 <button className="tap-link mt-2 text-sm text-amber-200" onClick={() => setOpen(open === s.id ? null : s.id)}>
                   {open === s.id ? t("Close", "बंद करें") : f ? t("Record a new call", "नई कॉल दर्ज करें") : t("Record the call", "कॉल दर्ज करें")}
                 </button>

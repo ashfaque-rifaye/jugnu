@@ -123,7 +123,7 @@ export function StatusChip({ status, size = "md" }: { status: SchoolStatus; size
   const t = useT();
   const s = STATUS_INFO[status];
   return (
-    <span className={cx("chip", size === "sm" && "!px-2 !py-0.5 !text-[11px]")} style={{ borderColor: tint(s.color, 45), background: tint(s.color, 12), color: s.color }}>
+    <span className={cx("chip", size === "sm" && "!px-2 !py-0.5 !text-xs")} style={{ borderColor: tint(s.color, 45), background: tint(s.color, 12), color: s.color }}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} aria-hidden />
       {t(s.en, s.hi)}
     </span>
@@ -163,7 +163,7 @@ export function Segmented<T extends string | number>({
           >
             {on && <motion.span layoutId={`seg-${id}`} className="seg-on absolute inset-0 -z-10 rounded-full" transition={SPRING} />}
             {o.label}
-            {o.count !== undefined && <span className="rounded-full bg-[rgb(var(--fg)/0.08)] px-1.5 text-[11px] tabular-nums">{o.count}</span>}
+            {o.count !== undefined && <span className="rounded-full bg-[rgb(var(--fg)/0.08)] px-1.5 text-xs tabular-nums">{o.count}</span>}
           </button>
         );
       })}
@@ -210,18 +210,6 @@ export function Field({ label, children, hint }: { label: ReactNode; children: R
 }
 
 /** A page header over a quiet background video (poster image only in low-data mode). */
-export function MediaHeader({ video, poster, children }: { video: string; poster: string; children: ReactNode }) {
-  const { lite } = usePrefs();
-  return (
-    <section className="card on-dark relative mb-6 overflow-hidden">
-      {lite ? <img className="welcome-video" src={poster} alt="" aria-hidden /> : <video className="welcome-video" src={video} poster={poster} autoPlay muted loop playsInline aria-hidden />}
-      <div className="welcome-shade" />
-      <AIVideoLabel className="absolute bottom-3 right-3" />
-      <div className="relative p-5 md:p-8">{children}</div>
-    </section>
-  );
-}
-
 /** The slow aurora behind the glass (deck palette). */
 export function AppBackground() {
   return (
@@ -235,7 +223,7 @@ export function AppBackground() {
 
 /** Visible label for AI-generated video, wherever one plays. */
 export function AIVideoLabel({ className }: { className?: string }) {
-  return <span className={cx("on-dark pointer-events-none rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-medium text-white/70 backdrop-blur-md", className)}>AI video · Veo</span>;
+  return <span className={cx("on-dark pointer-events-none rounded-full bg-black/40 px-2 py-0.5 text-xs font-medium text-white/70 backdrop-blur-md", className)}>AI video · Veo</span>;
 }
 
 /** "3 days ago" in the user's language. */

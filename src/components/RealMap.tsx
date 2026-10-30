@@ -428,7 +428,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
       {/* where this is */}
       <div className="chrome absolute bottom-9 left-3 z-10 hidden items-center gap-2 rounded-2xl px-2.5 py-1.5 sm:flex">
         <Locator block={block} onBlock={onBlock} size={0.8} />
-        <div className="text-[11px] leading-tight">
+        <div className="text-xs leading-tight">
           <div className="font-semibold">{t(`${block ?? ""} block`, `${block ?? ""} ब्लॉक`)}</div>
           <div className="text-[var(--color-ink-3)]">{t("Damoh · Madhya Pradesh", "दमोह · मध्य प्रदेश")}</div>
         </div>

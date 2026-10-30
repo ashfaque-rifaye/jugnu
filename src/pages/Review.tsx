@@ -46,7 +46,7 @@ export default function ReviewPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight md:text-[1.75rem]">{t("Approvals", "मंज़ूरी")}</h1>
+        <h1 className="text-[1.9rem] font-semibold leading-tight tracking-[-0.035em]">{t("Approvals", "मंज़ूरी")}</h1>
         <p className="mt-1 max-w-3xl text-[15px] text-[var(--color-ink-2)]">
           {t(
             "Claude drafts practice cards and peer voice notes from teachers' own words. Automatic checks run first (every step cites a real quote, no invented numbers, right language, fits in 60 seconds); then a CRP or the BEO approves, edits or rejects.",
@@ -89,16 +89,25 @@ export default function ReviewPage() {
 }
 
 function Checks({ checks }: { checks: CheckRow[] }) {
+  const t = useT();
   if (!checks.length) return null;
+  const passed = checks.filter((c) => c.passed).length;
+  const clean = passed === checks.length;
   return (
-    <div className="flex flex-wrap gap-1">
-      {checks.map((c) => (
-        <span key={c.name} className="chip text-[10px]" style={{ borderColor: c.passed ? "#2dd4bf88" : "#f8717188", background: c.passed ? "#2dd4bf14" : "#f8717114" }} title={c.detail}>
-          {c.passed ? <ShieldCheck size={11} className="text-teal-300" /> : <ShieldAlert size={11} className="text-red-300" />} {c.name}
-          {c.detail && !c.passed ? ` — ${c.detail}` : ""}
-        </span>
-      ))}
-    </div>
+    <details open={!clean}>
+      <summary className="tap-link cursor-pointer text-sm font-medium text-[var(--color-ink-2)]">
+        {clean ? <ShieldCheck size={15} className="mr-1.5 inline text-teal-300" /> : <ShieldAlert size={15} className="mr-1.5 inline text-red-300" />}
+        {t(`${passed} of ${checks.length} automatic checks passed`, `${checks.length} में से ${passed} जाँच पास`)}
+      </summary>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {checks.map((c) => (
+          <span key={c.name} className="chip text-xs" style={{ borderColor: c.passed ? "#2dd4bf88" : "#f8717188", background: c.passed ? "#2dd4bf14" : "#f8717114" }} title={c.detail}>
+            {c.passed ? <ShieldCheck size={11} className="text-teal-300" /> : <ShieldAlert size={11} className="text-red-300" />} {c.name}
+            {c.detail && !c.passed ? ` — ${c.detail}` : ""}
+          </span>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -142,7 +151,7 @@ function ReviewCard({ item, reviewer, onDone }: { item: Item; reviewer: string; 
                     <div className="font-deva text-sm">{s.hi}</div>
                     {s.en && <div className="text-xs text-[var(--color-ink-3)]">{s.en}</div>}
                     {s.quote_ids.map((qid) => (
-                      <div key={qid} className="mt-1 flex gap-1 text-[11px] text-[var(--color-ink-3)]">
+                      <div key={qid} className="mt-1 flex gap-1 text-xs text-[var(--color-ink-3)]">
                         <Quote size={11} className="mt-0.5 shrink-0 text-amber-200" /> <span className="font-deva">{quotes.get(qid)?.quote ?? `#${qid}`}</span>
                       </div>
                     ))}
@@ -169,7 +178,12 @@ function ReviewCard({ item, reviewer, onDone }: { item: Item; reviewer: string; 
           ) : (
             <p className="mt-2 font-deva text-sm leading-relaxed">{item.payload.voice_hi}</p>
           )}
-          {item.payload.voice_en && <p className="mt-2 text-xs text-[var(--color-ink-3)]">{item.payload.voice_en}</p>}
+          {item.payload.voice_en && (
+            <details className="mt-1">
+              <summary className="tap-link cursor-pointer text-sm text-[var(--color-ink-2)]">{t("Read in English", "अंग्रेज़ी में पढ़ें")}</summary>
+              <p className="mt-1 text-sm text-[var(--color-ink-2)]">{item.payload.voice_en}</p>
+            </details>
+          )}
           <button className="btn btn-glass mt-2 !py-1.5" onClick={() => speak(editing ? text : item.payload.voice_hi ?? "", "hi-IN")}>
             <Volume2 size={14} /> {t("Listen", "सुनें")}
           </button>
@@ -177,7 +191,6 @@ function ReviewCard({ item, reviewer, onDone }: { item: Item; reviewer: string; 
       )}
 
       <div className="mt-3">
-        <div className="label mb-1">{t("Automatic checks", "अपने-आप जाँच")}</div>
         <Checks checks={item.checks} />
       </div>
 

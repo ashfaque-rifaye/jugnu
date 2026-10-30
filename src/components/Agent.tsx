@@ -168,14 +168,14 @@ function sentences(text: string): string[] {
 }
 
 export const VOICE_CHOICES: { id: string; en: string; hi: string }[] = [
-  { id: "Aoede", en: "Aoede · warm", hi: "Aoede · गर्मजोशी" },
-  { id: "Kore", en: "Kore · clear", hi: "Kore · साफ़" },
-  { id: "Leda", en: "Leda · gentle", hi: "Leda · कोमल" },
-  { id: "Zephyr", en: "Zephyr · bright", hi: "Zephyr · चमकदार" },
-  { id: "Charon", en: "Charon · calm (male)", hi: "Charon · शांत (पुरुष)" },
-  { id: "Puck", en: "Puck · lively (male)", hi: "Puck · जोशीला (पुरुष)" },
-  { id: "Orus", en: "Orus · steady (male)", hi: "Orus · स्थिर (पुरुष)" },
-  { id: "Fenrir", en: "Fenrir · deep (male)", hi: "Fenrir · गहरा (पुरुष)" },
+  { id: "Aoede", en: "Warm · woman", hi: "गर्मजोशी · महिला" },
+  { id: "Kore", en: "Clear · woman", hi: "साफ़ · महिला" },
+  { id: "Leda", en: "Gentle · woman", hi: "कोमल · महिला" },
+  { id: "Zephyr", en: "Bright · woman", hi: "चमकदार · महिला" },
+  { id: "Charon", en: "Calm · man", hi: "शांत · पुरुष" },
+  { id: "Puck", en: "Lively · man", hi: "जोशीला · पुरुष" },
+  { id: "Orus", en: "Steady · man", hi: "स्थिर · पुरुष" },
+  { id: "Fenrir", en: "Deep · man", hi: "गहरा · पुरुष" },
 ];
 const VOICE_KEY = "jugnu-voice";
 const savedVoice = () => {
@@ -756,7 +756,7 @@ function Chips({ tools, dark }: { tools: Line["tools"]; dark?: boolean }) {
       {tools
         .filter((x) => (seen.has(x.name + x.ok) ? false : (seen.add(x.name + x.ok), true)))
         .map((x, i) => (
-          <span key={i} className={dark ? `inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] ${x.ok ? "text-white/70" : "text-rose-300"}` : `chip !gap-1 !px-1.5 !py-0 !text-[10px] ${x.ok ? "" : "!text-rose-300"}`}>
+          <span key={i} className={dark ? `inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs ${x.ok ? "text-white/70" : "text-rose-300"}` : `chip !gap-1 !px-1.5 !py-0 !text-xs ${x.ok ? "" : "!text-rose-300"}`}>
             {x.ok ? <Check size={10} /> : <X size={10} />}
             {x.name === "briefing" ? t("Briefing", "ब्रीफ़िंग") : TOOL_LABEL[x.name] ? t(...TOOL_LABEL[x.name]) : x.name}
           </span>
@@ -853,7 +853,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] px-4 py-3">
               <div className="min-w-0 flex-1 font-display text-base font-bold leading-tight">{t("Jugnu", "जुगनू")}</div>
               {a.cloud && (
-                <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className={`${fieldBase} !h-8 !w-auto !max-w-[108px] !py-0 text-xs`} aria-label={t("Voice", "आवाज़")} title={t("Voice", "आवाज़")}>
+                <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className={`${fieldBase} !h-8 !w-auto !max-w-[128px] !py-0 text-xs`} aria-label={t("Voice", "आवाज़")} title={t("Voice", "आवाज़")}>
                   {VOICE_CHOICES.map((v) => (
                     <option key={v.id} value={v.id}>
                       {t(v.en, v.hi)}
@@ -961,7 +961,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
               className="glass-strong relative mr-1 max-w-[min(320px,calc(100vw-40px))] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[14px] leading-snug shadow-xl"
               aria-live="polite"
             >
-              <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-3)]">
+              <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-3)]">
                 <span className={`h-1.5 w-1.5 rounded-full ${bubble.who === "you" ? "bg-[#9cf06b]" : "bg-[#ffd56b]"} ${active ? "animate-pulse" : ""}`} />
                 {bubble.who === "you" ? t("You", "आप") : t("Jugnu", "जुगनू")}
                 <button className="-mr-1 ml-auto rounded p-0.5 hover:bg-[rgb(var(--fg)/0.08)]" onClick={() => setHidden(true)} aria-label={t("Hide", "छिपाएँ")}>

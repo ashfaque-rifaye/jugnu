@@ -74,6 +74,7 @@ export function JourneyCard({ onTour, onDemo }: { onTour: () => void; onDemo: ()
   const n = steps.filter((s) => s.done).length;
   const next = steps.find((s) => !s.done);
   const hi = lang === "hi" && "font-deva";
+  if (n === steps.length) return null; // finished: Today gets shorter
   return (
     <Card tour="journey" accent>
       <div className="flex items-center gap-4">
@@ -83,7 +84,7 @@ export function JourneyCard({ onTour, onDemo }: { onTour: () => void; onDemo: ()
           </span>
         </Rings>
         <div className="min-w-0">
-          <h2 className={cx("text-[17px] font-semibold tracking-[-0.01em]", hi)}>{n === steps.length ? t("You have seen the whole loop", "आपने पूरा चक्र देख लिया") : t("Your first 10 minutes", "आपके पहले 10 मिनट")}</h2>
+          <h2 className={cx("text-[17px] font-semibold tracking-[-0.01em]", hi)}>{t("Your first 10 minutes", "आपके पहले 10 मिनट")}</h2>
           <p className={cx("text-[13px] text-[var(--color-ink-3)]", hi)}>{t("Each step ticks itself off when you do it.", "हर कदम करते ही अपने-आप पूरा हो जाता है।")}</p>
         </div>
       </div>

@@ -255,7 +255,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             <div className="card p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className={cx("font-semibold", hi)}>{t("Recorded in the field", "मैदान से दर्ज")}</h3>
-                <span className="chip text-[11px]">
+                <span className="chip text-xs">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--tone-good)]" /> {t("shared by everyone", "सबके लिए")}
                 </span>
               </div>
@@ -290,7 +290,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               {lite ? <img src={MEDIA.orbPoster} alt="" aria-hidden className="h-full w-full object-cover mix-blend-screen" /> : <video src={MEDIA.orb} poster={MEDIA.orbPoster} autoPlay muted loop playsInline aria-hidden className="h-full w-full object-cover mix-blend-screen" />}
             </div>
             <div className="p-6 md:p-10 md:pl-2">
-              <span className="chip text-[11px]">{t("Meet Jugnu", "जुगनू से मिलिए")}</span>
+              <span className="chip text-xs">{t("Meet Jugnu", "जुगनू से मिलिए")}</span>
               <h2 className={cx("mt-4 text-3xl font-bold leading-tight text-white md:text-4xl", hi)}>{t("Just talk to it — in your language.", "बस बात कीजिए — अपनी भाषा में।")}</h2>
               <p className={cx("mt-3 max-w-xl leading-relaxed text-white/75", hi)}>
                 {t(
@@ -804,14 +804,14 @@ function YearBars({ story }: { story: Story }) {
             <div className="flex h-28 w-full items-end justify-center gap-1.5">
               <div className="w-1/3 max-w-7 rounded-t-md bg-[rgb(var(--fg)/0.16)]" style={{ height: `${(y.expected / max) * 100}%` }} title={`expected ${y.expected}%`} />
               <div className="relative w-1/3 max-w-7 rounded-t-md" style={{ height: `${(y.actual / max) * 100}%`, background: "var(--st-bright-fill)" }}>
-                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-bold tabular-nums">{y.actual}</span>
+                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-bold tabular-nums">{y.actual}</span>
               </div>
             </div>
-            <div className="text-[11px] tabular-nums text-[var(--color-ink-3)]">{y.cycle}</div>
+            <div className="text-xs tabular-nums text-[var(--color-ink-3)]">{y.cycle}</div>
           </div>
         ))}
       </div>
-      <div className="mt-2 flex justify-center gap-4 text-[11px] text-[var(--color-ink-3)]">
+      <div className="mt-2 flex justify-center gap-4 text-xs text-[var(--color-ink-3)]">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-sm bg-[rgb(var(--fg)/0.16)]" /> {t("expected for its context", "हालात के हिसाब से अपेक्षा")}
         </span>
@@ -905,7 +905,7 @@ function VoiceNote({ story }: { story: Story }) {
         <span className="h-px flex-1 border-t border-dashed border-[rgb(var(--fg)/0.3)]" />
         <span className="truncate font-semibold text-[var(--color-ink)]">{story.recipient.name}</span>
       </div>
-      <div className="text-[11px] text-[var(--color-ink-3)]">{t("Sent only after a CRP or the BEO approves it", "CRP या BEO की मंज़ूरी के बाद ही भेजा जाता है")}</div>
+      <div className="text-xs text-[var(--color-ink-3)]">{t("Sent only after a CRP or the BEO approves it", "CRP या BEO की मंज़ूरी के बाद ही भेजा जाता है")}</div>
     </div>
   );
 }
@@ -934,7 +934,7 @@ function FollowUpVisual({ story }: { story: Story }) {
           </div>
         );
       })}
-      {!story.followUp && <div className="text-[11px] text-[var(--color-ink-3)]">{t("The call has not happened yet in the demo — the answer will light up here.", "डेमो में यह कॉल अभी नहीं हुई — जवाब यहाँ दिखेगा।")}</div>}
+      {!story.followUp && <div className="text-xs text-[var(--color-ink-3)]">{t("The call has not happened yet in the demo — the answer will light up here.", "डेमो में यह कॉल अभी नहीं हुई — जवाब यहाँ दिखेगा।")}</div>}
     </div>
   );
 }

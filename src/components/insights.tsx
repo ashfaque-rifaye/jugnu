@@ -49,7 +49,7 @@ export function PairsCard({ state, limit = 4 }: { state: PipelineState; limit?: 
           <div key={x.practice} className="card-inset p-3.5">
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
               {label(x.practice)}
-              {x.distinctive && <span className="chip !py-0.5 !text-[11px]">{t("proven in this block", "इस ब्लॉक में सिद्ध")}</span>}
+              {x.distinctive && <span className="chip !py-0.5 !text-xs">{t("proven in this block", "इस ब्लॉक में सिद्ध")}</span>}
             </div>
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <p className="text-[var(--color-ink-2)]">{x.bright ? `“${x.bright}”` : <span className="text-[var(--color-ink-3)]">{t("Not mentioned", "ज़िक्र नहीं")}</span>}</p>

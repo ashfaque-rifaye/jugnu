@@ -119,6 +119,7 @@ function Console() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [film, setFilm] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [ask, setAsk] = useState(false);
   const [more, setMore] = useState(false);
   const [role] = useRole();
@@ -168,21 +169,23 @@ function Console() {
     { to: "/about", label: t("About Jugnu", "जुगनू के बारे में"), icon: Info },
   ];
 
+  const showTools = toolsOpen || TOOLS.some((x) => x.to !== "/" && location.pathname.startsWith(x.to));
+
   const navLink = ({ to, label, icon: Icon, badge, n, meta }: NavItem, group: string) => (
     <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("nav-item", isActive && to !== "/" && "active")}>
       {({ isActive }) => (
         <>
           {isActive && to !== "/" && <motion.span layoutId={`nav-${group}`} className="nav-pill" transition={SPRING} />}
           {n ? (
-            <span className={cx("grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-[11px] font-bold", isActive ? "text-[#0b1308]" : "text-[var(--color-ink-2)]")} style={{ background: isActive ? "var(--grad-flat)" : "var(--chip)" }}>
+            <span className={cx("grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-xs font-bold", isActive ? "text-[#0b1308]" : "text-[var(--color-ink-2)]")} style={{ background: isActive ? "var(--grad-flat)" : "var(--chip)" }}>
               {n}
             </span>
           ) : (
             <Icon size={18} aria-hidden />
           )}
           <span className={cx("flex-1 truncate", lang === "hi" && "font-deva")}>{label}</span>
-          {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#fcd34d] px-1.5 text-[11px] font-bold text-[#0b1308]">{badge}</span>}
-          {meta && <span className="text-[11px] font-medium tabular-nums text-[var(--color-ink-3)]">{meta}</span>}
+          {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#fcd34d] px-1.5 text-xs font-bold text-[#0b1308]">{badge}</span>}
+          {meta && <span className="text-xs font-medium tabular-nums text-[var(--color-ink-3)]">{meta}</span>}
         </>
       )}
     </NavLink>
@@ -209,6 +212,12 @@ function Console() {
         <MessageCircleQuestion size={16} /> {t("Ask Jugnu", "जुगनू से पूछें")}
       </button>
       <nav className="space-y-0.5 border-t border-[var(--line)] pt-3" aria-label={t("More", "और")}>
+        <button className="nav-item w-full" onClick={() => setToolsOpen((v) => !v)} aria-expanded={showTools}>
+          <Ellipsis size={18} aria-hidden /> <span className="flex-1 text-left">{t("More", "और")}</span>
+          <ChevronRight size={16} aria-hidden className={cx("transition-transform", showTools && "rotate-90")} />
+        </button>
+        {showTools && (
+          <>
         <button className="nav-item w-full" onClick={startTour}>
           <Compass size={18} aria-hidden /> <span className="flex-1 text-left">{t("Guide me", "गाइड करें")}</span>
         </button>
@@ -218,6 +227,8 @@ function Console() {
           </button>
         )}
         {TOOLS.map((x) => navLink(x, "tools"))}
+          </>
+        )}
       </nav>
       <div className="mt-auto space-y-2.5">
         <RoleBadge role={role} onChange={() => setRoleSheet(true)} />
@@ -308,10 +319,10 @@ function Console() {
           </motion.div>
         </main>
         <footer className="no-print mx-auto max-w-[1400px] px-6 pb-28 text-xs leading-relaxed text-[var(--color-ink-3)] lg:pb-8">
-          {t(
-            "Jugnu · AI for Foundational Learning Hackathon, Challenge 4. Adults only, with consent; no child-level data. Schools are real: Damoh's 7 blocks and their 1,365 government schools from UDISE+ (names, locations, clusters, enrolment, teachers). Learning results, attendance and teachers' names are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated (Google Veo).",
-            "जुगनू · AI for Foundational Learning हैकाथॉन, चुनौती 4। सिर्फ़ वयस्क, सहमति से; बच्चों का कोई व्यक्तिगत डेटा नहीं। स्कूल असली हैं: दमोह के 7 ब्लॉक और उनके 1,365 सरकारी स्कूल UDISE+ से (नाम, जगह, संकुल, नामांकन, शिक्षक)। सीखने के नतीजे, उपस्थिति और शिक्षकों के नाम सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
-          )}
+          {t("Schools are real (UDISE+). Learning results and teacher names are simulated. Live interviews are real.", "स्कूल असली हैं (UDISE+)। सीखने के नतीजे और शिक्षकों के नाम सिम्युलेटेड हैं। लाइव बातचीत असली है।")}{" "}
+          <NavLink to="/method" className="font-semibold underline underline-offset-2 hover:text-[var(--color-ink)]">
+            {t("Data & method", "डेटा व पद्धति")}
+          </NavLink>
         </footer>
       </div>
 
@@ -319,7 +330,7 @@ function Console() {
       {/* phones: floating glass tab bar — it shrinks while you scroll down, like iOS */}
       <nav className="no-print fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 lg:hidden" aria-label={t("Main", "मुख्य")} data-tour="nav-loop">
         <motion.div
-          className="chrome mx-auto grid grid-cols-5 rounded-full p-1.5"
+          className="chrome mx-auto flex rounded-full p-1.5"
           initial={false}
           animate={{ maxWidth: tucked ? 300 : 448, y: tucked ? 4 : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -327,7 +338,7 @@ function Console() {
           {TABS.map(({ to, label, icon: Icon }) => {
             const on = tabMatch?.to === to;
             return (
-              <NavLink key={to} to={to} className={cx("relative isolate flex flex-col items-center justify-center rounded-full py-1.5 text-[10.5px] font-semibold transition-colors", on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>
+              <NavLink key={to} to={to} className={cx("relative isolate flex flex-auto flex-col items-center justify-center rounded-full px-1.5 py-1.5 text-xs font-semibold transition-colors", on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>
                 {on && <motion.span layoutId="tab-pill" className="seg-on absolute inset-0 -z-10 rounded-full" transition={SPRING} />}
                 <motion.span key={String(on)} initial={on ? { scale: 0.7, y: 2 } : false} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
                   <Icon size={20} strokeWidth={on ? 2.3 : 1.9} aria-hidden style={on ? { color: "var(--st-bright)" } : undefined} />
@@ -338,7 +349,7 @@ function Console() {
               </NavLink>
             );
           })}
-          <button className={cx("relative isolate flex flex-col items-center justify-center rounded-full py-1.5 text-[10.5px] font-semibold", more ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]")} onClick={() => setMore(true)}>
+          <button className={cx("relative isolate flex flex-auto flex-col items-center justify-center rounded-full px-1.5 py-1.5 text-xs font-semibold", more ? "text-[var(--color-ink)]" : "text-[var(--color-ink-3)]")} onClick={() => setMore(true)}>
             <Ellipsis size={20} aria-hidden />
             <motion.span className="overflow-hidden" initial={false} animate={{ height: tucked ? 0 : 15, opacity: tucked ? 0 : 1, marginTop: tucked ? 0 : 2 }} transition={{ duration: 0.25 }}>
               {t("More", "और")}
@@ -677,11 +688,11 @@ function RoleBadge({ role, onChange }: { role: Role | null; onChange: () => void
   const initials = role?.kind === "crp" ? (state.block.schools.find((s) => s.cluster === role.cluster)?.crp ?? "C").split(" ").map((w) => w[0]).slice(0, 2).join("") : role?.kind === "beo" ? "BEO" : "👋";
   return (
     <button className="card-inset flex w-full items-center gap-3 px-2.5 py-2 text-left transition hover:bg-[var(--hover)]" onClick={onChange}>
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[11px] font-bold text-[#0b1308]" style={{ background: "var(--grad-flat)" } as CSSProperties}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-[#0b1308]" style={{ background: "var(--grad-flat)" } as CSSProperties}>
         {initials}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[11px] text-[var(--color-ink-3)]">{t("Using Jugnu as", "आप इस रूप में")}</span>
+        <span className="block text-xs text-[var(--color-ink-3)]">{t("Using Jugnu as", "आप इस रूप में")}</span>
         <span className="block truncate text-[13px] font-semibold">{name ?? t("Choose your role", "अपनी भूमिका चुनें")}</span>
       </span>
       <span className="text-xs font-semibold text-[var(--st-bright)]">{t("Switch", "बदलें")}</span>
@@ -755,7 +766,7 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
           <X size={15} />
         </button>
       ) : (
-        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-[var(--chip-line)] px-1.5 text-[10px] text-[var(--color-ink-3)] md:block">Ctrl K</kbd>
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-[var(--chip-line)] px-1.5 text-xs text-[var(--color-ink-3)] md:block">Ctrl K</kbd>
       )}
       <AnimatePresence>
         {open && hits.length > 0 && (

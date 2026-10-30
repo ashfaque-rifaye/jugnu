@@ -70,7 +70,7 @@ export default function TestingPage() {
     <div className="space-y-5">
       <Glass strong className="p-5 md:p-7">
         <div className="label">{t("User testing", "उपयोगकर्ता परीक्षण")}</div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{t("Test Jugnu with the people who will use it", "जुगनू को उन लोगों के साथ परखें जो इसे इस्तेमाल करेंगे")}</h1>
+        <h1 className="text-[1.9rem] font-semibold leading-tight tracking-[-0.035em]">{t("Test Jugnu with the people who will use it", "जुगनू को उन लोगों के साथ परखें जो इसे इस्तेमाल करेंगे")}</h1>
         <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
           {t(
             "A 20-minute session: consent, three or four real tasks, a 10-question usability survey, and open comments by voice. Every rating and comment is tagged with the role and page, and what we change because of it is logged below.",
@@ -339,7 +339,7 @@ function Results() {
                 {s.comments.slice(0, 40).map((c, i) => (
                   <li key={i} className="glass-inset p-3 text-sm">
                     <div className="font-deva">{c.text}</div>
-                    <div className="mt-1 text-[11px] text-[var(--color-ink-3)]">
+                    <div className="mt-1 text-xs text-[var(--color-ink-3)]">
                       {c.role ?? t("visitor", "आगंतुक")} · {c.page} · {new Date(c.created_at).toLocaleDateString()}
                     </div>
                   </li>
@@ -354,9 +354,9 @@ function Results() {
               <ul className="scroll-thin space-y-2 lg:max-h-72 lg:overflow-y-auto lg:pr-1">
                 {(changes ?? []).map((c, i) => (
                   <li key={i} className="glass-inset p-3 text-sm">
-                    <div className="text-[var(--color-ink-2)]">“{c.heard}” <span className="text-[11px] text-[var(--color-ink-3)]">— {c.from}</span></div>
+                    <div className="text-[var(--color-ink-2)]">“{c.heard}” <span className="text-xs text-[var(--color-ink-3)]">— {c.from}</span></div>
                     <div className="mt-1 text-teal-200">→ {c.changed}</div>
-                    <div className="mt-1 text-[11px] text-[var(--color-ink-3)]">{c.date}</div>
+                    <div className="mt-1 text-xs text-[var(--color-ink-3)]">{c.date}</div>
                   </li>
                 ))}
                 {(changes ?? []).length === 0 && <li className="text-sm text-[var(--color-ink-3)]">{t("Changes made from testing will be listed here.", "परीक्षण से किए बदलाव यहाँ दिखेंगे।")}</li>}

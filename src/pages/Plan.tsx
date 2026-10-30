@@ -3,12 +3,11 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ActionRow } from "../components/field";
 import { ExportPlanButton, WhatIfCard } from "../components/insights";
-import { Card, Empty, fieldBase, MediaHeader, PageHeader, Segmented, Stat } from "../components/kit";
+import { Card, Empty, fieldBase, PageHeader, Segmented, Stat } from "../components/kit";
 import { LivingMap } from "../components/maps";
 import { cx } from "../components/ui";
 import { profileFor } from "../engine/district";
 import { PRACTICES } from "../engine/practices";
-import { MEDIA } from "../lib/clips";
 import type { Action } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
 import { inMyPatch, useRole } from "../lib/role";
@@ -66,7 +65,6 @@ export default function PlanPage() {
 
   return (
     <div>
-      <MediaHeader video={MEDIA.network} poster={MEDIA.networkPoster}>
         <PageHeader
           title={t("Support plan", "मदद की योजना")}
           sub={t(
@@ -106,7 +104,6 @@ export default function PlanPage() {
             />
           }
         />
-      </MediaHeader>
 
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat

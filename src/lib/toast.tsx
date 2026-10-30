@@ -78,7 +78,7 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
         <Icon size={17} />
       </span>
       <div className={cx("min-w-0 flex-1", lang === "hi" && "font-deva")}>
-        {toast.meta && <div className="text-[11px] font-medium text-[var(--color-ink-3)]">{toast.meta}</div>}
+        {toast.meta && <div className="text-xs font-medium text-[var(--color-ink-3)]">{toast.meta}</div>}
         <div className="text-[14px] font-semibold leading-snug">{toast.title}</div>
         {toast.body && <div className="mt-0.5 text-[13px] leading-snug text-[var(--color-ink-2)]">{toast.body}</div>}
         {toast.to && (

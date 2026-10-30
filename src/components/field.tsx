@@ -101,7 +101,7 @@ export function ActionStatus({ status }: { status: Action["status"] }) {
   const t = useT();
   const s = STATUS_STYLE[status];
   return (
-    <span className="chip !text-[11px]" style={{ borderColor: tint(s.color, 50), color: s.color, background: tint(s.color, 8) }}>
+    <span className="chip !text-xs" style={{ borderColor: tint(s.color, 50), color: s.color, background: tint(s.color, 8) }}>
       {status === "done" ? <Check size={11} /> : status === "stuck" ? <TriangleAlert size={11} /> : <CircleDashed size={11} />} {t(s.en, s.hi)}
     </span>
   );

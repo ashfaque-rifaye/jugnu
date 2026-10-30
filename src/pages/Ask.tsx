@@ -60,7 +60,7 @@ function StatusChip({ s }: { s: PilotRow["status"] }) {
   const t = useT();
   const [en, hi, color] = STATUS[s];
   return (
-    <span className="chip text-[11px]" style={{ borderColor: tint(color, 55), background: tint(color, 12) }}>
+    <span className="chip text-xs" style={{ borderColor: tint(color, 55), background: tint(color, 12) }}>
       {t(en, hi)}
     </span>
   );
@@ -114,7 +114,7 @@ function PilotPanel() {
                   {r.practices.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {[...new Set(r.practices)].map((p) => (
-                        <span key={p} className="chip text-[10px]">
+                        <span key={p} className="chip text-xs">
                           {p in PRACTICES ? PRACTICES[p as PracticeId].label : p}
                         </span>
                       ))}
@@ -247,7 +247,7 @@ function InterviewDetail({ id, onDeleted }: { id: string; onDeleted: () => void 
             <div key={tu.idx} className={cx("flex", tu.speaker === "teacher" ? "justify-end" : "justify-start")}>
               <div className={cx("max-w-[85%] rounded-2xl px-3 py-2 text-sm", tu.speaker === "teacher" ? "rounded-br-sm bg-amber-200/12" : "rounded-bl-sm bg-white/8")}>
                 <div className={cx(!en && "font-deva")}>{en ? tu.text_en ?? tu.text : tu.text}</div>
-                <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-[var(--color-ink-3)]">
+                <div className="mt-1 flex flex-wrap gap-1 text-xs text-[var(--color-ink-3)]">
                   {tu.kind && <span>{tu.kind.replace("_", " ")}</span>}
                   {tu.source && <span>· {tu.source === "claude" ? "Claude" : tu.source === "asr" ? t("speech", "आवाज़") : tu.source}</span>}
                   {tu.confidence != null && <span>· {Math.round(tu.confidence * 100)}%</span>}
@@ -267,14 +267,14 @@ function InterviewDetail({ id, onDeleted }: { id: string; onDeleted: () => void 
                 <li key={k} className="glass-inset p-3" style={{ borderStyle: c.specificity >= 2 ? "solid" : "dashed" }}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold">{c.practice ? PRACTICES[c.practice as PracticeId]?.label ?? c.practice : `✦ ${c.new_name}`}</span>
-                    <span className="chip text-[10px]">{c.specificity >= 2 ? t(`specific · ${c.specificity}`, `ठोस · ${c.specificity}`) : t("vague", "अस्पष्ट")}</span>
+                    <span className="chip text-xs">{c.specificity >= 2 ? t(`specific · ${c.specificity}`, `ठोस · ${c.specificity}`) : t("vague", "अस्पष्ट")}</span>
                   </div>
                   <div className="mt-1 font-deva text-xs text-[var(--color-ink-2)]">“{c.quote}”</div>
-                  <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--color-ink-3)]">
+                  <div className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink-3)]">
                     {c.grounded ? <ShieldCheck size={11} className="text-teal-300" /> : <TriangleAlert size={11} className="text-red-300" />}
                     {c.grounded ? t("verbatim in transcript", "बातचीत में शब्दशः") : t("not found in transcript", "बातचीत में नहीं मिला")} · {c.coder}
                   </div>
-                  {c.note && <div className="mt-1 text-[11px] text-[var(--color-ink-3)]">{c.note}</div>}
+                  {c.note && <div className="mt-1 text-xs text-[var(--color-ink-3)]">{c.note}</div>}
                 </li>
               ))}
             </ul>
@@ -384,13 +384,13 @@ function PhoneLine() {
             <dt className="text-[var(--color-ink-3)]">{t("Voice", "आवाज़")}</dt><dd>{tel?.voice ? "Google Chirp STT + TTS" : "—"}</dd>
             <dt className="text-[var(--color-ink-3)]">WhatsApp</dt><dd>{status.whatsapp ? t("Connected (Cloud API)", "जुड़ा है (Cloud API)") : t("Not set up", "सेट नहीं")}</dd>
           </dl>
-          <ul className="mt-3 space-y-1 text-[11px] text-[var(--color-ink-3)]">
+          <ul className="mt-3 space-y-1 text-xs text-[var(--color-ink-3)]">
             <li>• {t("Consent first: “Shall we begin? Say yes or no.” A no keeps nothing.", "पहले सहमति: “क्या हम शुरू करें? हाँ या ना बोलिए।” ना कहने पर कुछ भी नहीं रखा जाता।")}</li>
             <li>• {t("Only a salted hash of the number is stored, never the number.", "नंबर कभी नहीं रखा जाता, केवल उसका salted हैश।")}</li>
             <li>• {t("Trial accounts can only ring numbers verified in the provider dashboard.", "ट्रायल खाते केवल उन्हीं नंबरों पर कॉल कर सकते हैं जो प्रदाता के डैशबोर्ड में सत्यापित हैं।")}</li>
           </ul>
           {status.passcode && (
-            <a className="mt-3 inline-flex items-center gap-1 text-[11px] text-amber-200" href="/api/ivr/setup" target="_blank" rel="noreferrer">
+            <a className="mt-3 inline-flex items-center gap-1 text-xs text-amber-200" href="/api/ivr/setup" target="_blank" rel="noreferrer">
               <ExternalLink size={11} /> {t("Provider setup JSON (webhook URLs)", "प्रदाता सेटअप JSON (वेबहुक URL)")}
             </a>
           )}
@@ -410,7 +410,7 @@ function PhoneLine() {
                     <button className={cx("flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm", open === r.id ? "bg-white/12" : "hover:bg-white/6")} onClick={() => setOpen(r.id)}>
                       <span className="min-w-0 truncate">{r.teacher_name || t("Teacher", "शिक्षक")} · {r.school_name || "—"}</span>
                       <span className="flex shrink-0 items-center gap-1">
-                        {cs && <span className="chip text-[10px]" style={{ borderColor: tint(cs[2], 55), background: tint(cs[2], 12) }}>{t(cs[0], cs[1])}</span>}
+                        {cs && <span className="chip text-xs" style={{ borderColor: tint(cs[2], 55), background: tint(cs[2], 12) }}>{t(cs[0], cs[1])}</span>}
                         <StatusChip s={r.status} />
                       </span>
                     </button>
@@ -461,7 +461,7 @@ function SimulatedInterviews() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {i.mentions.filter((m) => m.specificity >= 2).map((m) => (
-                      <span key={m.practice} className="chip text-[10px]">
+                      <span key={m.practice} className="chip text-xs">
                         {PRACTICES[m.practice].label}
                       </span>
                     ))}
@@ -501,7 +501,7 @@ function Transcript({ interview }: { interview: Interview }) {
               {coded[i].length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {coded[i].map((m) => (
-                    <span key={m.practice} className="chip text-[10px]" style={{ borderStyle: m.specificity >= 2 ? "solid" : "dashed" }}>
+                    <span key={m.practice} className="chip text-xs" style={{ borderStyle: m.specificity >= 2 ? "solid" : "dashed" }}>
                       {PRACTICES[m.practice].label} · {m.specificity >= 2 ? "specific" : "vague"}
                     </span>
                   ))}

@@ -236,7 +236,7 @@ export function ActivityFeed({ events, schoolId, limit = 8 }: { events: BlockEve
                     </>
                   )}
                   <span>{e.pending ? t("saving…", "सहेज रहे…") : ago(e.created_at)}</span>
-                  {e.demo && <span className="chip !px-1.5 !py-0 !text-[10px]">{t("playback", "प्लेबैक")}</span>}
+                  {e.demo && <span className="chip !px-1.5 !py-0 !text-xs">{t("playback", "प्लेबैक")}</span>}
                 </span>
               </div>
             </motion.li>

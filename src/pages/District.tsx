@@ -195,7 +195,7 @@ function DistrictMap({ d, seed, onOpen }: { d: DistrictSummary | null; seed: num
                 {name}
               </text>
               {b && (
-                <text y={18} textAnchor="middle" className="fill-[var(--color-ink-2)] text-[11px]" style={{ paintOrder: "stroke", stroke: "var(--bg)", strokeWidth: 3 }}>
+                <text y={18} textAnchor="middle" className="fill-[var(--color-ink-2)] text-xs" style={{ paintOrder: "stroke", stroke: "var(--bg)", strokeWidth: 3 }}>
                   {b.schools} {t("schools", "स्कूल")} · {b.verified} ★
                 </text>
               )}

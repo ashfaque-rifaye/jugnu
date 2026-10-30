@@ -155,7 +155,7 @@ function Overlay({ steps, i, setI, onEnd }: { steps: TourStep[]; i: number; setI
         aria-label={t(step.title[0], step.title[1])}
       >
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="chip !py-0.5 text-[11px]">
+          <span className="chip !py-0.5 text-xs">
             <Sparkles size={11} className="text-[var(--st-bright)]" /> {t(`Guide · ${i + 1} of ${steps.length}`, `गाइड · ${steps.length} में से ${i + 1}`)}
           </span>
           <button className="rounded-full p-1 text-[var(--color-ink-3)] hover:bg-[var(--hover)]" onClick={() => onEnd(false)} aria-label={t("Close the guide", "गाइड बंद करें")}>

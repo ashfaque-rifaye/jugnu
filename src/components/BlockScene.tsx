@@ -484,7 +484,7 @@ export default function BlockScene(props: MapProps & { autoRotate?: boolean }) {
       {/* labels as plain DOM, positioned from the 3D scene (no extra React roots inside the canvas) */}
       <div ref={overlay} className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         {labels.map((name) => (
-          <div key={name} data-k={name} className="invisible absolute left-0 top-0 whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
+          <div key={name} data-k={name} className="invisible absolute left-0 top-0 whitespace-nowrap text-xs font-semibold uppercase tracking-[0.2em] text-white/35">
             {name}
           </div>
         ))}

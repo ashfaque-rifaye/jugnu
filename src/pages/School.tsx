@@ -80,7 +80,7 @@ export default function SchoolPage() {
         <section className="card mb-5 p-4 md:p-6" data-tour="school-tracker">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="label">{t("Where this school is in the loop", "यह स्कूल चक्र में कहाँ है")}</div>
-            <span className="chip !text-[11px]">{t(`${steps.filter((x) => x.state === "done").length} of ${steps.length} done`, `${steps.length} में से ${steps.filter((x) => x.state === "done").length} पूरे`)}</span>
+            <span className="chip !text-xs">{t(`${steps.filter((x) => x.state === "done").length} of ${steps.length} done`, `${steps.length} में से ${steps.filter((x) => x.state === "done").length} पूरे`)}</span>
           </div>
           <Tracker steps={steps} />
         </section>
@@ -238,7 +238,7 @@ export default function SchoolPage() {
                   {live.map((p) => (
                     <Link key={p.id} to="/interviews" className="card-inset flex items-center justify-between px-3 py-2 text-sm hover:bg-white/5">
                       <span>{ago(p.created_at)}</span>
-                      <span className="chip text-[11px]">
+                      <span className="chip text-xs">
                         {p.status === "completed"
                           ? t("completed", "पूरी")
                           : p.status === "in_progress"
@@ -376,9 +376,9 @@ function GradesCard({ school: s }: { school: School }) {
         <div className="flex items-end gap-2" aria-label={t("Attendance by year", "साल के अनुसार उपस्थिति")}>
           {s.attendanceByCycle.map((a, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
-              <span className="text-[10px] tabular-nums text-[var(--color-ink-3)]">{pct(a)}</span>
+              <span className="text-xs tabular-nums text-[var(--color-ink-3)]">{pct(a)}</span>
               <span className="w-7 rounded-t-md bg-[var(--tone-info)]" style={{ height: Math.max(4, (a - 0.4) * 90), opacity: i === last ? 1 : 0.45 }} />
-              <span className="text-[10px] text-[var(--color-ink-3)]">{CYCLES[i].slice(2)}</span>
+              <span className="text-xs text-[var(--color-ink-3)]">{CYCLES[i].slice(2)}</span>
             </div>
           ))}
         </div>
@@ -399,7 +399,7 @@ function GradesCard({ school: s }: { school: School }) {
               <tr key={g.grade} className="border-t border-[var(--line)]">
                 <td className="py-2 font-semibold">
                   {g.grade}
-                  {g.grade === 3 && <span className="chip ml-1.5 !px-1.5 !py-0 !text-[10px]">{t("assessed", "आकलित")}</span>}
+                  {g.grade === 3 && <span className="chip ml-1.5 !px-1.5 !py-0 !text-xs">{t("assessed", "आकलित")}</span>}
                 </td>
                 <td className="py-2 text-right tabular-nums">{g.enrolled}</td>
                 <td className="py-2 pl-3">
@@ -483,7 +483,7 @@ function ResultsChart({ school, expected }: { school: School; expected: { readin
       {[0, 25, 50, 75, 100].map((g) => (
         <g key={g}>
           <line x1={34} x2={W - 6} y1={y(g)} y2={y(g)} stroke="white" strokeOpacity={0.07} />
-          <text x={28} y={y(g) + 4} textAnchor="end" className="fill-white/40 text-[10px]">
+          <text x={28} y={y(g) + 4} textAnchor="end" className="fill-white/40 text-xs">
             {g}%
           </text>
         </g>
@@ -501,13 +501,13 @@ function ResultsChart({ school, expected }: { school: School; expected: { readin
                 <g key={g.key}>
                   <rect x={x} y={y(v)} width={bw} height={y(0) - y(v)} rx={4} fill={g.color} fillOpacity={0.85} />
                   <line x1={x - 3} x2={x + bw + 3} y1={y(e)} y2={y(e)} stroke="white" strokeWidth={2.2} />
-                  <text x={x + bw / 2} y={y(v) - 5} textAnchor="middle" className="fill-white/80 text-[10px] font-semibold">
+                  <text x={x + bw / 2} y={y(v) - 5} textAnchor="middle" className="fill-white/80 text-xs font-semibold">
                     {Math.round(v)}
                   </text>
                 </g>
               );
             })}
-            <text x={x0 + bw + 3} y={H - 8} textAnchor="middle" className="fill-white/55 text-[11px]">
+            <text x={x0 + bw + 3} y={H - 8} textAnchor="middle" className="fill-white/55 text-xs">
               {c}
             </text>
           </g>
@@ -516,7 +516,7 @@ function ResultsChart({ school, expected }: { school: School; expected: { readin
       {groups.map((g, j) => (
         <g key={g.key} transform={`translate(${W - 170 + j * 80}, 8)`}>
           <rect width={10} height={10} rx={2} fill={g.color} />
-          <text x={15} y={9} className="fill-white/70 text-[11px]">
+          <text x={15} y={9} className="fill-white/70 text-xs">
             {g.label}
           </text>
         </g>

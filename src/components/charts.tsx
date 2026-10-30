@@ -68,7 +68,7 @@ export function BlockMap({
         })}
         <g>
           <circle cx={px(0)} cy={py(0)} r={5} fill="none" stroke="rgb(var(--fg) / 0.5)" />
-          <text x={px(0) + 8} y={py(0) + 4} fontSize={10} fill="rgb(var(--fg) / 0.5)">
+          <text x={px(0) + 8} y={py(0) + 4} fontSize={12} fill="rgb(var(--fg) / 0.5)">
             Block HQ
           </text>
         </g>
@@ -112,7 +112,7 @@ export function BlockMap({
                 strokeDasharray={struggling.has(s.id) ? "2 2" : undefined}
               />
               {inflated.has(s.id) && (
-                <text x={px(s.x) + 7} y={py(s.y) - 6} fontSize={11} fill="#f87171">
+                <text x={px(s.x) + 7} y={py(s.y) - 6} fontSize={12} fill="#f87171">
                   ⚠
                 </text>
               )}
@@ -144,22 +144,22 @@ export function ExpectedScatter({
         {[0, 25, 50, 75, 100].map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="rgb(var(--fg) / 0.07)" />
-            <text x={pad.l - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="rgb(var(--fg) / 0.45)">
+            <text x={pad.l - 8} y={y(t) + 4} textAnchor="end" fontSize={12} fill="rgb(var(--fg) / 0.45)">
               {t}%
             </text>
-            <text x={x(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.45)">
+            <text x={x(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={12} fill="rgb(var(--fg) / 0.45)">
               {t}%
             </text>
           </g>
         ))}
         <line x1={x(0)} y1={y(0)} x2={x(100)} y2={y(100)} stroke="rgb(var(--fg) / 0.3)" strokeDasharray="4 4" />
-        <text x={x(78)} y={y(84)} fontSize={10} fill="rgb(var(--fg) / 0.5)" transform={`rotate(-34 ${x(78)} ${y(84)})`}>
+        <text x={x(78)} y={y(84)} fontSize={12} fill="rgb(var(--fg) / 0.5)" transform={`rotate(-34 ${x(78)} ${y(84)})`}>
           as expected
         </text>
-        <text x={(W + pad.l) / 2} y={H - 4} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.6)">
+        <text x={(W + pad.l) / 2} y={H - 4} textAnchor="middle" fontSize={12} fill="rgb(var(--fg) / 0.6)">
           Expected from context (%)
         </text>
-        <text x={12} y={(H - pad.b) / 2} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.6)" transform={`rotate(-90 12 ${(H - pad.b) / 2})`}>
+        <text x={12} y={(H - pad.b) / 2} textAnchor="middle" fontSize={12} fill="rgb(var(--fg) / 0.6)" transform={`rotate(-90 12 ${(H - pad.b) / 2})`}>
           Reported (%)
         </text>
         {points.map((p) => (
@@ -250,7 +250,7 @@ export function EffectBars({ rows }: { rows: { label: string; effect: number; ci
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute inset-0" role="img" aria-label="Estimated effect of each practice with 95% intervals">
         <line x1={x(0)} x2={x(0)} y1={stacked ? 24 : 8} y2={H - 26} stroke="rgb(var(--fg) / 0.35)" />
         {[lo, 0, hi].map((t) => (
-          <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize={11} fill="rgb(var(--fg) / 0.45)">
+          <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize={12} fill="rgb(var(--fg) / 0.45)">
             {t > 0 ? "+" : ""}
             {Math.round(t)} pts
           </text>

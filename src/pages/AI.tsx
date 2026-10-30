@@ -161,7 +161,7 @@ export default function AIPage() {
     <div className="space-y-5">
       <Glass strong className="p-5 md:p-7">
         <div className="label">{t("Effective AI use", "AI का सही इस्तेमाल")}</div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{t("Ten AI tasks, each in five layers", "दस AI काम, हर एक पाँच परतों में")}</h1>
+        <h1 className="text-[1.9rem] font-semibold leading-tight tracking-[-0.035em]">{t("Ten AI tasks, each in five layers", "दस AI काम, हर एक पाँच परतों में")}</h1>
         <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
           {t(
             "Claude does what language models are good at — conversation, reading meaning in code-mixed Hindi, writing from evidence, using tools. Statistics does the counting (who beats expectation, what is distinctive, did it work). Deterministic guardrails sit between the model and the user, and the offline engine answers whenever Claude is slow, unavailable or fails a check.",
@@ -188,10 +188,10 @@ export default function AIPage() {
             <Glass key={x.id} className="p-5">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="font-mono text-[11px] text-[var(--color-ink-3)]">{x.id}</div>
+                  <div className="font-mono text-xs text-[var(--color-ink-3)]">{x.id}</div>
                   <h3 className="text-lg font-bold">{t(x.en, x.hi)}</h3>
                 </div>
-                <span className="chip text-[11px]">
+                <span className="chip text-xs">
                   <Activity size={11} /> {n} {t("calls", "कॉल")}
                 </span>
               </div>
@@ -207,7 +207,7 @@ export default function AIPage() {
                   ] as const
                 ).map(([k, v]) => (
                   <div key={k} className="grid grid-cols-[120px_1fr] gap-2">
-                    <dt className={cx("label !text-[10px]", k.startsWith("3") && "text-teal-200", k.startsWith("↺") && "text-amber-200")}>{k}</dt>
+                    <dt className={cx("label !text-xs", k.startsWith("3") && "text-teal-200", k.startsWith("↺") && "text-amber-200")}>{k}</dt>
                     <dd className="text-[var(--color-ink-2)]">{v}</dd>
                   </div>
                 ))}
@@ -328,11 +328,11 @@ export default function AIPage() {
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {c.checks.map((k) => (
-                        <span key={k.name} className="chip !py-0 text-[10px]" title={k.detail}>
+                        <span key={k.name} className="chip !py-0 text-xs" title={k.detail}>
                           {k.passed ? <ShieldCheck size={10} className="text-teal-300" /> : <ShieldAlert size={10} className="text-red-300" />} {k.name}
                         </span>
                       ))}
-                      {c.error && <span className="text-[10px] text-amber-200">{c.error}</span>}
+                      {c.error && <span className="text-xs text-amber-200">{c.error}</span>}
                     </div>
                   </td>
                 </tr>

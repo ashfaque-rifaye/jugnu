@@ -169,7 +169,7 @@ function Player({ run, onPause, onSkip, onReplay, onClose, onResults }: { run: R
       >
         <div className="sheet flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-2">
           <span className="grid h-8 w-8 place-items-center rounded-full text-[#0b1308]" style={{ background: "var(--grad-flat)" }}>
-            {done ? <Check size={15} strokeWidth={3} /> : <span className="font-display text-[10px] font-bold">{`${run.beat + 1}/${total}`}</span>}
+            {done ? <Check size={15} strokeWidth={3} /> : <span className="font-display text-xs font-bold">{`${run.beat + 1}/${total}`}</span>}
           </span>
           <span className={cx("whitespace-nowrap text-[13px] font-semibold", lang === "hi" && "font-deva")}>
             {done ? t("Playback · term complete", "प्लेबैक · सत्र पूरा") : `${t(beat.day[0], beat.day[1])} · ${t(beat.title[0], beat.title[1])}`}
@@ -201,10 +201,10 @@ function Player({ run, onPause, onSkip, onReplay, onClose, onResults }: { run: R
       <div className="sheet overflow-hidden rounded-[1.8rem]">
         <div className="flex items-start gap-3 p-4 pb-3">
           <span className="relative mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-2xl" style={{ background: "var(--grad-flat)" }}>
-            {done ? <Check size={20} strokeWidth={3} className="text-[#0b1308]" /> : <span className="font-display text-[11px] font-bold leading-none text-[#0b1308]">{`${run.beat + 1}/${total}`}</span>}
+            {done ? <Check size={20} strokeWidth={3} className="text-[#0b1308]" /> : <span className="font-display text-xs font-bold leading-none text-[#0b1308]">{`${run.beat + 1}/${total}`}</span>}
           </span>
           <div className={cx("min-w-0 flex-1", lang === "hi" && "font-deva")}>
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-ink-3)]">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-ink-3)]">
               <span className="inline-flex items-center gap-1.5 text-[var(--tone-teal)]">
                 <span className="live-dot !h-1.5 !w-1.5" /> {t("Playback · simulated term", "प्लेबैक · सिम्युलेटेड सत्र")}
               </span>

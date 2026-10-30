@@ -279,7 +279,7 @@ export default function TalkPage() {
         <div className="flex items-center gap-2">
           <LogoMark size={28} />
           <span className="font-display font-bold">Jugnu</span>
-          <span className={cx("chip text-[11px]", lang === "hi" && "font-deva")}>{c.progress(Math.min(asked, TOPICS))}</span>
+          <span className={cx("chip text-xs", lang === "hi" && "font-deva")}>{c.progress(Math.min(asked, TOPICS))}</span>
         </div>
         <button className="btn btn-glass !px-3 !py-1.5" onClick={() => (voiceOn ? (stopSpeaking(), setVoiceOn(false)) : setVoiceOn(true))} aria-label="voice on/off">
           {voiceOn ? <Volume2 size={16} /> : <VolumeX size={16} />}

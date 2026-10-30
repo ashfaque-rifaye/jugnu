@@ -78,7 +78,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
               ].map(([n, label]) => (
                 <div key={String(label)} className="glass-inset px-3 py-2">
                   <div className="font-display text-2xl font-bold gradient-text tabular-nums">{n}</div>
-                  <div className={cx("text-[11px] text-[var(--color-ink-2)]", hi)}>{label}</div>
+                  <div className={cx("text-xs text-[var(--color-ink-2)]", hi)}>{label}</div>
                 </div>
               ))}
             </div>
