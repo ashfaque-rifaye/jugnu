@@ -6,6 +6,7 @@ import { Glass, cx } from "../components/ui";
 import { PRACTICES, type PracticeId } from "../engine/practices";
 import { postJSON, usePoll } from "../lib/api";
 import { useT } from "../lib/prefs";
+import { roleName, useRole } from "../lib/role";
 import { speak } from "../lib/speech";
 import { markJourney } from "../lib/journey";
 
@@ -33,18 +34,19 @@ interface Item {
   created_at: string;
   decided_at: string | null;
   checks: CheckRow[];
-  payload: { source: string; card?: Card; quotes?: { id: number; school: string; quote: string }[]; voice_hi?: string; voice_en?: string; draftHi?: string; practice?: string; edited?: boolean };
+  payload: { source: string; demo?: boolean; card?: Card; quotes?: { id: number; school: string; quote: string }[]; voice_hi?: string; voice_en?: string; draftHi?: string; practice?: string; edited?: boolean };
 }
 
 export default function ReviewPage() {
   const t = useT();
   const [status, setStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [items, , reload] = usePoll<Item[]>(`/api/reviews?status=${status}`, 6000);
-  const [reviewer, setReviewer] = useState(() => localStorage.getItem("jugnu-reviewer") ?? "");
+  const [role] = useRole();
+  const [reviewer, setReviewer] = useState(() => localStorage.getItem("jugnu-reviewer") || roleName(role) || "");
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight md:text-[1.75rem]">{t("Review", "समीक्षा")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight md:text-[1.75rem]">{t("Approvals", "मंज़ूरी")}</h1>
         <p className="mt-1 max-w-3xl text-[15px] text-[var(--color-ink-2)]">
           {t(
             "Claude drafts practice cards and peer voice notes from teachers' own words. Automatic checks run first (every step cites a real quote, no invented numbers, right language, fits in 60 seconds); then a CRP or the BEO approves, edits or rejects.",
@@ -122,6 +124,7 @@ function ReviewCard({ item, reviewer, onDone }: { item: Item; reviewer: string; 
         <span className="label">
           {item.kind === "practice_card" ? t("Practice card", "तरीके का कार्ड") : item.kind === "voice_note" ? t("Peer voice note", "साथी का वॉइस नोट") : t("Barrier", "रुकावट")} · {item.payload.source === "claude" ? "Claude" : t("offline engine", "ऑफ़लाइन इंजन")}
           {item.payload.edited ? ` · ${t("edited", "संपादित")}` : ""}
+          {item.payload.demo ? ` · ${t("demo draft", "डेमो ड्राफ़्ट")}` : ""}
         </span>
         <span className="text-xs text-[var(--color-ink-3)]">{new Date(item.created_at).toLocaleString()}</span>
       </div>

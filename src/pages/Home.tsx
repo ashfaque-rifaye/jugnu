@@ -189,7 +189,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
                 <Clapperboard size={17} /> {t("2-minute film", "2 मिनट की फ़िल्म")}
               </button>
             </motion.div>
-            <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: d + 1.15 }} className={cx("mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--color-ink-2)]", hi)}>
+            <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: d + 0.5 }} className={cx("mt-8 flex flex-wrap gap-x-5 gap-y-2 text-[15px] font-medium text-[var(--color-ink)]", hi)}>
               {[
                 [Smartphone, t("Any phone, even 2G", "कोई भी फ़ोन, 2G पर भी")],
                 [Languages, t("Hindi first", "पहले हिंदी")],
@@ -380,7 +380,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
                 ["/testing", t("User testing", "उपयोगकर्ता परीक्षण")],
               ] as const
             ).map(([to, label]) => (
-              <button key={to} onClick={() => enter(to)} className="hover:text-[var(--color-ink)]">
+              <button key={to} onClick={() => enter(to)} className="tap-link hover:text-[var(--color-ink)]">
                 {label}
               </button>
             ))}
@@ -781,7 +781,7 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
               </div>
               <h3 className={cx("mt-2 text-xl font-bold leading-snug", hi)}>{s.title}</h3>
               <p className={cx("mt-2 text-[15px] leading-relaxed text-[var(--color-ink-2)]", hi)}>{s.body}</p>
-              <button onClick={() => onEnter(s.to)} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--st-bright)] hover:underline">
+              <button onClick={() => onEnter(s.to)} className="tap-link mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--st-bright)] hover:underline">
                 {s.link} <ArrowRight size={14} />
               </button>
             </div>

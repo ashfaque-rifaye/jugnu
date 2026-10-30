@@ -155,7 +155,7 @@ export function Segmented<T extends string | number>({
             role="tab"
             aria-selected={on}
             className={cx(
-              "relative isolate flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full font-medium transition-colors",
+              "seg-item relative isolate flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full font-medium transition-colors",
               size === "sm" ? "px-2.5 py-1 text-[13px]" : "px-3.5 py-1.5 text-sm",
               on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]",
             )}

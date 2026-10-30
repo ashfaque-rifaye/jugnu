@@ -34,7 +34,7 @@ export default function AskPage() {
             ["simulated", t("Demo interview history", "डेमो बातचीत का इतिहास"), MessageCircle],
           ] as const
         ).map(([id, label, Icon]) => (
-          <button key={id} className={cx("flex items-center gap-1.5 rounded-full px-4 py-2 text-sm", tab === id ? "bg-white/15 text-white" : "text-[var(--color-ink-2)]")} onClick={() => setTab(id)}>
+          <button key={id} className={cx("seg-item flex items-center gap-1.5 rounded-full px-4 py-2 text-sm", tab === id ? "bg-white/15 text-white" : "text-[var(--color-ink-2)]")} onClick={() => setTab(id)}>
             <Icon size={15} /> {label}
           </button>
         ))}

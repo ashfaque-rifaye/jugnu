@@ -76,7 +76,7 @@ export function ThemeToggle({ labels }: { labels?: { dark: string; light: string
           aria-label={label}
           title={label}
           onClick={(e) => mode !== m && switchMode(m, setMode, e)}
-          className={`grid h-7 w-7 place-items-center rounded-full transition ${mode === m ? "seg-on" : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]"}`}
+          className={`grid h-7 w-7 place-items-center rounded-full transition max-lg:h-9 max-lg:w-9 ${mode === m ? "seg-on" : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]"}`}
         >
           <Icon size={14} aria-hidden />
         </button>

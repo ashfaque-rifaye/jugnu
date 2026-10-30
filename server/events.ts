@@ -4,6 +4,7 @@
 import express from "express";
 import { z } from "zod";
 import { rateLimit, requireOfficer } from "./auth";
+import { resetDemoDrafts } from "./reviews";
 import { db, json } from "./db";
 import { BlockKey as Block, EventError, EventKind as Kind, writeEvent } from "./eventlog";
 import { enqueueForAction } from "./scheduler";
@@ -42,5 +43,6 @@ events.delete("/", async (req, res) => {
   const block = Block.safeParse(req.query.block);
   if (!block.success) return res.status(400).json({ error: "block is required" });
   await db.run(`DELETE FROM events WHERE block = ?`, block.data);
+  await resetDemoDrafts();
   res.json({ ok: true });
 });

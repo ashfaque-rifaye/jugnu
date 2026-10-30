@@ -121,10 +121,10 @@ export default function SchoolsPage() {
           </select>
           {view === "list" && (
             <select className={cx(fieldBase, "min-w-0")} value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} aria-label={t("Sort", "क्रम")}>
-              <option value="status">{t("Sort: what needs action", "क्रम: किस पर काम करना है")}</option>
-              <option value="reading">{t("Sort: reading vs expected", "क्रम: पढ़ना, अपेक्षा से")}</option>
-              <option value="maths">{t("Sort: maths vs expected", "क्रम: गणित, अपेक्षा से")}</option>
-              <option value="name">{t("Sort: name", "क्रम: नाम")}</option>
+              <option value="status">{t("Action first", "काम पहले")}</option>
+              <option value="reading">{t("Reading first", "पढ़ना पहले")}</option>
+              <option value="maths">{t("Maths first", "गणित पहले")}</option>
+              <option value="name">{t("Name A–Z", "नाम से")}</option>
             </select>
           )}
         </div>

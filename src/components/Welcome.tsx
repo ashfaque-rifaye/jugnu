@@ -49,7 +49,7 @@ export function Welcome({ open, onDone, mode = "full" }: { open: boolean; onDone
       video: MEDIA.map,
       icon: Search,
       tone: "var(--st-check-due)",
-      kicker: ["1 · Find & check", "1 · ढूँढें व जाँचें"],
+      kicker: ["1 · Schools", "1 · स्कूल"],
       title: [`${c.candidates} of ${c.schools} schools beat their context`, `${c.schools} में से ${c.candidates} स्कूल अपने हालात से आगे`],
       body: [
         "Every term Jugnu compares each school with what its context predicts. A 15-child spot check by the CRP makes sure a bright spot is real.",
@@ -61,7 +61,7 @@ export function Welcome({ open, onDone, mode = "full" }: { open: boolean; onDone
       video: MEDIA.call,
       icon: Mic,
       tone: "var(--tone-teal)",
-      kicker: ["2 · Listen & learn", "2 · सुनें व सीखें"],
+      kicker: ["2 · Interviews & what works", "2 · बातचीत व क्या काम करता है"],
       title: ["A 12-minute voice call, in Hindi", "हिंदी में 12 मिनट की बातचीत"],
       body: [
         `The teacher describes her routines; Jugnu keeps only what bright spots do and ordinary schools don't — ${c.practices} practices so far.`,
@@ -73,7 +73,7 @@ export function Welcome({ open, onDone, mode = "full" }: { open: boolean; onDone
       video: MEDIA.spread,
       icon: Share2,
       tone: "var(--tone-lime)",
-      kicker: ["3 · Share & follow up", "3 · पहुँचाएँ व फ़ॉलो-अप"],
+      kicker: ["3 · Support plan & results", "3 · मदद की योजना व नतीजे"],
       title: [`${c.support} schools learn from a teacher nearby`, `${c.support} स्कूल पास के शिक्षक से सीखते हैं`],
       body: [
         "One practice, a 60-second voice note in a peer's own words, a visit with the CRP — and a call on day 14: “Did you try it?”",

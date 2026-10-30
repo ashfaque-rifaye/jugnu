@@ -778,3 +778,15 @@ nav, .btn, .chip { -webkit-user-select: none; user-select: none; }
 
 /* Grid columns may shrink below their content (long names truncate instead of widening the page). */
 main .grid > * { min-width: 0; }
+
+/* Phones and tablets: every control is big enough for a thumb, without changing how it reads on desktop. */
+@media (max-width: 1023px) {
+  .btn { min-height: 2.625rem; }
+  .btn-icon { min-width: 2.625rem; }
+  button.chip, a.chip { min-height: 2.25rem; }
+  .seg-item, .tap-row, .map-pill { min-height: 2.625rem; }
+  .map-pill { min-width: 2.625rem; justify-content: center; }
+  .map-tool { width: 2.625rem; height: 2.625rem; }
+  .tap-link { display: inline-flex; align-items: center; min-height: 2.625rem; }
+  .real-map .maplibregl-ctrl-group button { width: 2.625rem; height: 2.625rem; }
+}

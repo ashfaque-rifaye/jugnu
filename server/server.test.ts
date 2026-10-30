@@ -411,3 +411,24 @@ describe("column mapper (offline)", () => {
     expect(cells[CSV_COLUMNS.indexOf("attendance")]).toBe("0.85");
   });
 });
+
+describe("approvals", () => {
+  it("starts with demo drafts waiting, keeps decisions, and restores them on a fresh start", async () => {
+    const { reviews, resetDemoDrafts } = await import("./reviews");
+    const { db } = await import("./db");
+    const express = (await import("express")).default;
+    const app = express().use(express.json()).use("/r", reviews);
+    const server = app.listen(0);
+    const port = (server.address() as { port: number }).port;
+    const pending = async () => (await (await fetch(`http://127.0.0.1:${port}/r?status=pending`)).json()) as { id: string; kind: string; checks: { passed: boolean }[]; payload: { demo?: boolean; voice_hi: string } }[];
+    const first = await pending();
+    const demo = first.filter((r) => r.payload.demo);
+    expect(demo).toHaveLength(3);
+    expect(demo.every((r) => r.kind === "voice_note" && r.payload.voice_hi.length > 0)).toBe(true);
+    await db.run(`UPDATE reviews SET status = 'approved' WHERE id = ?`, demo[0].id);
+    expect((await pending()).filter((r) => r.payload.demo)).toHaveLength(2);
+    await resetDemoDrafts();
+    expect((await pending()).filter((r) => r.payload.demo)).toHaveLength(3);
+    server.close();
+  });
+});

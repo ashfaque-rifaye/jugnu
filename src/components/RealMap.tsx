@@ -355,7 +355,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
 
   const hs = hover ? byId.get(hover.id) : null;
   const card_ = card && picked ? byId.get(picked) : null;
-  const tool = "grid h-9 w-9 place-items-center rounded-full transition hover:bg-[var(--hover)]";
+  const tool = "map-tool grid h-9 w-9 place-items-center rounded-full transition hover:bg-[var(--hover)]";
   const on = "bg-[var(--seg-on,rgba(250,204,21,0.18))] text-[var(--st-bright)]";
 
   return (
@@ -391,7 +391,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
             ["night", Moon, t("Night", "रात")],
           ] as const
         ).map(([k, Icon, label]) => (
-          <button key={k} className={cx("flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition", base === k ? on : "text-[var(--color-ink-2)] hover:bg-[var(--hover)]")} onClick={() => setBase(k)} aria-pressed={base === k}>
+          <button key={k} className={cx("map-pill flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition", base === k ? on : "text-[var(--color-ink-2)] hover:bg-[var(--hover)]")} onClick={() => setBase(k)} aria-pressed={base === k}>
             <Icon size={13} /> <span className="hidden sm:inline">{label}</span>
           </button>
         ))}

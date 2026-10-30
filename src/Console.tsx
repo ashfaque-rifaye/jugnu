@@ -149,11 +149,11 @@ function Console() {
 
   const wave1 = state.recs.filter((r) => r.wave === 1).length;
   const LOOP: NavItem[] = [
-    { to: "/schools", n: "1", label: t("Find & check", "ढूँढें व जाँचें"), icon: SchoolIcon, meta: c.checksDue ? t(`${c.checksDue} due`, `${c.checksDue} बाकी`) : String(c.bright) },
-    { to: "/interviews", n: "2", label: t("Listen", "सुनें"), icon: Mic, meta: String(c.heard) },
+    { to: "/schools", n: "1", label: t("Schools", "स्कूल"), icon: SchoolIcon, meta: c.checksDue ? t(`${c.checksDue} due`, `${c.checksDue} बाकी`) : String(c.bright) },
+    { to: "/interviews", n: "2", label: t("Interviews", "बातचीत"), icon: Mic, meta: String(c.heard) },
     { to: "/practices", n: "3", label: t("What works", "क्या काम करता है"), icon: Stars, meta: String(c.practices) },
-    { to: "/plan", n: "4", label: t("Share", "पहुँचाएँ"), icon: Handshake, meta: `${c.reached}/${wave1}` },
-    { to: "/results", n: "5", label: t("Follow up", "फ़ॉलो-अप"), icon: LineChart, meta: `${c.calls}/${wave1}` },
+    { to: "/plan", n: "4", label: t("Support plan", "मदद की योजना"), icon: Handshake, meta: `${c.reached}/${wave1}` },
+    { to: "/results", n: "5", label: t("Results", "नतीजे"), icon: LineChart, meta: `${c.calls}/${wave1}` },
   ];
   const TOP: NavItem[] = [
     { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
@@ -229,7 +229,7 @@ function Console() {
   const TABS: NavItem[] = [
     { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
     { to: "/schools", label: t("Schools", "स्कूल"), icon: SchoolIcon },
-    { to: "/plan", label: t("Share", "पहुँचाएँ"), icon: Handshake },
+    { to: "/plan", label: t("Support plan", "मदद की योजना"), icon: Handshake },
     { to: "/results", label: t("Results", "नतीजे"), icon: LineChart },
   ];
   const tabMatch = TABS.find((x) => location.pathname === x.to || location.pathname.startsWith(`${x.to}/`));
@@ -258,6 +258,9 @@ function Console() {
             </span>
             <button className="btn btn-glass !px-3 !py-2" onClick={startTour} data-tour="guide" title={t("Show me around", "मुझे घुमाएँ")}>
               <Compass size={16} /> <span className="hidden sm:inline">{t("Guide", "गाइड")}</span>
+            </button>
+            <button className="btn btn-glass !hidden !px-3 !py-2 lg:!inline-flex" onClick={() => window.dispatchEvent(new Event(FEEDBACK_EVENT))}>
+              <MessageSquareHeart size={16} /> {t("Feedback", "राय दें")}
             </button>
             <button className="btn btn-glass btn-icon !p-2 lg:hidden" onClick={() => setAsk(true)} aria-label={t("Ask Jugnu", "जुगनू से पूछें")}>
               <MessageCircleQuestion size={17} />
@@ -329,7 +332,7 @@ function Console() {
                 <motion.span key={String(on)} initial={on ? { scale: 0.7, y: 2 } : false} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
                   <Icon size={20} strokeWidth={on ? 2.3 : 1.9} aria-hidden style={on ? { color: "var(--st-bright)" } : undefined} />
                 </motion.span>
-                <motion.span className="max-w-full overflow-hidden truncate px-1" initial={false} animate={{ height: tucked ? 0 : 15, opacity: tucked ? 0 : 1, marginTop: tucked ? 0 : 2 }} transition={{ duration: 0.25 }}>
+                <motion.span className="overflow-hidden whitespace-nowrap" initial={false} animate={{ height: tucked ? 0 : 15, opacity: tucked ? 0 : 1, marginTop: tucked ? 0 : 2 }} transition={{ duration: 0.25 }}>
                   {label}
                 </motion.span>
               </NavLink>
@@ -450,13 +453,13 @@ function WhereBar() {
       <span className="flex min-w-0 flex-wrap items-center gap-1">
         <span className={crumb}>{t("Madhya Pradesh", "मध्य प्रदेश")}</span>
         {sep}
-        <NavLink to="/district" className={cx(crumb, "hover:text-[var(--color-ink)] hover:underline")}>
+        <NavLink to="/district" className={cx(crumb, "tap-link hover:text-[var(--color-ink)] hover:underline")}>
           {t("Damoh district", "दमोह ज़िला")}
         </NavLink>
         {sep}
         <label className="relative inline-flex items-center">
           <select
-            className="cursor-pointer appearance-none rounded-full bg-[var(--chip)] py-0.5 pl-2 pr-5 font-semibold text-[var(--color-ink)] outline-none"
+            className="cursor-pointer appearance-none rounded-full bg-[var(--chip)] py-0.5 pl-2 pr-5 font-semibold max-lg:py-2.5 text-[var(--color-ink)] outline-none"
             value={profile.code}
             onChange={(e) => regenerate(Number(e.target.value))}
             aria-label={t("Block", "ब्लॉक")}
@@ -536,7 +539,7 @@ function useTourSteps(): TourStep[] {
       {
         target: "nav-loop",
         title: ["The loop, in order", "चक्र, क्रम से"],
-        body: ["Find & check → Listen → What works → Share → Follow up. Each page is one step; the numbers show what is waiting.", "ढूँढें व जाँचें → सुनें → क्या काम करता है → पहुँचाएँ → फ़ॉलो-अप। हर पेज एक कदम है; अंक बताते हैं क्या बाकी है।"],
+        body: ["Schools → Interviews → What works → Support plan → Results. Each page is one step; the numbers show what is waiting.", "स्कूल → बातचीत → क्या काम करता है → मदद की योजना → नतीजे। हर पेज एक कदम है; अंक बताते हैं क्या बाकी है।"],
       },
       {
         target: "map",
@@ -743,8 +746,8 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
           if (e.key === "Enter" && hits[0]) (onPick(hits[0].id), setQ(""), setOpen(false));
           if (e.key === "Escape") setOpen(false);
         }}
-        placeholder={t("Search school, village, teacher", "स्कूल, गाँव, शिक्षक खोजें")}
-        className="w-full rounded-full border border-transparent bg-[var(--inset-bg)] py-2 pl-10 pr-12 text-sm outline-none transition focus:border-[color-mix(in_srgb,var(--st-bright)_60%,transparent)]"
+        placeholder={window.innerWidth < 768 ? t("Search", "खोजें") : t("Search school, village, teacher", "स्कूल, गाँव, शिक्षक खोजें")}
+        className="w-full rounded-full border border-transparent bg-[var(--inset-bg)] py-2 pl-10 pr-4 text-sm outline-none md:pr-12 transition focus:border-[color-mix(in_srgb,var(--st-bright)_60%,transparent)]"
         aria-label={t("Search schools", "स्कूल खोजें")}
       />
       {q ? (

@@ -170,7 +170,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
           icon={MapIcon}
           tone="var(--st-bright)"
           right={
-            <Link to="/schools" className="text-sm font-semibold text-[var(--st-bright)]">
+            <Link to="/schools" className="tap-link text-sm font-semibold text-[var(--st-bright)]">
               {t("All schools", "सभी स्कूल")} →
             </Link>
           }
@@ -215,7 +215,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
         icon={Mic}
         tone="var(--tone-teal)"
         right={
-          <Link to="/interviews" className="text-sm font-semibold text-[var(--st-bright)]">
+          <Link to="/interviews" className="tap-link text-sm font-semibold text-[var(--st-bright)]">
             {t("Open", "खोलें")} →
           </Link>
         }
@@ -309,7 +309,7 @@ function TermRings({ onPlay }: { onPlay?: () => void }) {
           <li className={cx("text-xs text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{t(`${pct}% of the term's work is done`, `सत्र का ${pct}% काम पूरा`)}</li>
           {rows.map((r) => (
             <li key={r.label}>
-              <Link to={r.to} className="group flex items-center gap-2.5">
+              <Link to={r.to} className="tap-row group flex items-center gap-2.5">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: r.color, boxShadow: `0 0 10px ${tint(r.color, 60)}` }} />
                 <span className={cx("flex-1 text-[13.5px] text-[var(--color-ink-2)] group-hover:text-[var(--color-ink)]", lang === "hi" && "font-deva")}>{r.label}</span>
                 <span className="font-display text-[15px] font-bold tabular-nums">
@@ -370,7 +370,7 @@ function NeedsYou({ tasks }: { tasks: Task[] }) {
                   role="tab"
                   aria-selected={on}
                   onClick={() => setGroup(g.kind)}
-                  className={cx("relative isolate flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors", hi, on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]")}
+                  className={cx("seg-item relative isolate flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors", hi, on ? "text-[var(--color-ink)]" : "text-[var(--color-ink-2)] hover:text-[var(--color-ink)]")}
                 >
                   {on && <motion.span layoutId="needs-tab" className="seg-on absolute inset-0 -z-10 rounded-full" transition={SPRING} />}
                   {g.kind !== "all" && <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone }} />}
@@ -406,7 +406,7 @@ function NeedsYou({ tasks }: { tasks: Task[] }) {
             })}
           </ul>
           {shown.length > 7 && (
-            <Link to="/plan" className={cx("mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--st-bright)]", hi)}>
+            <Link to="/plan" className={cx("tap-link mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--st-bright)]", hi)}>
               {t(`${shown.length - 7} more — see them on the support plan`, `${shown.length - 7} और — मदद की योजना में देखें`)} <ArrowRight size={14} />
             </Link>
           )}

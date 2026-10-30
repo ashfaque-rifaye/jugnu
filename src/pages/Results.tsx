@@ -76,7 +76,7 @@ export default function ResultsPage() {
               <li key={s.id} className="card-inset p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <Link to={`/schools/${s.id}`} className="font-semibold hover:underline">
+                    <Link to={`/schools/${s.id}`} className="tap-link font-semibold hover:underline">
                       {s.teacher} · {s.name}
                     </Link>
                     <div className="text-xs text-[var(--color-ink-3)]">{lang === "hi" ? PRACTICES[r.practice].labelHi : PRACTICES[r.practice].label}</div>
@@ -92,7 +92,7 @@ export default function ResultsPage() {
                 {f?.said && <div className="mt-2 font-deva text-sm">“{f.said}”</div>}
                 {f && !mine && f.saidEn && <div className="text-xs text-[var(--color-ink-3)]">{f.saidEn}</div>}
                 {f && !mine && <div className="mt-1 text-[11px] text-[var(--color-ink-3)]">{t("Simulated call (demo term)", "सिम्युलेटेड कॉल (डेमो सत्र)")}</div>}
-                <button className="mt-2 text-sm text-amber-200" onClick={() => setOpen(open === s.id ? null : s.id)}>
+                <button className="tap-link mt-2 text-sm text-amber-200" onClick={() => setOpen(open === s.id ? null : s.id)}>
                   {open === s.id ? t("Close", "बंद करें") : f ? t("Record a new call", "नई कॉल दर्ज करें") : t("Record the call", "कॉल दर्ज करें")}
                 </button>
                 {open === s.id && (

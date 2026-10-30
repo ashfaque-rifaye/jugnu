@@ -180,7 +180,7 @@ function PracticeCard({ e, reveal, cardStatus, onDrafted }: { e: PracticeEvidenc
                 <div>
                   <div className="font-deva">{q.quote}</div>
                   {s && (
-                    <Link to={`/schools/${s.id}`} className="mt-1 block text-xs text-[var(--color-ink-3)] hover:text-white">
+                    <Link to={`/schools/${s.id}`} className="tap-link mt-1 text-xs text-[var(--color-ink-3)] hover:text-white">
                       — {s.teacher}, {s.name}
                     </Link>
                   )}

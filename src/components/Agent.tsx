@@ -3,6 +3,7 @@
 // conversation (Google Chirp 3 hears Hindi, English, Tamil and more; Chirp 3 HD voices answer),
 // or open the chat panel. Both drive the same agent — it briefs the officer in their language,
 // answers from the block's data and works the console: pages, schools, the map, forms, records.
+import { cx } from "./ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Compass, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -849,13 +850,10 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             className="glass-strong fixed bottom-[168px] right-3 top-3 z-[61] flex w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden lg:bottom-24"
             aria-label={t("Jugnu assistant", "जुगनू सहायक")}
           >
-            <div className="flex items-center gap-2 border-b border-[var(--line)] px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="font-display text-base font-bold leading-tight">{t("Jugnu", "जुगनू")}</div>
-                <div className="text-xs text-[var(--color-ink-3)]">{t("Ask, or tell me what to do — I can open, show, fill and record.", "पूछें, या बताएँ क्या करना है — मैं खोल, दिखा, भर और दर्ज कर सकता हूँ।")}</div>
-              </div>
+            <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] px-4 py-3">
+              <div className="min-w-0 flex-1 font-display text-base font-bold leading-tight">{t("Jugnu", "जुगनू")}</div>
               {a.cloud && (
-                <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className={`${fieldBase} !h-8 !w-auto !py-0 text-xs`} aria-label={t("Voice", "आवाज़")} title={t("Voice", "आवाज़")}>
+                <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className={`${fieldBase} !h-8 !w-auto !max-w-[108px] !py-0 text-xs`} aria-label={t("Voice", "आवाज़")} title={t("Voice", "आवाज़")}>
                   {VOICE_CHOICES.map((v) => (
                     <option key={v.id} value={v.id}>
                       {t(v.en, v.hi)}
@@ -872,6 +870,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
               <button className="btn btn-glass btn-icon !p-2" onClick={onClose} aria-label={t("Close", "बंद करें")}>
                 <X size={15} />
               </button>
+              <div className="w-full text-xs text-[var(--color-ink-3)]">{t("Ask, or tell me what to do — I can open, show, fill and record.", "पूछें, या बताएँ क्या करना है — मैं खोल, दिखा, भर और दर्ज कर सकता हूँ।")}</div>
             </div>
             <div ref={listRef} className="scroll-thin flex-1 space-y-3 overflow-y-auto px-4 py-3" aria-live="polite">
               {!a.lines.length && (
@@ -950,7 +949,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
         )}
       </AnimatePresence>
 
-      <div className="fixed bottom-[calc(92px+env(safe-area-inset-bottom))] right-3 z-[62] flex flex-col items-end gap-2 lg:bottom-5 lg:right-5">
+      <div className={cx("fixed bottom-[calc(92px+env(safe-area-inset-bottom))] right-3 z-[62] flex flex-col items-end gap-2 lg:bottom-5 lg:right-5", !open && !active && !linger && "max-lg:hidden")}>
         <AnimatePresence>
           {!open && bubble && (
             <motion.div
@@ -984,7 +983,8 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             </motion.div>
           )}
         </AnimatePresence>
-        {/* just the orb, with two small helpers beside it — no pill, no ring */}
+        {/* just the orb, with two small helpers beside it — no pill, no ring. On a phone it only appears
+            while Jugnu is in use, so it never sits on the cards; the top bar's Ask button opens Jugnu there. */}
         <div className="flex items-center gap-1.5">
           {active ? (
             <button className="dock-mini" onClick={a.hangUp} aria-label={t("Stop", "रोकें")} title={t("Stop", "रोकें")}>

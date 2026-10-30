@@ -3,9 +3,12 @@
 import crypto from "node:crypto";
 import express from "express";
 import { z } from "zod";
-import { PRACTICE_IDS, type PracticeId } from "../src/engine/practices";
+import { generateBlock } from "../src/engine/block";
+import { DEFAULT_SEED } from "../src/engine/district";
+import { runPipeline } from "../src/engine/pipeline";
+import { PRACTICES, PRACTICE_IDS, type PracticeId } from "../src/engine/practices";
 import type { Check } from "./ai/guardrails";
-import { draftCard, polishNote, type CardQuote } from "./ai/writer";
+import { draftCard, guardNote, polishNote, type CardQuote } from "./ai/writer";
 import { requireOfficer, rateLimit } from "./auth";
 import { db, json, now } from "./db";
 
@@ -18,7 +21,28 @@ async function enqueue(kind: string, ref: string | null, payload: unknown, check
   return id;
 }
 
+// A new reviewer should have something to approve: three voice notes from the demo block's own plan
+// wait here once. Approving or rejecting them is permanent until the demo is started fresh.
+let demoSeeded = false;
+async function seedDemoDrafts() {
+  if (demoSeeded) return;
+  const { recs } = runPipeline(generateBlock(DEFAULT_SEED));
+  for (const r of recs.filter((x) => x.wave === 1).slice(0, 3)) {
+    const note = { voice_hi: r.voiceNoteHi, voice_en: r.voiceNoteEn };
+    const payload = { ...note, draftHi: r.voiceNoteHi, practice: PRACTICES[r.practice].label, demo: true, source: "offline" };
+    await db.run(`INSERT OR IGNORE INTO reviews (id, kind, ref, payload, checks, created_at) VALUES (?, ?, ?, ?, ?, ?)`, `demo-${r.schoolId}`, "voice_note", r.schoolId, JSON.stringify(payload), JSON.stringify(guardNote(note, r.voiceNoteHi).checks), now());
+  }
+  demoSeeded = true;
+}
+
+/** "Start the demo block fresh" also puts the demo drafts back. */
+export async function resetDemoDrafts() {
+  await db.run(`DELETE FROM reviews WHERE id LIKE 'demo-%'`);
+  demoSeeded = false;
+}
+
 reviews.get("/", async (req, res) => {
+  await seedDemoDrafts().catch((e) => console.warn("demo drafts:", e));
   const status = String(req.query.status ?? "pending");
   const rows = await db.all<Record<string, string>>(`SELECT * FROM reviews WHERE (? = 'all' OR status = ?) ORDER BY created_at DESC LIMIT 200`, status, status);
   res.json(rows.map((r) => ({ ...r, payload: json(r.payload, {}), checks: json(r.checks, []) })));
