@@ -5,7 +5,7 @@
 // Std I–II classrooms are multigrade; average student attendance 75.9%; library books in use
 // in 51.3% of schools. Each school also has hidden practices whose effects only the
 // simulator knows — Jugnu has to discover them.
-import { DISTRICT, govtElementary, profileFor, pupilsPerTeacher } from "./district";
+import { DISTRICT, govtElementary, profileFor, pupilsPerTeacher, SIM_OFFSET } from "./district";
 import { EFFECTIVE, PRACTICE_IDS, PRACTICES } from "./practices";
 import { chance, logit, mulberry32, pick, randInt, shuffle, sigmoid, type Rng } from "./rng";
 import { CYCLES, type Block, type School, type SchoolTruth } from "./types";
@@ -71,7 +71,7 @@ export function generateBlock(seed = 2024, size = 200): Block {
   const profile = profileFor(seed);
   const real = profile ? UDISE[profile.block] : undefined;
   if (profile) size = real ? real.schools.length : govtElementary(profile);
-  const rng = mulberry32(seed);
+  const rng = mulberry32(seed + (SIM_OFFSET[seed] ?? 0));
   const names = new Set<string>();
   const village = () => {
     for (let tries = 0; ; tries++) {

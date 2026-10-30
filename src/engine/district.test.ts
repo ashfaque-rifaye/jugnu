@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateBlock } from "./block";
+import { runPipeline, runTrackStage } from "./pipeline";
 import { DAMOH, profileFor } from "./district";
 import { UDISE } from "./udise";
 import { summariseBlock } from "./rollup";
@@ -36,5 +37,15 @@ describe("Damoh district (UDISE+ profiles)", () => {
     const s = summariseBlock(profileFor(231203)!);
     expect(s.schools).toBeGreaterThan(300);
     expect(s.verified).toBeGreaterThan(0);
+  });
+
+  it("gives every real block a working demo: bright spots, a support plan and a result", () => {
+    for (const p of DAMOH) {
+      const st = runPipeline(generateBlock(p.code));
+      expect(st.bright.length, p.block).toBeGreaterThanOrEqual(4);
+      expect(st.evidence.some((e) => e.verdict === "distinctive"), p.block).toBe(true);
+      expect(st.recs.length, p.block).toBeGreaterThan(0);
+      expect(runTrackStage(st).track, p.block).not.toBeNull();
+    }
   });
 });

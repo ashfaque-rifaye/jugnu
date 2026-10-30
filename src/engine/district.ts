@@ -35,6 +35,13 @@ export const DAMOH: BlockProfile[] = [
 /** The block the console opens on: Tendukheda, Damoh's most tribal block (29.5% ST enrolment). */
 export const DEFAULT_SEED = 231205;
 
+/**
+ * Where each block's simulated results start drawing from. Only learning results and practices are
+ * simulated; the schools stay real. On their first draw these three blocks verified too few bright
+ * spots for any practice to stand out, which left the demo with an empty support plan.
+ */
+export const SIM_OFFSET: Record<number, number> = { 231201: 1, 231204: 1, 231205: 1 };
+
 export const profileFor = (seed: number) => DAMOH.find((p) => p.code === seed) ?? null;
 
 /** Government schools with classes 1–3 (about 9 in 10 government schools are elementary). */

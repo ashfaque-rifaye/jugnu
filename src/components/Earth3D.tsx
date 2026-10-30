@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
 import type { School } from "../engine/types";
-import { loadGoogleMaps } from "../lib/gmaps";
+import { loadGoogleMaps, onMapsRejected } from "../lib/gmaps";
 
 export type LatLon = [lat: number, lon: number];
 // The camera aims at an absolute altitude; Damoh's plateau stands about 400 m above the sea.
@@ -56,6 +56,7 @@ export default function Earth3D({ schools, pin, pinKey, outline, links, measure,
   useEffect(() => {
     let dead = false;
     let map: any;
+    const off = onMapsRejected(() => !dead && cb.current.onFail("Google Maps rejected the key"));
     loadGoogleMaps(language)
       .then(async (g) => {
         const [m3, mk] = await Promise.all([g.importLibrary("maps3d"), g.importLibrary("marker")]);
@@ -70,6 +71,7 @@ export default function Earth3D({ schools, pin, pinKey, outline, links, measure,
       .catch((e) => !dead && cb.current.onFail(String(e?.message ?? e)));
     return () => {
       dead = true;
+      off();
       map?.remove();
       lib.current = null;
       markers.current.clear();
