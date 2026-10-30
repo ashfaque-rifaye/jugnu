@@ -8,7 +8,7 @@ Claude itself was unavailable throughout (usage cap until 1 November), so every 
 
 | Role | Setup | Tasks | Result |
 |---|---|---|---|
-| BEO | Computer, English | Ask about maths; find stuck actions; see why data may be inflated; read Results | All done; 3 problems fixed |
+| BEO | Computer, English | Ask about maths; find stuck actions; see why data may be inflated; read Results | All done; 4 problems fixed |
 | Teacher | Phone, Hindi | Interview by typing; voice note; practice card | Interview done; 3 problems fixed. The voice note was not played, and the card page was not opened after its link was fixed |
 | CRP | Phone, English | Find bright spots; invite a teacher; record a spot check; record a follow-up; review an AI draft | All reached; 5 problems fixed, including 1 serious. Saving a real spot check with counts was not tested |
 | First-time visitor | Small phone and computer | Welcome screen; guided tour | Done; 1 problem fixed |
