@@ -12,6 +12,7 @@ import { mapColumns } from "./ai/mapper";
 import { exportsRouter } from "./exports";
 import { agentBrief, agentPageGuide, agentTurn } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
+import { aiHealth } from "./ai/health";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
 import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
 import { pipelineFor } from "./blocks";
@@ -247,6 +248,9 @@ app.post("/api/voice/tts", rateLimit("voice", 400, 600000), async (req, res) => 
 
 // ---------------------------------------------------------------- AI trace + evaluation
 app.get("/api/ai/trace", requireOfficer, async (_req, res) => res.json({ summary: await traceSummary(), calls: await recentCalls(150) }));
+
+// Whether Claude and Google speech really answer. For the team and scripts; the console does not show it.
+app.get("/api/ai/health", requireOfficer, async (_req, res) => res.json(await aiHealth()));
 
 // Totals only (no prompts or answers), so `npm run credits` can read the deployed app's spend.
 app.get("/api/ai/credits", async (_req, res) => res.json(await creditReport()));

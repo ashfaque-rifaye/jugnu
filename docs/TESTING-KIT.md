@@ -57,11 +57,11 @@ Everything is recorded inside the app (**User testing** in the left menu). No na
 1. Testing page → **CSV** downloads every comment.
 2. Group comments by theme; pick the 3–5 that matter most.
 3. Tell Claude (in this project) what you heard; we make the change together.
-4. Add one line per change to `data/changes.json` — it appears in the app as *"You said → we changed"*:
+4. Add one entry per change to `data/changes.json`. It appears on the Testing page as *"You said, we changed"*. Say who it came from truthfully: sessions run by the team are "Internal role-play", not teachers. `fromHi`, `heardHi` and `changedHi` are the Hindi versions:
 
 ```json
 [
-  { "date": "2026-10-18", "from": "CRP, Sehore", "heard": "I could not tell which schools are mine.", "changed": "Find page now filters by cluster and remembers my cluster." }
+  { "date": "2026-10-18", "from": "Internal role-play (as a CRP)", "heard": "I could not tell which schools are mine.", "changed": "Schools now filters by cluster and remembers my cluster." }
 ]
 ```
 

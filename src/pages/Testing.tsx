@@ -1,7 +1,7 @@
 // User-testing mode for sessions with real teachers, CRPs and BEOs: consent, role-specific tasks
 // (done easily / with help / couldn't), the System Usability Scale in Hindi or English, and a
 // results dashboard with the "you said → we changed" log — the evidence judges ask for.
-import { CheckCircle2, ClipboardList, Download, ExternalLink, Loader2, Play, Square, Users } from "lucide-react";
+import { CheckCircle2, ClipboardList, Download, ExternalLink, Loader2, Play, Square } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { sendFeedback, useSession, VoiceText, type Role } from "../components/Feedback";
@@ -79,6 +79,7 @@ export default function TestingPage() {
         </p>
       </Glass>
       {session.id && session.role ? <ActiveSession role={session.role} id={session.id} onEnd={session.end} /> : <StartSession onStart={session.begin} />}
+      <Changes />
       <ResetDemo />
       <Results />
     </div>
@@ -270,15 +271,56 @@ interface Summary {
 }
 interface Change {
   date: string;
-  heard: string;
   from: string;
+  fromHi?: string;
+  heard: string;
+  heardHi?: string;
   changed: string;
+  changedHi?: string;
+}
+
+/** The refinement log, from data/changes.json. Open to everyone, including visitors without the passcode. */
+function Changes() {
+  const t = useT();
+  const { lang } = usePrefs();
+  const [changes] = usePoll<Change[]>("/api/testing/changes");
+  const deva = lang === "hi" && "font-deva";
+  return (
+    <Glass className="p-5">
+      <SectionTitle
+        eyebrow={t("Refinement", "सुधार")}
+        title={t("You said, we changed", "आपने कहा, हमने बदला")}
+        sub={t("From internal testing and review by the Jugnu team so far, not field testing with teachers or officers.", "अब तक जुगनू टीम के आंतरिक परीक्षण और समीक्षा से, शिक्षकों या अधिकारियों के साथ फ़ील्ड परीक्षण से नहीं।")}
+      />
+      <div className="mb-2 hidden grid-cols-2 gap-5 px-4 md:grid">
+        <div className="label">{t("You said", "आपने कहा")}</div>
+        <div className="label">{t("We changed", "हमने बदला")}</div>
+      </div>
+      <ul className="space-y-2">
+        {(changes ?? []).map((c, i) => (
+          <li key={i} className="glass-inset grid gap-3 p-4 text-sm leading-relaxed md:grid-cols-2 md:gap-5">
+            <div>
+              <div className="label mb-1 md:hidden">{t("You said", "आपने कहा")}</div>
+              <div className={cx("text-[var(--color-ink-2)]", deva)}>{t(c.heard, c.heardHi ?? c.heard)}</div>
+              <div className={cx("mt-1 text-xs text-[var(--color-ink-3)]", deva)}>
+                {t(c.from, c.fromHi ?? c.from)} · {new Date(c.date).toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "short", year: "numeric" })}
+              </div>
+            </div>
+            <div>
+              <div className="label mb-1 md:hidden">{t("We changed", "हमने बदला")}</div>
+              <div className={cx("font-medium", deva)}>{t(c.changed, c.changedHi ?? c.changed)}</div>
+            </div>
+          </li>
+        ))}
+        {(changes ?? []).length === 0 && <li className="text-sm text-[var(--color-ink-3)]">{t("Changes made from testing will be listed here.", "परीक्षण से किए बदलाव यहाँ दिखेंगे।")}</li>}
+      </ul>
+    </Glass>
+  );
 }
 
 function Results() {
   const t = useT();
   const [s, err] = usePoll<Summary>("/api/testing/summary", 10000);
-  const [changes] = usePoll<Change[]>("/api/testing/changes");
   const taskName = (id: string) => Object.values(TASKS).flat().find((x) => x.id === id);
   const exportCsv = () => {
     if (!s) return;
@@ -294,6 +336,7 @@ function Results() {
       <SectionTitle
         eyebrow={t("Evidence", "प्रमाण")}
         title={t("What testers told us", "परीक्षकों ने क्या बताया")}
+        sub={t("Sessions recorded so far are internal role-play by the team.", "अब तक दर्ज सत्र टीम का आंतरिक अभ्यास हैं।")}
         right={
           <button className="btn btn-glass" onClick={exportCsv} disabled={!s}>
             <Download size={14} /> CSV
@@ -332,36 +375,19 @@ function Results() {
               </ul>
             </div>
           )}
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <div>
-              <div className="label mb-2">{t("Latest comments", "ताज़ा राय")}</div>
-              <ul className="scroll-thin space-y-2 lg:max-h-72 lg:overflow-y-auto lg:pr-1">
-                {s.comments.slice(0, 40).map((c, i) => (
-                  <li key={i} className="glass-inset p-3 text-sm">
-                    <div className="font-deva">{c.text}</div>
-                    <div className="mt-1 text-xs text-[var(--color-ink-3)]">
-                      {c.role ?? t("visitor", "आगंतुक")} · {c.page} · {new Date(c.created_at).toLocaleDateString()}
-                    </div>
-                  </li>
-                ))}
-                {s.comments.length === 0 && <li className="text-sm text-[var(--color-ink-3)]">{t("No comments yet.", "अभी कोई राय नहीं।")}</li>}
-              </ul>
-            </div>
-            <div>
-              <div className="label mb-2 flex items-center gap-1">
-                <Users size={13} /> {t("You said → we changed", "आपने कहा → हमने बदला")}
-              </div>
-              <ul className="scroll-thin space-y-2 lg:max-h-72 lg:overflow-y-auto lg:pr-1">
-                {(changes ?? []).map((c, i) => (
-                  <li key={i} className="glass-inset p-3 text-sm">
-                    <div className="text-[var(--color-ink-2)]">“{c.heard}” <span className="text-xs text-[var(--color-ink-3)]">— {c.from}</span></div>
-                    <div className="mt-1 text-teal-200">→ {c.changed}</div>
-                    <div className="mt-1 text-xs text-[var(--color-ink-3)]">{c.date}</div>
-                  </li>
-                ))}
-                {(changes ?? []).length === 0 && <li className="text-sm text-[var(--color-ink-3)]">{t("Changes made from testing will be listed here.", "परीक्षण से किए बदलाव यहाँ दिखेंगे।")}</li>}
-              </ul>
-            </div>
+          <div className="mt-5">
+            <div className="label mb-2">{t("Latest comments", "ताज़ा राय")}</div>
+            <ul className="scroll-thin space-y-2 lg:max-h-72 lg:overflow-y-auto lg:pr-1">
+              {s.comments.slice(0, 40).map((c, i) => (
+                <li key={i} className="glass-inset p-3 text-sm">
+                  <div className="font-deva">{c.text}</div>
+                  <div className="mt-1 text-xs text-[var(--color-ink-3)]">
+                    {c.role ?? t("visitor", "आगंतुक")} · {c.page} · {new Date(c.created_at).toLocaleDateString()}
+                  </div>
+                </li>
+              ))}
+              {s.comments.length === 0 && <li className="text-sm text-[var(--color-ink-3)]">{t("No comments yet.", "अभी कोई राय नहीं।")}</li>}
+            </ul>
           </div>
         </>
       )}

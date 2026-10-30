@@ -1,1 +1,83 @@
-[]
+[
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "\"Approve an AI draft\" on the first-10-minutes checklist had nothing to approve.",
+    "heardHi": "पहले 10 मिनट की सूची में \"AI का मसौदा मंज़ूर करें\" था, पर मंज़ूर करने को कुछ नहीं था।",
+    "changed": "Approvals now opens with three drafts waiting, clearly marked as demo drafts.",
+    "changedHi": "अब 'मंज़ूरी' पेज पर तीन मसौदे इंतज़ार में मिलते हैं, जिन पर साफ़ लिखा है कि वे डेमो के हैं।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "The menu and the page titles used different names for the same page, such as Share and Support plan.",
+    "heardHi": "मेनू और पेज के शीर्षक में एक ही पेज के अलग-अलग नाम थे।",
+    "changed": "Each page now has one name, in the menu and in its title.",
+    "changedHi": "अब हर पेज का एक ही नाम है, मेनू में भी और शीर्षक में भी।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "The Feedback button covered the last card on Today.",
+    "heardHi": "'राय दें' बटन 'आज' पेज के आख़िरी कार्ड को ढक रहा था।",
+    "changed": "Feedback moved to the top bar on computers and to the More menu on phones.",
+    "changedHi": "'राय दें' अब कंप्यूटर पर ऊपर की पट्टी में और फ़ोन पर 'और' मेनू में है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "On a phone, the search box and sort menu cut off their text, and the floating orb covered cards.",
+    "heardHi": "फ़ोन पर खोज और क्रम के मेनू का लिखा कट रहा था, और तैरता गोला कार्ड ढक रहा था।",
+    "changed": "Labels are shorter so they fit, and the orb stays hidden on phones until it is in use.",
+    "changedHi": "लेबल छोटे किए ताकि पूरे दिखें, और फ़ोन पर गोला तभी दिखता है जब वह इस्तेमाल में हो।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "Many buttons on Today were too small to tap in the field.",
+    "heardHi": "'आज' पेज के कई बटन फ़ील्ड में दबाने के लिए बहुत छोटे थे।",
+    "changed": "Main buttons and links on phones are now about 42 px tall.",
+    "changedHi": "फ़ोन पर मुख्य बटन और लिंक अब लगभग 42 px ऊँचे हैं।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "Small, faint text was hard to read, including the home page's \"Any phone, even 2G\" line.",
+    "heardHi": "छोटा और हल्का लिखा पढ़ना मुश्किल था, होम पेज की \"कोई भी फ़ोन, 2G पर भी\" वाली पंक्ति भी।",
+    "changed": "Text is now 12 px or larger, helper text is brighter in dark mode, and the home page line is larger and clearer.",
+    "changedHi": "अब लिखा 12 px या उससे बड़ा है, डार्क मोड में सहायक लिखा ज़्यादा चमकीला है, और होम पेज की पंक्ति बड़ी और साफ़ है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "Approval cards showed too much at once.",
+    "heardHi": "मंज़ूरी के कार्ड पर एक साथ बहुत कुछ दिख रहा था।",
+    "changed": "The English is tucked behind \"Read in English\", and the checks became one line that opens by itself if a check fails.",
+    "changedHi": "अंग्रेज़ी अब \"Read in English\" के पीछे है, और जाँचें एक पंक्ति में हैं, जो कोई जाँच विफल होने पर अपने आप खुलती है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "Support plan and Results were empty in three of Damoh's blocks, including the one that opens first.",
+    "heardHi": "दमोह के तीन ब्लॉक में 'सहायता योजना' और 'नतीजे' खाली थे, पहले खुलने वाला ब्लॉक भी उनमें था।",
+    "changed": "Every Damoh block now has a working demo plan, and a test keeps it that way.",
+    "changedHi": "अब दमोह के हर ब्लॉक में चलती हुई डेमो योजना है, और एक टेस्ट इसे बनाए रखता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "Internal review",
+    "fromHi": "आंतरिक समीक्षा",
+    "heard": "The map showed an error screen when Google refused its key.",
+    "heardHi": "Google के कुंजी न मानने पर नक्शे की जगह गड़बड़ी का संदेश दिखता था।",
+    "changed": "The app now switches to its own map instead of showing the error.",
+    "changedHi": "अब गड़बड़ी दिखाने के बजाय ऐप अपना नक्शा दिखाता है।"
+  }
+]

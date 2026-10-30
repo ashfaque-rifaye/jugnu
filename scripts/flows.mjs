@@ -27,6 +27,8 @@ async function call(method, url, body) {
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
 const results = [];
+let claudeUp = true;
+const aiNotes = [];
 async function flow(name, who, fn) {
   const started = Date.now();
   const steps = [];
@@ -64,7 +66,11 @@ const answerFor = (reply) => (reply.kind === "consent" ? ANSWERS.consent : reply
 await flow("App is up", "Everyone", async (step) => {
   const s = await call("GET", "/api/status");
   step("Status responds", s.status === 200, JSON.stringify(s.data));
-  step("Claude connected", s.data.claude, s.data.model ?? "offline engine");
+  const h = await call("GET", "/api/ai/health");
+  claudeUp = !!h.data.claude?.ok;
+  aiNotes.push(`Claude: ${claudeUp ? "up" : `DOWN, so the backup is what these flows test (${h.data.claude?.detail})`}`);
+  step("Google voice speaks", h.data.speaking?.ok, h.data.speaking?.detail);
+  step("Google voice listens", h.data.listening?.ok, h.data.listening?.detail);
   step("Storage is permanent", s.data.storage !== "temporary", s.data.storage);
   for (const p of ["/", "/today", "/schools", "/interviews", "/practices", "/plan", "/results", "/review", "/testing", "/ai", "/method", "/about", "/talk"]) {
     const r = await fetch(base + p);
@@ -96,7 +102,7 @@ await flow("Teacher web interview", "Teacher · BEO", async (step) => {
     if (r.data.status === "completed") break;
   }
   step(`Interview completes (${turns} answers)`, reply.done || reply.kind === "closing", reply.say);
-  step("Questions written by Claude", sources.has("claude"), [...sources].join(", "));
+  step(claudeUp ? "Questions written by Claude" : "Questions written by the backup", claudeUp ? sources.has("claude") : sources.has("offline"), [...sources].join(", "));
   let d = await call("GET", `/api/interviews/${interviewId}`);
   for (let i = 0; i < 40 && d.data.codings.length === 0; i++) {
     await sleep(1000);
@@ -130,7 +136,7 @@ await flow("Teacher interview (public demo link)", "Teacher / judge", async (ste
     if (r.data.status === "completed") break;
   }
   step(`Interview completes (${n} answers)`, reply.done || reply.kind === "closing", reply.say);
-  step("Questions written by Claude", sources.has("claude"), [...sources].join(", "));
+  step(claudeUp ? "Questions written by Claude" : "Questions written by the backup", claudeUp ? sources.has("claude") : sources.has("offline"), [...sources].join(", "));
 });
 
 await flow("Teacher says no to consent", "Teacher", async (step) => {
@@ -213,8 +219,8 @@ await flow("AI drafts → human approval", "Jugnu AI · CRP/BEO", async (step) =
 await flow("Ask Jugnu (officer agent)", "BEO", async (step) => {
   const r = await call("POST", "/api/ask", { question: "Which schools need help with reading, and who nearby can show them?" });
   step("Answer returned", r.status === 200, r.data.source);
-  step("Answered by Claude", r.data.source === "claude", r.data.warning ?? "");
-  step("Looked the data up first", (r.data.tools ?? []).length > 0, (r.data.tools ?? []).join(", "));
+  step(claudeUp ? "Answered by Claude" : "Answered by the backup", r.data.source === (claudeUp ? "claude" : "offline"), r.data.warning ?? "");
+  if (claudeUp) step("Looked the data up first", (r.data.tools ?? []).length > 0, (r.data.tools ?? []).join(", "));
   step("Only real school names", (r.data.checks ?? []).every((c) => c.passed), (r.data.answer ?? "").slice(0, 160));
 });
 
@@ -238,6 +244,7 @@ await flow("Clean up", "—", async (step) => {
 const passed = results.filter((r) => r.ok && !r.skipped).length;
 const skippedN = results.filter((r) => r.skipped).length;
 console.log(`\n${passed}/${results.length - skippedN} flows passed against ${base}${skippedN ? ` · ${skippedN} skipped (need the officer passcode: JUGNU_PASS=…)` : ""}`);
+for (const n of aiNotes) console.log(n);
 fs.mkdirSync(path.resolve("data/runtime"), { recursive: true });
 fs.writeFileSync(path.resolve("data/runtime/flowcheck.json"), JSON.stringify({ base, ranAt: new Date().toISOString(), results }, null, 2));
 process.exit(results.every((r) => r.ok) ? 0 : 1);

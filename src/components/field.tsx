@@ -4,7 +4,7 @@ import { Check, CircleDashed, Loader2, Minus, Pause, Plus, Send, Sparkles, Trian
 import { useState } from "react";
 import { PRACTICES } from "../engine/practices";
 import type { Action, Recommendation, School } from "../engine/types";
-import { postJSON, usePoll, useStatus } from "../lib/api";
+import { postJSON, usePoll } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { speak, stopSpeaking } from "../lib/speech";
 import { usePipeline } from "../lib/store";
@@ -183,7 +183,6 @@ type Outcome = "adopted" | "trying" | "barrier" | "no_answer";
 /** Day-14 call: "Did you try it? What happened?" — recorded by the CRP, or read by Jugnu from the teacher's words. */
 export function FollowUpForm({ school, practice }: { school: School; practice: string }) {
   const t = useT();
-  const status = useStatus();
   const { record } = usePipeline();
   const [said, setSaid] = useState("");
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -240,7 +239,7 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
       />
       <div className="flex flex-wrap items-center gap-2">
         <button className="btn btn-glass !py-1.5 text-sm" onClick={read} disabled={!said.trim() || reading}>
-          {reading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {status.claude ? t("Let Claude read it", "Claude से समझें") : t("Let Jugnu read it", "जुगनू से समझें")}
+          {reading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {t("Let Jugnu read it", "जुगनू से समझें")}
         </button>
         {hint && <span className="text-xs text-[var(--color-ink-2)]">{hint}</span>}
       </div>
@@ -275,7 +274,6 @@ interface ReviewItem {
 export function VoiceNote({ rec, school, demo }: { rec: Recommendation; school: School; demo: School }) {
   const t = useT();
   const { lang } = usePrefs();
-  const status = useStatus();
   const { blockKey } = usePipeline();
   const [reviews, , reload] = usePoll<ReviewItem[]>("/api/reviews?status=all", 10000);
   const mine = reviews?.filter((r) => r.kind === "voice_note" && r.ref === school.id) ?? [];
@@ -317,7 +315,7 @@ export function VoiceNote({ rec, school, demo }: { rec: Recommendation; school: 
         ) : (
           <button className="btn btn-primary !py-1.5" onClick={send} disabled={busy}>
             {busy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}{" "}
-            {status.claude ? t("Polish with Claude & send for approval", "Claude से सुधारें व मंज़ूरी भेजें") : t("Send for approval", "मंज़ूरी के लिए भेजें")}
+            {t("Send for approval", "मंज़ूरी के लिए भेजें")}
           </button>
         )}
       </div>

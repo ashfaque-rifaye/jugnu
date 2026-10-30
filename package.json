@@ -12,6 +12,7 @@
     "typecheck": "tsc",
     "smoke": "node scripts/smoke.mjs",
     "env:push": "node scripts/push-env.mjs",
+    "ai:check": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/ai-check.ts",
     "credits": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/credits.ts",
     "eval": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/eval.ts",
     "build:vercel": "node scripts/vercel-build.mjs",

@@ -72,7 +72,7 @@ export const PRACTICES: Record<PracticeId, PracticeInfo> = {
     what: "When a child returns after missing school, a classmate re-teaches that day's work for 10 minutes with the notebook.",
     cost: "zero",
     outcome: "both",
-    lexicon: /जो नहीं आया|लौटने पर|अनुपस्थित|absent|buddy|catch[- ]?up/i,
+    lexicon: /जो (बच्चा |बच्ची )?नहीं आ(या|ई|ता|ती)|लौटने पर|अनुपस्थित|absent|buddy|catch[- ]?up/i,
     icon: "handshake",
     effect: { reading: 0.2, numeracy: 0.2 },
     baseRate: 0.08,

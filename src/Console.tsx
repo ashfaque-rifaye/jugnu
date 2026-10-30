@@ -39,7 +39,7 @@ import { Locator } from "./components/Locator";
 import { LogoMark, Wordmark } from "./components/Logo";
 import { FilmPlayer } from "./components/Film";
 import { PasscodeGate } from "./components/Passcode";
-import { AIStatus, cx } from "./components/ui";
+import { cx } from "./components/ui";
 import { Welcome } from "./components/Welcome";
 import { DAMOH, profileFor } from "./engine/district";
 import { usePoll } from "./lib/api";
@@ -264,9 +264,6 @@ function Console() {
               }}
             />
             <LiveIndicator />
-            <span className="hidden md:inline-flex">
-              <AIStatus />
-            </span>
             <button className="btn btn-glass !px-3 !py-2" onClick={startTour} data-tour="guide" title={t("Show me around", "मुझे घुमाएँ")}>
               <Compass size={16} /> <span className="hidden sm:inline">{t("Guide", "गाइड")}</span>
             </button>

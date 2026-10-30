@@ -6,6 +6,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { watchAI } from "./ai/health";
 import { app } from "./app";
 import { claudeAvailable, MODEL } from "./claude";
 import { storage } from "./db";
@@ -33,6 +34,7 @@ server.listen(port, () => {
   const t = telephonyStatus();
   const phone = t.active ? `${t.active} via ${t.publicUrl}` : "off (set TELEPHONY_PROVIDER + PUBLIC_URL)";
   console.log(
-    `Jugnu API on http://localhost:${port} — Claude ${claudeAvailable() ? `connected (${MODEL})` : "not connected (offline engine)"} · phone line ${phone} · data in ${storage() === "turso" ? "Turso" : "local SQLite"}`,
+    `Jugnu API on http://localhost:${port} — Claude ${claudeAvailable() ? `key set (${MODEL})` : "no key (offline engine)"} · phone line ${phone} · data in ${storage() === "turso" ? "Turso" : "local SQLite"}`,
   );
+  watchAI();
 });

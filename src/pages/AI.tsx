@@ -1,8 +1,8 @@
 // Where AI is used, layer by layer, with the live trace of every call: which task, Claude or the
 // offline engine, latency, tokens, and the result of each deterministic guardrail.
-import { Activity, Cpu, ShieldAlert, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Glass, SectionTitle, StatTile, cx } from "../components/ui";
-import { usePoll, useStatus } from "../lib/api";
+import { usePoll } from "../lib/api";
 import { useT } from "../lib/prefs";
 
 interface CheckRow {
@@ -150,7 +150,6 @@ const TASKS: { id: string; en: string; hi: string; input: string; model: string;
 
 export default function AIPage() {
   const t = useT();
-  const status = useStatus();
   const [trace, err] = usePoll<Trace>("/api/ai/trace", 8000);
   const [ev] = usePoll<EvalResults | null>("/api/ai/eval");
   const total = trace?.summary.tasks.reduce((a, b) => a + b.n, 0) ?? 0;
@@ -168,9 +167,6 @@ export default function AIPage() {
             "Claude वह करता है जिसमें भाषा मॉडल अच्छे हैं — बातचीत, मिली-जुली हिंदी का अर्थ समझना, प्रमाण से लिखना, टूल चलाना। गिनती का काम सांख्यिकी करती है। मॉडल और उपयोगकर्ता के बीच तय नियमों वाली जाँच होती है, और Claude धीमा या अनुपलब्ध हो तो ऑफ़लाइन इंजन जवाब देता है।",
           )}
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="chip">{status.claude ? <Sparkles size={12} className="text-emerald-300" /> : <Cpu size={12} />} {status.claude ? `Claude · ${status.model}` : t("Offline engine (no API key on this server)", "ऑफ़लाइन इंजन (इस सर्वर पर API key नहीं)")}</span>
-        </div>
       </Glass>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

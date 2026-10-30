@@ -32,7 +32,7 @@ export async function runAI<C, T = C>(t: AITask<C, T>): Promise<AIResult<T>> {
   const started = Date.now();
   if (!claudeAvailable()) {
     const value = await t.offline();
-    await log(t.task, t.ref, "offline", null, 0, null, [], true, null);
+    await logCall(t.task, t.ref, "offline", null, 0, null, [], true, null);
     return { value, source: "offline", checks: [] };
   }
   const controller = new AbortController();
@@ -42,21 +42,21 @@ export async function runAI<C, T = C>(t: AITask<C, T>): Promise<AIResult<T>> {
     const { value, checks, accept } = t.guard(res.output);
     const ms = Date.now() - started;
     if (!accept) {
-      await log(t.task, t.ref, "claude", res.model, ms, res.usage, checks, false, "rejected by guardrails");
+      await logCall(t.task, t.ref, "claude", res.model, ms, res.usage, checks, false, "rejected by guardrails");
       return { value: await t.offline(), source: "offline", checks, warning: "Claude's answer failed a guardrail — used the offline engine" };
     }
-    await log(t.task, t.ref, "claude", res.model, ms, res.usage, checks, true, null);
+    await logCall(t.task, t.ref, "claude", res.model, ms, res.usage, checks, true, null);
     return { value, source: "claude", checks };
   } catch (error) {
     const msg = describeError(error);
-    await log(t.task, t.ref, "claude", null, Date.now() - started, null, [], false, msg);
+    await logCall(t.task, t.ref, "claude", null, Date.now() - started, null, [], false, msg);
     return { value: await t.offline(), source: "offline", checks: [], warning: msg };
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function log(
+export async function logCall(
   task: string,
   ref: string | null | undefined,
   source: "claude" | "offline",
@@ -93,7 +93,7 @@ export interface TraceRow {
 }
 
 export async function recentCalls(limit = 100): Promise<TraceRow[]> {
-  const rows = await db.all(`SELECT * FROM ai_calls ORDER BY id DESC LIMIT ?`, limit);
+  const rows = await db.all(`SELECT * FROM ai_calls WHERE task != 'health.check' ORDER BY id DESC LIMIT ?`, limit);
   return rows.map((r) => ({ ...(r as unknown as TraceRow), checks: JSON.parse(String(r.checks || "[]")), ok: r.ok === 1 }));
 }
 
@@ -119,7 +119,7 @@ export async function traceSummary() {
     ms: number;
     tin: number | null;
     tout: number | null;
-  }>(`SELECT task, source, ok, COUNT(*) n, AVG(latency_ms) ms, SUM(input_tokens) tin, SUM(output_tokens) tout FROM ai_calls GROUP BY task, source, ok`);
+  }>(`SELECT task, source, ok, COUNT(*) n, AVG(latency_ms) ms, SUM(input_tokens) tin, SUM(output_tokens) tout FROM ai_calls WHERE task != 'health.check' GROUP BY task, source, ok`);
   const checks = await db.all<{ checks: string }>(`SELECT checks FROM ai_calls WHERE checks != '[]'`);
   const byCheck = new Map<string, { passed: number; failed: number }>();
   for (const { checks: c } of checks)

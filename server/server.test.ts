@@ -412,6 +412,43 @@ describe("column mapper (offline)", () => {
   });
 });
 
+describe("backup coder", () => {
+  it("recognises a catch-up buddy however the teacher names the absent child", async () => {
+    const { PRACTICES } = await import("../src/engine/practices");
+    for (const said of ["जो नहीं आया, उसका साथी काम करवाता है", "जो बच्चा नहीं आया, उसका साथी अगले दिन कॉपी दिखाता है", "जो बच्ची नहीं आई, लौटकर साथी से पढ़ती है"]) {
+      expect(PRACTICES.absent_buddies.lexicon.test(said), said).toBe(true);
+    }
+  });
+});
+
+describe("AI health check", () => {
+  it("says Claude is down without a key, and makes no call", async () => {
+    const { checkClaude } = await import("./ai/health");
+    expect(await checkClaude()).toEqual({ ok: false, detail: "No API key on this server" });
+  });
+
+  it("leaves its own calls out of the AI page's trace but counts their cost", async () => {
+    const { logCall, recentCalls, traceSummary, creditReport } = await import("./ai/run");
+    const before = (await creditReport()).calls;
+    await logCall("health.check", null, "claude", "claude-haiku-5-5", 5, { input_tokens: 10, output_tokens: 2 }, [], true, null);
+    expect((await recentCalls(500)).some((c) => c.task === "health.check")).toBe(false);
+    expect((await traceSummary()).tasks.some((x) => x.task === "health.check")).toBe(false);
+    expect((await creditReport()).calls).toBe(before + 1);
+  });
+});
+
+describe("you said, we changed", () => {
+  it("has complete entries, in both languages, that say where they came from", async () => {
+    const fs = await import("node:fs");
+    const changes = JSON.parse(fs.readFileSync("data/changes.json", "utf-8")) as Record<string, string>[];
+    expect(changes.length).toBeGreaterThan(0);
+    for (const c of changes) {
+      for (const k of ["date", "from", "fromHi", "heard", "heardHi", "changed", "changedHi"]) expect(c[k], k).toBeTruthy();
+      expect(Number.isNaN(Date.parse(c.date))).toBe(false);
+    }
+  });
+});
+
 describe("approvals", () => {
   it("starts with demo drafts waiting, keeps decisions, and restores them on a fresh start", async () => {
     const { reviews, resetDemoDrafts } = await import("./reviews");

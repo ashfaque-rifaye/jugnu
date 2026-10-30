@@ -1,8 +1,7 @@
 import { motion } from "framer-motion";
-import { CircleAlert, CircleCheck, CircleHelp, Cpu, Sparkles } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleHelp } from "lucide-react";
 import type { ReactNode } from "react";
 import type { VerifyVerdict } from "../engine/types";
-import { useStatus } from "../lib/api";
 
 export function cx(...xs: (string | false | null | undefined)[]) {
   return xs.filter(Boolean).join(" ");
@@ -43,20 +42,6 @@ export function StatTile({ label, value, sub, accent }: { label: string; value: 
       </div>
       {sub && <div className="mt-0.5 text-xs text-[var(--color-ink-3)]">{sub}</div>}
     </div>
-  );
-}
-
-export function AIStatus() {
-  const s = useStatus();
-  if (!s.checked) return null;
-  return s.claude ? (
-    <span className="chip" style={{ borderColor: "#0ca30c88", background: "#0ca30c1f" }} title={`Claude connected (${s.model})`}>
-      <Sparkles size={12} className="text-emerald-300" aria-hidden /> <span className="hidden 2xl:inline">Claude connected</span>
-    </span>
-  ) : (
-    <span className="chip" title="Add ANTHROPIC_API_KEY to .env to connect Claude. Everything still runs on the offline engine.">
-      <Cpu size={12} className="text-teal-300" aria-hidden /> <span className="hidden 2xl:inline">Offline engine</span>
-    </span>
   );
 }
 
