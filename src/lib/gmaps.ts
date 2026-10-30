@@ -22,10 +22,18 @@ export function loadGoogleMaps(language = "en"): Promise<any> {
   loading ??= new Promise((resolve, reject) => {
     w.__jugnuMaps = () => resolve(w.google.maps);
     // A bad or restricted key fails here rather than in a callback.
-    w.gm_authFailure = () => {
+    const refuse = () => {
+      if (rejected) return;
       rejected = true;
       reject(new Error("Google Maps rejected the key"));
       rejectedListeners.forEach((f) => f());
+    };
+    w.gm_authFailure = refuse;
+    // The 3D map never calls gm_authFailure: it only logs the error and paints "Oops!" over itself.
+    const log = console.error;
+    console.error = (...args: unknown[]) => {
+      if (/Google Maps JavaScript API error: \w+MapError/.test(String(args[0]))) refuse();
+      log(...args);
     };
     const s = document.createElement("script");
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(MAPS_KEY)}&v=beta&loading=async&language=${language}&region=IN&callback=__jugnuMaps`;
