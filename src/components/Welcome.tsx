@@ -8,7 +8,7 @@ import { usePrefs, useT } from "../lib/prefs";
 import { useRole, type Role } from "../lib/role";
 import { usePipeline } from "../lib/store";
 import { loopCounts } from "../lib/story";
-import { AIVideoLabel, SPRING } from "./kit";
+import { SPRING } from "./kit";
 import { LogoMark } from "./Logo";
 import { cx } from "./ui";
 
@@ -133,7 +133,7 @@ export function Welcome({ open, onDone, mode = "full" }: { open: boolean; onDone
             aria-label={t("Welcome to Jugnu", "जुगनू में स्वागत है")}
           >
             {/* media */}
-            <div className="on-dark relative h-[34dvh] min-h-[200px] shrink-0 overflow-hidden md:h-auto">
+            <div className="on-dark relative h-[34dvh] min-h-[200px] shrink-0 overflow-hidden md:h-auto [@media(max-height:720px)]:h-[22dvh] [@media(max-height:720px)]:min-h-[140px]">
               <AnimatePresence initial={false} mode="popLayout">
                 <motion.div key={slide?.key ?? (i === ROLE ? "role" : "ready")} className="absolute inset-0" initial={{ opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}>
                   {!lite ? (
@@ -154,7 +154,7 @@ export function Welcome({ open, onDone, mode = "full" }: { open: boolean; onDone
                 </motion.div>
               </AnimatePresence>
               <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgb(4 6 10 / 0.1) 0%, rgb(4 6 10 / 0.25) 55%, rgb(4 6 10 / 0.75) 100%)" }} />
-              <div className="absolute left-5 top-5 flex items-center gap-2">
+              <div className={`absolute left-5 top-5 flex items-center gap-2 ${i >= ROLE ? "[@media(max-height:720px)]:hidden" : ""}`}>
                 <LogoMark size={34} />
                 <span className="font-display text-lg font-bold text-white">
                   Jugnu <span className="font-deva text-sm font-semibold text-white/60">जुगनू</span>
@@ -179,7 +179,6 @@ export function Welcome({ open, onDone, mode = "full" }: { open: boolean; onDone
                   ))}
                 </div>
               )}
-              {!lite && <AIVideoLabel className="absolute right-4 top-5" />}
             </div>
 
             {/* words */}

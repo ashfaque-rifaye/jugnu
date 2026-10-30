@@ -28,13 +28,14 @@ const port = process.env.NODE_ENV === "production" ? Number(process.env.PORT || 
 const server = http.createServer(app);
 attachTelephony(server);
 // Jugnu's own clock: due follow-ups, reminders and escalations run once a minute.
-const clock = setInterval(() => tick().catch((e) => console.error("scheduler tick failed", e)), 60_000);
-clock.unref();
+// The phone server on Cloud Run shares this database and sleeps when idle, so it leaves the clock and the AI check to the main server.
+const phoneServer = Boolean(process.env.K_SERVICE);
+if (!phoneServer) setInterval(() => tick().catch((e) => console.error("scheduler tick failed", e)), 60_000).unref();
 server.listen(port, () => {
   const t = telephonyStatus();
   const phone = t.active ? `${t.active} via ${t.publicUrl}` : "off (set TELEPHONY_PROVIDER + PUBLIC_URL)";
   console.log(
     `Jugnu API on http://localhost:${port} — Claude ${claudeAvailable() ? `key set (${MODEL})` : "no key (offline engine)"} · phone line ${phone} · data in ${storage() === "turso" ? "Turso" : "local SQLite"}`,
   );
-  watchAI();
+  if (!phoneServer) watchAI();
 });

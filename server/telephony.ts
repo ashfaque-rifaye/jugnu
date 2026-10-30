@@ -385,7 +385,7 @@ ivr.get("/setup", requireOfficer, (_req, res) => {
         `Open App Bazaar → flow ${exotel().appId || "(EXOTEL_APP_ID)"} and make it: Start → Voicebot → Hangup.`,
         "In the Voicebot applet set the URL to the voicebotUrl above (bidirectional, 8 kHz, record on).",
         "Trial accounts can only call numbers verified under Settings → Verified numbers.",
-        "PUBLIC_URL must be reachable from Exotel (the cloudflared tunnel URL changes on every restart).",
+        "PUBLIC_URL must be reachable from Exotel. It is the fixed Cloud Run address of the phone server (docs/PHONE-SERVER.md).",
       ],
     },
     plivo: {
@@ -420,6 +420,8 @@ export async function placeCall(b: CallRequest): Promise<{ interview: InterviewR
   if (!voiceConfigured()) throw new CallError("Voice (GOOGLE_CLOUD_API_KEY) is not configured.", 503);
   const to = normaliseIndianNumber(String(b.to ?? ""));
   if (!to) throw new CallError("Enter an Indian mobile number (10 digits, or +91…).", 400);
+  // The phone server sleeps when idle: wake it now, so the teacher does not wait in silence after answering.
+  void fetch(`${publicUrl()}/api/status`, { signal: AbortSignal.timeout(20000) }).catch(() => {});
   const hash = phoneHash(to);
   let row = b.interviewId ? await getById(String(b.interviewId)) : null;
   if (!row) {

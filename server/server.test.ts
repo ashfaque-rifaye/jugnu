@@ -421,6 +421,33 @@ describe("backup coder", () => {
   });
 });
 
+describe("follow-up reader without Claude", () => {
+  it("does not mistake trying, or a lack of time, for regular use", async () => {
+    const { offlineFollowUp } = await import("./ai/followup");
+    expect(offlineFollowUp("कोशिश की, बच्चे पसंद कर रहे हैं पर समय कम पड़ता है।").outcome).toBe("barrier");
+    expect(offlineFollowUp("दो बार कोशिश की, बच्चे पसंद कर रहे हैं।").outcome).toBe("trying");
+    expect(offlineFollowUp("रोज़ कर रहे हैं, अच्छा चल रहा है।").outcome).toBe("adopted");
+  });
+});
+
+describe("Ask Jugnu without Claude", () => {
+  it("names the schools lowest in the subject asked about, and who can show them", async () => {
+    const { offlineAnswer } = await import("./ai/officer");
+    const { runPipeline } = await import("../src/engine/pipeline");
+    const { generateBlock } = await import("../src/engine/block");
+    const { DEFAULT_SEED } = await import("../src/engine/district");
+    const st = runPipeline(generateBlock(DEFAULT_SEED));
+    const a = offlineAnswer("Which schools need help with maths, and who can show them?", st);
+    const school = (name: string) => st.block.schools.find((s) => s.name === name)!;
+    expect(a.answer).toContain("lowest in maths");
+    expect(a.answer).toContain("can learn from");
+    expect(a.schools.length).toBeGreaterThan(0);
+    const maths = a.schools.map((n) => school(n).numeracy.at(-1)!);
+    expect(maths).toEqual([...maths].sort((x, y) => x - y));
+    for (const r of st.recs.filter((r) => a.schools.includes(st.block.schools.find((s) => s.id === r.schoolId)!.name))) expect(a.answer).toContain(st.block.schools.find((s) => s.id === r.demonstratorId)!.name);
+  });
+});
+
 describe("AI health check", () => {
   it("says Claude is down without a key, and makes no call", async () => {
     const { checkClaude } = await import("./ai/health");

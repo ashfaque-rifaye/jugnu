@@ -154,6 +154,21 @@ export default function SchoolsPage() {
       ) : (
         <Card pad={false}>
           <div className="px-4 pt-3 text-sm text-[var(--color-ink-2)] md:px-5">{t(`${rows.length} schools`, `${rows.length} स्कूल`)}</div>
+          {rows.length === 0 && (
+            <div className="px-4 pb-4 pt-2 text-sm text-[var(--color-ink-2)] md:px-5">
+              {t("Nothing here in this view right now.", "इस दृश्य में अभी कुछ नहीं है।")}
+              <button
+                className="btn btn-glass mt-3 block"
+                onClick={() => {
+                  setQ("");
+                  setCluster("all");
+                  if (cluster === "all") setFilter(null);
+                }}
+              >
+                {t("See all schools", "सभी स्कूल देखें")}
+              </button>
+            </div>
+          )}
           {/* phones: cards */}
           <ul className="space-y-2 p-3 md:hidden">
             {rows.slice(0, 120).map((s) => (

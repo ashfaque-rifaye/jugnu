@@ -24,13 +24,13 @@ const Schema = z.object({
   quote: z.string().describe("The teacher's words that justify the outcome, verbatim"),
 });
 
-const BARRIER = /नहीं (हो|कर) (पा|सक)|समय नहीं|सामग्री नहीं|किताब(ें)? नहीं|कार्ड नहीं|अनुमति|ऑर्डर|समझ नहीं|मुश्किल|दिक्कत|परेशानी|can't|cannot|no time|no material|difficult|problem/i;
+const BARRIER = /नहीं (हो|कर) (पा|सक)|समय नहीं|समय कम|वक़्त कम|सामग्री नहीं|किताब(ें)? नहीं|कार्ड नहीं|अनुमति|ऑर्डर|समझ नहीं|मुश्किल|दिक्कत|परेशानी|can't|cannot|no time|no material|difficult|problem/i;
 const ADOPTED = /रोज़|रोज|हर दिन|कर रह(े|ी) हैं|शुरू कर दिया|अच्छा चल|daily|every day|started|working well/i;
 const TRYING = /कोशिश|एक-दो बार|कुछ दिन|शुरू कि|tried|trying|a few times/i;
 const NOT_TRIED = /अभी नहीं|नहीं किया|नहीं कर पाए|not yet|didn't/i;
 
 export function offlineFollowUp(reply: string): FollowUpReading {
-  const outcome: Outcome = BARRIER.test(reply) ? "barrier" : ADOPTED.test(reply) ? "adopted" : TRYING.test(reply) ? "trying" : NOT_TRIED.test(reply) ? "not_tried" : "trying";
+  const outcome: Outcome = BARRIER.test(reply) ? "barrier" : TRYING.test(reply) ? "trying" : ADOPTED.test(reply) ? "adopted" : NOT_TRIED.test(reply) ? "not_tried" : "trying";
   const material = /सामग्री|किताब|कार्ड|material|card|book|तीली|बंडल/i.test(reply);
   return {
     outcome,

@@ -1,6 +1,123 @@
 [
   {
     "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a CRP, on a phone",
+    "fromHi": "AI से कराया परीक्षण, CRP की भूमिका में",
+    "heard": "One tap on Save, with nothing entered, recorded 0 of 15 and flagged the school's data as over-reported.",
+    "heardHi": "कुछ भरे बिना 'सहेजें' दबाने पर 15 में से 0 दर्ज हो गया और स्कूल का डेटा संदिग्ध चिह्नित हो गया।",
+    "changed": "An all-zero result now explains what it will do and asks you to confirm.",
+    "changedHi": "अब सब शून्य होने पर ऐप बताता है कि इसका क्या असर होगा और पुष्टि माँगता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a CRP, on a phone",
+    "fromHi": "AI से कराया परीक्षण, CRP की भूमिका में",
+    "heard": "I typed that the teacher tried it but is short of time. Without Claude, the reader said \"Uses the practice regularly\", and that line stayed even after I chose a different outcome.",
+    "heardHi": "लिखा कि शिक्षक ने कोशिश की पर समय कम है। Claude के बिना जवाब आया कि तरीका नियमित चल रहा है, और दूसरा नतीजा चुनने पर भी वही लिखा रहा।",
+    "changed": "The backup now reads this as something in the way, and a summary is saved only if it matches the outcome chosen.",
+    "changedHi": "अब बैकअप इसे रुकावट समझता है, और सारांश तभी सहेजा जाता है जब वह चुने गए नतीजे से मेल खाए।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a CRP, on a phone",
+    "fromHi": "AI से कराया परीक्षण, CRP की भूमिका में",
+    "heard": "My cluster has no spot checks due, so the list just said \"0 schools\", with no way forward.",
+    "heardHi": "मेरे क्लस्टर में कोई जाँच बाकी नहीं थी, तो सूची में सिर्फ़ '0 स्कूल' लिखा आया, आगे का रास्ता नहीं था।",
+    "changed": "An empty list now says so and offers a button to see all schools.",
+    "changedHi": "अब खाली सूची यह बताती है और सभी स्कूल देखने का बटन देती है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a BEO",
+    "fromHi": "AI से कराया परीक्षण, BEO की भूमिका में",
+    "heard": "I asked which schools need help with maths and who can show them. With Claude unavailable, the only reply was \"Opened schools\".",
+    "heardHi": "पूछा कि किन स्कूलों को गणित में मदद चाहिए और कौन दिखा सकता है। Claude उपलब्ध न होने पर जवाब सिर्फ़ \"स्कूल खोले\" आया।",
+    "changed": "The backup now answers: the schools lowest in that subject, and the nearest teacher who can show each one.",
+    "changedHi": "अब बैकअप जवाब देता है: उस विषय में सबसे पीछे के स्कूल, और हर एक के लिए सबसे पास का शिक्षक जो दिखा सकता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a BEO",
+    "fromHi": "AI से कराया परीक्षण, BEO की भूमिका में",
+    "heard": "The Ask Jugnu test task opened the home page, with nowhere to ask.",
+    "heardHi": "'जुगनू से पूछें' वाला काम होम पेज खोलता था, जहाँ पूछने की जगह नहीं थी।",
+    "changed": "It now opens Today with the Ask panel ready.",
+    "changedHi": "अब यह 'आज' पेज पर पूछने का पैनल खोलता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a teacher, on a phone in Hindi",
+    "fromHi": "AI से कराया परीक्षण, शिक्षक की भूमिका में",
+    "heard": "In the interview, earlier messages were cut off while a third of the screen stayed empty.",
+    "heardHi": "बातचीत में पिछले संदेश कट रहे थे, जबकि स्क्रीन का एक तिहाई हिस्सा खाली था।",
+    "changed": "The conversation now uses the full height of the phone.",
+    "changedHi": "अब बातचीत फ़ोन की पूरी ऊँचाई इस्तेमाल करती है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a teacher, on a phone in Hindi",
+    "fromHi": "AI से कराया परीक्षण, शिक्षक की भूमिका में",
+    "heard": "Without Claude, \"जो बच्चा नहीं आया\" was not recognised as a catch-up practice, so that answer was lost.",
+    "heardHi": "Claude के बिना \"जो बच्चा नहीं आया\" को साथी से पढ़ाई का तरीका नहीं माना गया, और वह जवाब छूट गया।",
+    "changed": "The backup now recognises this wording, and a test keeps it that way.",
+    "changedHi": "अब बैकअप यह बात पहचानता है, और एक टेस्ट इसे बनाए रखता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a teacher, on a phone in Hindi",
+    "fromHi": "AI से कराया परीक्षण, शिक्षक की भूमिका में",
+    "heard": "The test tasks for the voice note and the practice card opened pages that did not show them.",
+    "heardHi": "वॉइस नोट और कार्ड वाले काम ऐसे पेज खोलते थे जहाँ वे दिखते ही नहीं थे।",
+    "changed": "Each task now opens the right page.",
+    "changedHi": "अब हर काम सही पेज खोलता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a BEO",
+    "fromHi": "AI से कराया परीक्षण, BEO की भूमिका में",
+    "heard": "The test task asks why data may be inflated, but the Schools page calls this \"Check the data\", so the task was hard to start.",
+    "heardHi": "काम में डेटा बढ़ा-चढ़ा होने की बात थी, पर स्कूल पेज पर इसे 'डेटा जाँचें' कहा गया है, इसलिए शुरू करना मुश्किल था।",
+    "changed": "The task now opens the Check the data list directly.",
+    "changedHi": "अब यह काम सीधे 'डेटा जाँचें' की सूची खोलता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a CRP, on a phone",
+    "fromHi": "AI से कराया परीक्षण, CRP की भूमिका में",
+    "heard": "The voice menu in Ask Jugnu cut off its text, showing \"Warm · wo\".",
+    "heardHi": "'जुगनू से पूछें' में आवाज़ का मेनू कट रहा था।",
+    "changed": "The menu is now wide enough for the full name.",
+    "changedHi": "अब मेनू में पूरा नाम दिखता है।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a CRP, on a phone",
+    "fromHi": "AI से कराया परीक्षण, CRP की भूमिका में",
+    "heard": "Small grammar slips: \"1 concrete details\" and \"1 thing need you\".",
+    "heardHi": "अंग्रेज़ी में व्याकरण की छोटी गलतियाँ थीं।",
+    "changed": "Both now read correctly.",
+    "changedHi": "दोनों अब सही हैं।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a first-time visitor",
+    "fromHi": "AI से कराया परीक्षण, नए आगंतुक की भूमिका में",
+    "heard": "On a small phone, the welcome showed only one of the three roles, and the others were hidden below.",
+    "heardHi": "छोटे फ़ोन पर स्वागत में तीन में से एक ही भूमिका दिखती थी, बाकी नीचे छिपी थीं।",
+    "changed": "The picture is shorter on small screens, so there is more room for the roles.",
+    "changedHi": "छोटी स्क्रीन पर तस्वीर छोटी है, ताकि भूमिकाओं के लिए ज़्यादा जगह रहे।"
+  },
+  {
+    "date": "2026-10-30",
+    "from": "AI-run walkthrough, as a BEO",
+    "fromHi": "AI से कराया परीक्षण, BEO की भूमिका में",
+    "heard": "On a computer, the small floating buttons sat on top of table text at the bottom right.",
+    "heardHi": "कंप्यूटर पर छोटे तैरते बटन नीचे दाईं ओर तालिका के लिखे पर आ जाते थे।",
+    "changed": "They now appear only when you point at the orb.",
+    "changedHi": "अब वे तभी दिखते हैं जब आप गोले पर माउस लाएँ।"
+  },
+  {
+    "date": "2026-10-30",
     "from": "Internal review",
     "fromHi": "आंतरिक समीक्षा",
     "heard": "\"Approve an AI draft\" on the first-10-minutes checklist had nothing to approve.",

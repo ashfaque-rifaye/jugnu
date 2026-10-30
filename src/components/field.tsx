@@ -52,7 +52,13 @@ export function SpotCheckForm({ school, onSaved }: { school: School; onSaved?: (
   const [maths, setMaths] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sure, setSure] = useState(false);
   const save = async () => {
+    // Nothing entered looks just like a real zero, and a zero flags the school: ask first.
+    if (read === 0 && maths === 0 && !sure) {
+      setSure(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -76,8 +82,11 @@ export function SpotCheckForm({ school, onSaved }: { school: School; onSaved?: (
       <Stepper label={t("Children checked", "जाँचे गए बच्चे")} value={n} onChange={(v) => (setN(Math.max(5, v)), setRead((r) => Math.min(r, v)), setMaths((m) => Math.min(m, v)))} max={40} />
       <Stepper label={t("Read the paragraph fluently", "अनुच्छेद ठीक से पढ़ा")} value={read} onChange={setRead} max={n} />
       <Stepper label={t("Did the subtraction correctly", "घटाव सही किया")} value={maths} onChange={setMaths} max={n} />
+      {sure && read === 0 && maths === 0 && (
+        <p className="text-sm font-medium text-[var(--color-ink)]">{t("You haven't counted any child as passing. Saving this will flag the school's data for a revisit.", "आपने किसी बच्चे को सफल नहीं गिना है। इसे सहेजने पर स्कूल का डेटा दोबारा जाँच के लिए चिह्नित होगा।")}</p>
+      )}
       <button className="btn btn-primary w-full justify-center" onClick={save} disabled={busy}>
-        {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} {t("Save spot check", "जाँच सहेजें")}
+        {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} {sure && read === 0 && maths === 0 ? t("Yes, no child passed. Save", "हाँ, कोई सफल नहीं। सहेजें") : t("Save spot check", "जाँच सहेजें")}
       </button>
       {error && <p className="text-sm text-red-300">{error}</p>}
       <p className="text-xs text-[var(--color-ink-3)]">
@@ -189,7 +198,7 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
   const [owner, setOwner] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
-  const [ai, setAi] = useState<{ summary: string; barrier: string | null } | null>(null);
+  const [ai, setAi] = useState<{ summary: string; barrier: string | null; outcome: Outcome } | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const read = async () => {
@@ -204,7 +213,7 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
     const o = out.value.outcome === "not_tried" ? "barrier" : (out.value.outcome as Outcome);
     setOutcome(o);
     setOwner(out.value.owner);
-    setAi({ summary: out.value.summary_en, barrier: out.value.barrier });
+    setAi({ summary: out.value.summary_en, barrier: out.value.barrier, outcome: o });
     setHint(
       `${out.source === "claude" ? "Claude" : t("Offline reader", "ऑफ़लाइन")}: ${out.value.summary_en}${out.value.barrier ? ` — ${out.value.barrier}${out.value.owner ? ` (${out.value.owner})` : ""}` : ""}`,
     );
@@ -215,7 +224,8 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
     await record("followup", school.id, {
       outcome,
       said: said.trim() || undefined,
-      summary: ai ? [ai.summary, ai.summary] : undefined,
+      // If the officer chose a different outcome, the reader's summary no longer describes it.
+      summary: ai?.outcome === outcome ? [ai.summary, ai.summary] : undefined,
       barrier: outcome === "barrier" ? (ai?.barrier ?? undefined) : undefined,
       barrierOwner: outcome === "barrier" ? (owner ?? undefined) : undefined,
     }).catch(() => null);

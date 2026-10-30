@@ -218,7 +218,7 @@ export default function SchoolPage() {
                       <div>
                         <div className="font-deva">{m.quote}</div>
                         <div className="mt-1 text-xs text-[var(--color-ink-3)]">
-                          {PRACTICES[m.practice].label} · {t(`${m.specificity} concrete details`, `${m.specificity} ठोस बातें`)}
+                          {PRACTICES[m.practice].label} · {t(`${m.specificity} concrete detail${m.specificity === 1 ? "" : "s"}`, `${m.specificity} ठोस बातें`)}
                         </div>
                       </div>
                     </li>

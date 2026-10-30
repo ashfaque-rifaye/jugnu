@@ -1,0 +1,24 @@
+# Only what the phone server needs goes to Cloud Build. Secrets never do: they are set on the service.
+.env*
+.git
+.gitignore
+.gcloudignore
+.claude
+.tools
+.vercel
+node_modules
+dist
+api
+docs
+public
+scripts
+video
+data/runtime
+*.md
+*.log
+*.test.ts
+demo
+tsconfig.tsbuildinfo
+vercel.json
+index.html
+vite.config.ts

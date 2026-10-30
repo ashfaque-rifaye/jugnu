@@ -25,7 +25,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { Link, useNavigate } from "react-router-dom";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { useDemo } from "../components/Demo";
-import { AIVideoLabel, AppBackground } from "../components/kit";
+import { AppBackground } from "../components/kit";
 import { LogoMark, Wordmark } from "../components/Logo";
 import { LoopFlow } from "../components/LoopFlow";
 import { LivingMap } from "../components/maps";
@@ -159,7 +159,6 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
         )}
         <div className={cx("home-shade", mode === "light" ? "home-shade-light" : "home-shade-dark")} />
         <HeroFrame intro={intro} />
-        <AIVideoLabel className="absolute bottom-5 right-6" />
         <motion.div style={{ y: textY }} className="relative mx-auto grid min-h-[min(92svh,820px)] max-w-[1240px] items-center gap-10 px-5 pb-20 pt-28 md:px-8 lg:grid-cols-[1.15fr_0.85fr]">
           <motion.div style={{ opacity: textFade }} className="min-w-0">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: d, ease: EASE }} className="chip mb-5 w-fit !bg-[var(--chrome)] backdrop-blur">
@@ -311,7 +310,6 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               </div>
             </div>
           </div>
-          <AIVideoLabel className="absolute bottom-3 right-3" />
         </section>
 
         {/* made for a real block */}
@@ -341,7 +339,6 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
         <section className="card on-dark relative overflow-hidden">
           {lite ? <img className="welcome-video" src={MEDIA.networkPoster} alt="" aria-hidden /> : <video className="welcome-video" src={MEDIA.network} poster={MEDIA.networkPoster} autoPlay muted loop playsInline aria-hidden />}
           <div className="welcome-shade" />
-          <AIVideoLabel className="absolute bottom-2 right-2" />
           <div className="relative flex flex-col items-start gap-5 p-7 md:flex-row md:items-center md:justify-between md:p-10">
             <div className="max-w-xl">
               <LogoMark size={44} />

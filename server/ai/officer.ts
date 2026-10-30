@@ -214,8 +214,18 @@ export function offlineAnswer(question: string, st: PipelineState): OfficerAnswe
     const d = st.evidence.filter((e) => e.verdict === "distinctive");
     return { answer: d.length ? `Practices that separate bright spots here: ${d.map((e) => PRACTICES[e.practice].label).join("; ")}.` : "No practice is distinctive yet — more interviews are needed.", schools: [], next_step: "Review the practice cards before they are sent.", owner: "CRP" };
   }
-  if (/help|support|struggl|पीछे|कमज़ोर|कमजोर/.test(q)) {
-    return { answer: `${st.find.struggling.length} schools are below what their context predicts. Each has one recommended practice and a nearby demonstrator.`, schools: names(st.find.struggling).slice(0, 8), next_step: "Confirm wave-1 peer visits with the CRPs.", owner: "CRP" };
+  if (/help|support|struggl|पीछे|कमज़ोर|कमजोर|math|गणित|reading|पढ़/.test(q)) {
+    const school = (id: string) => st.block.schools.find((s) => s.id === id)!;
+    const maths = /math|गणित/.test(q);
+    const reading = /reading|पढ़/.test(q);
+    const score = (id: string) => (maths ? school(id).numeracy : school(id).reading).at(-1) ?? 0;
+    const top = [...st.recs].sort((a, b) => score(a.schoolId) - score(b.schoolId)).slice(0, 5);
+    const pairs = top.map((r) => {
+      const d = school(r.demonstratorId);
+      return `${school(r.schoolId).name}${maths || reading ? ` (${Math.round(score(r.schoolId))}%)` : ""} can learn from ${d.teacher} at ${d.name}, ${r.distanceKm.toFixed(1)} km away`;
+    });
+    const scope = maths ? ", lowest in maths first" : reading ? ", lowest in reading first" : "";
+    return { answer: `${st.find.struggling.length} schools are below what their context predicts. Start with these${scope}: ${pairs.join("; ")}.`, schools: top.map((r) => school(r.schoolId).name), next_step: "Confirm wave-1 peer visits with the CRPs.", owner: "CRP" };
   }
   return { answer: `${st.bright.length} verified bright spots and ${st.find.struggling.length} schools needing support in ${st.block.name}.`, schools: names(st.bright).slice(0, 8), next_step: "Ask about a cluster, a school, or what works.", owner: null };
 }

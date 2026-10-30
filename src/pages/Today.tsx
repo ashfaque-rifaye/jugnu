@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { useDemo } from "../components/Demo";
 import { JourneyCard } from "../components/Journey";
-import { AIVideoLabel, Card, Empty, Rings, SPRING } from "../components/kit";
+import { Card, Empty, Rings, SPRING } from "../components/kit";
 import { LoopFlow } from "../components/LoopFlow";
 import { LivingMap, MapLegend } from "../components/maps";
 import { cx } from "../components/ui";
@@ -86,7 +86,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
     : tasks.length === 0
       ? t(`Nothing is waiting in ${where}. Well done.`, `${where} में कुछ बाकी नहीं। बहुत बढ़िया।`)
       : t(
-          `${tasks.length} thing${tasks.length === 1 ? "" : "s"} in ${where} need you${stuck ? ` — ${stuck} stuck` : ""}.`,
+          `${tasks.length} thing${tasks.length === 1 ? "" : "s"} in ${where} need${tasks.length === 1 ? "s" : ""} you${stuck ? ` — ${stuck} stuck` : ""}.`,
           `${where} में ${tasks.length} काम आपका इंतज़ार कर रहे हैं${stuck ? ` — ${stuck} अटके` : ""}।`,
         );
 
@@ -98,7 +98,6 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
         {lite && <img className="welcome-video" src={MEDIA.welcomePoster} alt="" aria-hidden />}
         <div className="welcome-shade" />
         <div className="pointer-events-none absolute inset-3 rounded-[1.6rem] border border-white/10" aria-hidden />
-        <AIVideoLabel className="absolute bottom-4 left-5" />
         <div className="relative grid gap-5 p-5 md:p-8 lg:grid-cols-[1fr_380px] lg:items-end">
           <div className="min-w-0 pb-4">
             <div className="label mb-3 !text-white/60">{new Date().toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { weekday: "long", day: "numeric", month: "long" })}</div>

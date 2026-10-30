@@ -221,11 +221,6 @@ export function AppBackground() {
   );
 }
 
-/** Visible label for AI-generated video, wherever one plays. */
-export function AIVideoLabel({ className }: { className?: string }) {
-  return <span className={cx("on-dark pointer-events-none rounded-full bg-black/40 px-2 py-0.5 text-xs font-medium text-white/70 backdrop-blur-md", className)}>AI video · Veo</span>;
-}
-
 /** "3 days ago" in the user's language. */
 export function useAgo() {
   const t = useT();

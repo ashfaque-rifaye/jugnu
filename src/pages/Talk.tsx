@@ -289,7 +289,8 @@ export default function TalkPage() {
         <div className="h-full rounded-full bg-gradient-to-r from-amber-200 to-teal-300 transition-all" style={{ width: `${Math.min(100, (asked / TOPICS) * 100)}%` }} />
       </div>
 
-      <div className="glass scroll-thin max-h-[52vh] space-y-2 overflow-y-auto p-3" aria-live="polite">
+      <div className="glass overflow-hidden">
+      <div className="scroll-thin max-h-[calc(100dvh-13.5rem)] space-y-2 overflow-y-auto p-3" aria-live="polite">
         <AnimatePresence initial={false}>
           {view.turns.map((t, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cx("flex", t.speaker === "teacher" ? "justify-end" : "justify-start")}>
@@ -304,6 +305,7 @@ export default function TalkPage() {
         )}
         {listening && interim && <div className={cx("ml-auto max-w-[88%] rounded-2xl border border-dashed border-amber-200/40 px-4 py-2 text-[15px] text-[var(--color-ink-2)]", lang === "hi" && "font-deva")}>{interim}</div>}
         <div ref={bottom} />
+      </div>
       </div>
 
       {offline && (

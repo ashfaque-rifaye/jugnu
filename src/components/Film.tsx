@@ -281,7 +281,7 @@ export function FilmCard({ onPlay }: { onPlay: (at?: number) => void }) {
         </span>
         <div className="absolute inset-x-0 bottom-0 p-5">
           <div className="font-display text-xl font-bold md:text-2xl">{t("Jugnu, in under two minutes", "दो मिनट से कम में जुगनू")}</div>
-          <div className={cx("mt-1 text-sm text-white/75", lang === "hi" && "font-deva")}>{t("Narrated in English or Hindi · captions · made with Veo 3.1, Lyria and Chirp 3", "अंग्रेज़ी या हिंदी में आवाज़ · कैप्शन · Veo 3.1, Lyria और Chirp 3 से बनी")}</div>
+          <div className={cx("mt-1 text-sm text-white/75", lang === "hi" && "font-deva")}>{t("Narrated in English or Hindi · captions", "अंग्रेज़ी या हिंदी में आवाज़ · कैप्शन")}</div>
         </div>
       </button>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">

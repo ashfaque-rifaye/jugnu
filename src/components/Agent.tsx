@@ -512,6 +512,15 @@ export function useAgent() {
           const basis = tools.length ? `\n[done with tools: ${[...new Set(tools.map((x) => x.name))].join(", ")}]` : "";
           if (said) history.current = [...history.current, { role: "user" as const, content: q }, { role: "assistant" as const, content: said + basis }].slice(-16);
         }
+        // Claude did not answer, and this is a question: the rule-based answer is better than only opening a page.
+        if (!said && /\?|^(which|who|what|why|how|where|when|did|are|is|do)\b|कौन|किन|क्या|क्यों|कैसे|कहाँ/i.test(q.trim())) {
+          const { state: st, seed: sd } = live.current;
+          const r = await postJSON<{ answer: string; next_step: string | null }>("/api/ask", { question: q, ...(st.block.source === "imported" ? { block: st.block } : { seed: sd, track: !!st.track }) }).catch(() => null);
+          if (r) {
+            said = [r.answer, r.next_step].filter(Boolean).join(" ");
+            tools.push({ name: "block_overview", ok: true });
+          }
+        }
         if (!said) {
           // Offline: a few commands still work.
           if (intent && "tool" in intent) {
@@ -853,7 +862,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] px-4 py-3">
               <div className="min-w-0 flex-1 font-display text-base font-bold leading-tight">{t("Jugnu", "जुगनू")}</div>
               {a.cloud && (
-                <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className={`${fieldBase} !h-8 !w-auto !max-w-[128px] !py-0 text-xs`} aria-label={t("Voice", "आवाज़")} title={t("Voice", "आवाज़")}>
+                <select value={a.voiceName} onChange={(e) => a.setVoiceName(e.target.value)} className={`${fieldBase} !h-8 !w-auto !max-w-[150px] !py-0 text-xs`} aria-label={t("Voice", "आवाज़")} title={t("Voice", "आवाज़")}>
                   {VOICE_CHOICES.map((v) => (
                     <option key={v.id} value={v.id}>
                       {t(v.en, v.hi)}
@@ -985,17 +994,17 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
         </AnimatePresence>
         {/* just the orb, with two small helpers beside it — no pill, no ring. On a phone it only appears
             while Jugnu is in use, so it never sits on the cards; the top bar's Ask button opens Jugnu there. */}
-        <div className="flex items-center gap-1.5">
+        <div className="group flex items-center gap-1.5">
           {active ? (
             <button className="dock-mini" onClick={a.hangUp} aria-label={t("Stop", "रोकें")} title={t("Stop", "रोकें")}>
               {a.mode === "listening" ? <MicOff size={16} /> : <Square size={14} />}
             </button>
           ) : (
-            <button className="dock-mini !hidden sm:!grid" onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
+            <button className={cx("dock-mini !hidden sm:!grid", !open && "lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100 lg:focus-visible:opacity-100")} onClick={a.brief} aria-label={t("Brief me", "ब्रीफ़ करो")} title={t("Brief me", "ब्रीफ़ करो")}>
               <Newspaper size={16} />
             </button>
           )}
-          <button className="dock-mini !hidden sm:!grid" onClick={open ? onClose : onOpen} aria-label={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")} title={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")}>
+          <button className={cx("dock-mini !hidden sm:!grid", !open && !active && "lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100 lg:focus-visible:opacity-100")} onClick={open ? onClose : onOpen} aria-label={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")} title={open ? t("Close chat", "चैट बंद") : t("Chat with Jugnu", "जुगनू से चैट")}>
             <MessageCircle size={16} />
           </button>
           <button
