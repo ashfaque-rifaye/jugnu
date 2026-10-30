@@ -23,7 +23,7 @@ export interface PhotoCheck {
 
 const Schema = z.object({
   visible: z.enum(["yes", "partly", "no", "cannot_tell"]),
-  seen: z.array(z.string()).max(6).describe("Concrete objects or displays in the photo that bear on the practice, a few words each"),
+  seen: z.array(z.string()).max(6).describe("Concrete objects or displays in the photo that bear on the method, a few words each"),
   summary_en: z.string().describe("One sentence for the officer"),
   summary_hi: z.string().describe("The same sentence in Hindi (Devanagari)"),
   child_faces: z.boolean().describe("True if any child's face is recognisable in the photo"),
@@ -49,14 +49,14 @@ export async function checkPhoto(args: { image: string; mediaType: PhotoType; pr
     claude: (signal) =>
       askClaude({
         system: `${SAFETY}
-You look at one photo a cluster resource person took in a government primary school classroom during a spot check, and judge whether a teaching practice is visibly in use.
+You look at one photo a cluster resource person took in a government primary school classroom during a confirmation visit, and judge whether a teaching method is visibly in use.
 - List only what you can actually see. Never guess at what is outside the frame or what happens on other days.
-- "yes" needs at least two concrete signs of the practice; "partly" for one; "no" when the photo shows the room and none appear; "cannot_tell" when the photo is too dark, blurred or shows the wrong thing.
+- "yes" needs at least two concrete signs of the method; "partly" for one; "no" when the photo shows the room and none appear; "cannot_tell" when the photo is too dark, blurred or shows the wrong thing.
 - Never identify or describe people (no names, ages, castes, appearance). Children may be present; describe materials and displays, not them.
 - Set child_faces true if any child's face is recognisable, so the photo can be retaken.`,
         content: [
           { type: "image", source: { type: "base64", media_type: args.mediaType, data: args.image } },
-          { type: "text", text: `Practice to look for: ${p.label}. What it involves: ${p.what}` },
+          { type: "text", text: `Method to look for: ${p.label}. What it involves: ${p.what}` },
         ],
         schema: Schema,
         effort: "low",

@@ -1,342 +1,167 @@
-// Where AI is used, layer by layer, with the live trace of every call: which task, Claude or the
-// offline engine, latency, tokens, and the result of each deterministic guardrail.
-import { Activity, ShieldAlert, ShieldCheck } from "lucide-react";
-import { Glass, SectionTitle, StatTile, cx } from "../components/ui";
-import { usePoll } from "../lib/api";
-import { useT } from "../lib/prefs";
+// Safety, in plain words. It runs by itself on everything anyone writes or says: personal numbers and
+// bad language are removed, sensitive topics are flagged. You can also try it yourself, by voice or typing.
+import { Check, EyeOff, Hash, Loader2, Mail, MessageSquareOff, Phone, ShieldCheck, ShieldQuestion, UserCheck, UserX } from "lucide-react";
+import { useState } from "react";
+import { VoiceText } from "../components/Feedback";
+import { Card, PageHeader } from "../components/kit";
+import { cx } from "../components/ui";
+import { postJSON, usePoll } from "../lib/api";
+import { usePrefs, useT } from "../lib/prefs";
 
-interface CheckRow {
-  name: string;
-  passed: boolean;
-  detail?: string;
+interface Summary {
+  totals: Record<string, number>;
+  recent: { kind: string; source: string; count: number; created_at: string }[];
+  answersChecked: number;
+  aiChecked: number;
+  aiStopped: number;
+  declined: number;
 }
-interface Call {
-  id: number;
-  task: string;
-  ref: string | null;
-  source: string;
-  model: string | null;
-  latency_ms: number;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  checks: CheckRow[];
-  ok: boolean;
-  error: string | null;
-  created_at: string;
-}
-interface EvalResults {
-  ranAt: string;
-  coding: { coder: string; items: number; precision: number; recall: number; f1: number; tricky: string; newPractices: string; groundedQuotes: number }[];
-  guardrails: { check: string; attacks: number; caught: number; clean: number; falseAlarms: number }[];
-  interviewer: { followsUpOnVague: string; noFollowUpOnSpecific: string };
-}
-interface Trace {
-  summary: { tasks: { task: string; source: string; ok: number; n: number; ms: number; tin: number | null; tout: number | null }[]; checks: { name: string; passed: number; failed: number }[] };
-  calls: Call[];
+interface CheckResult {
+  text: string;
+  safe: boolean;
+  findings: { kind: string; count: number; label: string; detail?: string }[];
 }
 
-const TASKS: { id: string; en: string; hi: string; input: string; model: string; guard: string; evals: string; output: string; fallback: string }[] = [
-  {
-    id: "interview.next",
-    en: "Adaptive interviewer",
-    hi: "बातचीत करने वाला AI",
-    input: "Transcript so far, script areas already covered, interview language",
-    model: "Claude, structured output: next utterance + kind (question / follow-up / clarify / closing) + area; 8 s deadline on the phone, 15 s on the web",
-    guard: "On classroom routines only (no caste, religion, politics, pay, personal life) · under 40 words · in the teacher's language · never repeats a question · may not close before 5 areas",
-    evals: "Coverage of script areas and follow-up rate per interview; replayed against the simulated teachers",
-    output: "Spoken by Google Chirp TTS in the browser or over an Exotel/Plivo call; stored as a turn",
-    fallback: "Scripted interviewer with one follow-up on vague answers",
-  },
-  {
-    id: "interview.code",
-    en: "Transcript coding",
-    hi: "बातचीत की कोडिंग",
-    input: "Teacher turns only + the practice taxonomy",
-    model: "Claude reads meaning in code-mixed Hindi/English; also proposes brand-new practices",
-    guard: "Every quote must be verbatim in what the teacher said (else dropped) · specificity re-scored deterministically · agreement with the keyword coder recorded",
-    evals: "Precision/recall vs labelled transcripts (npm run eval); grounding rate",
-    output: "Practice mentions with quotes → Contrast (Beta-Binomial)",
-    fallback: "Keyword lexicon coder",
-  },
-  {
-    id: "spread.card",
-    en: "Practice-card writer",
-    hi: "तरीके का कार्ड",
-    input: "Verbatim quotes from bright-spot teachers for one distinctive practice",
-    model: "Claude turns quotes into 3–5 steps, materials, time — citing quote ids",
-    guard: "Every step cites a real quote · no number that is not in the cited quotes · Hindi · on-topic",
-    evals: "Reviewer approve / edit / reject rate",
-    output: "Human review queue → approved cards reach teachers",
-    fallback: "Card built directly from the quotes",
-  },
-  {
-    id: "spread.voice_note",
-    en: "Peer voice-note writer",
-    hi: "वॉइस नोट",
-    input: "Draft note in the demonstrator's own words + practice",
-    model: "Claude rewrites into a warm 60-second spoken note",
-    guard: "Keeps every number · invents none · ≤ 170 words · Hindi · on-topic",
-    evals: "Reviewer edits; teacher clarity rating in testing",
-    output: "Review queue → WhatsApp/IVR voice note",
-    fallback: "The original draft",
-  },
-  {
-    id: "track.follow_up",
-    en: "Follow-up reader",
-    hi: "फ़ॉलो-अप समझना",
-    input: "Teacher's answer to the day-14 call",
-    model: "Claude classifies adopted / trying / barrier / not tried, extracts the barrier and who can remove it",
-    guard: "Evidence quote must be verbatim · a barrier must have an owner",
-    evals: "Agreement with CRP's own reading in pilot",
-    output: "Action board status; stuck items escalate to the BEO",
-    fallback: "Keyword rules",
-  },
-  {
-    id: "officer.ask",
-    en: "Officer Q&A agent",
-    hi: "अधिकारी के सवाल",
-    input: "The officer's question (typed or spoken)",
-    model: "Claude agent with 6 read-only tools over the block's data and live interviews (adaptive thinking, up to 8 steps)",
-    guard: "Must look data up before answering · school names checked against the block · no ranking or shaming",
-    evals: "Tool-use rate; unknown-name rate",
-    output: "Answer, schools, one next step with an owner",
-    fallback: "Rule-based answers for common questions",
-  },
-  {
-    id: "agent.turn",
-    en: "Jugnu assistant (voice orb + chat)",
-    hi: "जुगनू सहायक (आवाज़ + चैट)",
-    input: "What the officer said or typed, the page on screen, the block's live state",
-    model: "Claude Sonnet agent: briefs, answers, and works the console through tools — go to a page, open a school, fill a form, move an action, schedule a follow-up, escalate, dial a teacher, send a WhatsApp voice note",
-    guard: "Writes only through the same validated event log as a person · every write logged as \"Jugnu AI\" · calls and WhatsApp only to a number the officer gave, format-checked · school names checked against the block",
-    evals: "Tools used per turn (in the trace); write actions visible in the activity log",
-    output: "Spoken (Chirp 3 HD) and shown as a speech bubble; the console moves on screen",
-    fallback: "Officer Q&A rules; the console works by hand",
-  },
-  {
-    id: "verify.photo",
-    en: "Spot-check photo check",
-    hi: "जाँच की फ़ोटो",
-    input: "A CRP's classroom photo + the practice being checked",
-    model: "Claude Haiku (vision): is the practice visible — yes / partly / no / cannot tell — and only what is seen",
-    guard: "Never identifies people · flags recognisable children's faces for a retake · the photo is never stored, only the verdict",
-    evals: "Agreement with the CRP's own judgement in pilot",
-    output: "Verdict in the school's log next to the spot check",
-    fallback: "\"Cannot tell — CRP decides\"",
-  },
-  {
-    id: "coach.answer",
-    en: "Teacher coach",
-    hi: "शिक्षक सलाहकार",
-    input: "A teacher's classroom problem, in Hindi or English",
-    model: "Claude Haiku answers only with practices proven in the teacher's own block",
-    guard: "Practice must be distinctive in this block · one quote, verbatim from a bright-spot teacher · answer in the teacher's language · names the nearest school that does it",
-    evals: "Grounding rate; teacher usefulness rating in testing",
-    output: "2–3 sentences, steps for tomorrow, a peer's words and who to visit",
-    fallback: "Keyword match to the block's proven practices",
-  },
-  {
-    id: "import.map_columns",
-    en: "State-data column mapper",
-    hi: "राज्य डेटा के कॉलम",
-    input: "Headers and 3 sample rows of a district's own spreadsheet (UDISE+ export, Hindi headers…)",
-    model: "Claude Haiku says which source column fills each Jugnu column, and any unit change (0–100 → 0–1)",
-    guard: "Every named column exists in the file · no column used twice · scales plausible",
-    evals: "Unit tests on real header sets",
-    output: "The file is re-shaped and runs through Find + Verify",
-    fallback: "Synonym table (English and Hindi names)",
-  },
+const KINDS: { kind: string; icon: typeof Phone; en: string; hi: string; what: [string, string] }[] = [
+  { kind: "phone", icon: Phone, en: "Phone numbers", hi: "फ़ोन नंबर", what: ["Removed before anything is saved", "सहेजने से पहले हटाए जाते हैं"] },
+  { kind: "id", icon: Hash, en: "ID numbers", hi: "पहचान नंबर", what: ["Such as Aadhaar. Removed", "जैसे आधार। हटाए जाते हैं"] },
+  { kind: "email", icon: Mail, en: "Email addresses", hi: "ईमेल पते", what: ["Removed", "हटाए जाते हैं"] },
+  { kind: "profanity", icon: MessageSquareOff, en: "Bad language", hi: "अपशब्द", what: ["Removed, in Hindi and English", "हिंदी और अंग्रेज़ी में, हटाए जाते हैं"] },
+  { kind: "topic", icon: ShieldQuestion, en: "Sensitive topics", hi: "संवेदनशील विषय", what: ["Caste, religion, politics, pay. Flagged, and Jugnu won't ask about them", "जाति, धर्म, राजनीति, वेतन। चिह्नित, और जुगनू इन पर नहीं पूछता"] },
 ];
+const SOURCE: Record<string, [string, string]> = {
+  interview: ["a teacher's answer", "शिक्षक का जवाब"],
+  comment: ["a comment", "एक राय"],
+  action: ["a note on a task", "काम की टिप्पणी"],
+  followup: ["a follow-up call", "फ़ॉलो-अप कॉल"],
+  weekly: ["a weekly report", "साप्ताहिक रिपोर्ट"],
+  note: ["a note", "एक टिप्पणी"],
+};
 
-export default function AIPage() {
+export default function SafetyPage() {
   const t = useT();
-  const [trace, err] = usePoll<Trace>("/api/ai/trace", 8000);
-  const [ev] = usePoll<EvalResults | null>("/api/ai/eval");
-  const total = trace?.summary.tasks.reduce((a, b) => a + b.n, 0) ?? 0;
-  const claude = trace?.summary.tasks.filter((x) => x.source === "claude" && x.ok).reduce((a, b) => a + b.n, 0) ?? 0;
-  const rejected = trace?.calls.filter((c) => c.error === "rejected by guardrails").length ?? 0;
-  const tokens = trace?.summary.tasks.reduce((a, b) => a + (b.tin ?? 0) + (b.tout ?? 0), 0) ?? 0;
+  const { lang } = usePrefs();
+  const hi = lang === "hi" && "font-deva";
+  const [s, , reload] = usePoll<Summary>("/api/safety/summary", 15000);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<CheckResult | null>(null);
+  const run = async () => {
+    setBusy(true);
+    const r = await postJSON<CheckResult>("/api/safety/check", { text }).catch(() => null);
+    setBusy(false);
+    setRes(r);
+    reload();
+  };
   return (
     <div className="space-y-5">
-      <Glass strong className="p-5 md:p-7">
-        <div className="label">{t("Effective AI use", "AI का सही इस्तेमाल")}</div>
-        <h1 className="text-[1.9rem] font-semibold leading-tight tracking-[-0.035em]">{t("Ten AI tasks, each in five layers", "दस AI काम, हर एक पाँच परतों में")}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
-          {t(
-            "Claude does what language models are good at — conversation, reading meaning in code-mixed Hindi, writing from evidence, using tools. Statistics does the counting (who beats expectation, what is distinctive, did it work). Deterministic guardrails sit between the model and the user, and the offline engine answers whenever Claude is slow, unavailable or fails a check.",
-            "Claude वह करता है जिसमें भाषा मॉडल अच्छे हैं — बातचीत, मिली-जुली हिंदी का अर्थ समझना, प्रमाण से लिखना, टूल चलाना। गिनती का काम सांख्यिकी करती है। मॉडल और उपयोगकर्ता के बीच तय नियमों वाली जाँच होती है, और Claude धीमा या अनुपलब्ध हो तो ऑफ़लाइन इंजन जवाब देता है।",
-          )}
-        </p>
-      </Glass>
+      <PageHeader
+        title={t("Safety", "सुरक्षा")}
+        sub={t(
+          "Jugnu checks everything by itself, every time: what teachers say, what anyone types, and what the AI writes. Nobody has to turn it on or check it.",
+          "जुगनू हर बार सब कुछ अपने-आप जाँचता है: शिक्षक क्या कहते हैं, कोई क्या लिखता है, और AI क्या लिखता है। किसी को इसे चालू करने या जाँचने की ज़रूरत नहीं।",
+        )}
+      />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label={t("AI calls logged", "दर्ज AI कॉल")} value={total} />
-        <StatTile label={t("Answered by Claude", "Claude के जवाब")} value={claude} sub={total ? `${Math.round((100 * claude) / total)}%` : undefined} />
-        <StatTile label={t("Rejected by guardrails", "जाँच में अस्वीकार")} value={rejected} sub={t("offline engine used instead", "ऑफ़लाइन इंजन से जवाब")} />
-        <StatTile label={t("Tokens used", "टोकन")} value={tokens.toLocaleString()} />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {TASKS.map((x) => {
-          const rows = trace?.summary.tasks.filter((r) => r.task === x.id) ?? [];
-          const n = rows.reduce((a, b) => a + b.n, 0);
-          return (
-            <Glass key={x.id} className="p-5">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-mono text-xs text-[var(--color-ink-3)]">{x.id}</div>
-                  <h3 className="text-lg font-bold">{t(x.en, x.hi)}</h3>
-                </div>
-                <span className="chip text-xs">
-                  <Activity size={11} /> {n} {t("calls", "कॉल")}
-                </span>
-              </div>
-              <dl className="mt-3 grid gap-2 text-sm">
-                {(
-                  [
-                    ["1 · Input", x.input],
-                    ["2 · Processing", x.model],
-                    ["3 · Guardrails", x.guard],
-                    ["4 · Evaluation", x.evals],
-                    ["5 · Output", x.output],
-                    ["↺ Fallback", x.fallback],
-                  ] as const
-                ).map(([k, v]) => (
-                  <div key={k} className="grid grid-cols-[120px_1fr] gap-2">
-                    <dt className={cx("label !text-xs", k.startsWith("3") && "text-teal-200", k.startsWith("↺") && "text-amber-200")}>{k}</dt>
-                    <dd className="text-[var(--color-ink-2)]">{v}</dd>
-                  </div>
-                ))}
-              </dl>
-            </Glass>
-          );
-        })}
-      </div>
-
-      {ev && (
-        <Glass className="p-5">
-          <SectionTitle
-            eyebrow={`${t("Evaluation", "मूल्यांकन")} · npm run eval · ${new Date(ev.ranAt).toLocaleString()}`}
-            title={t("Measured, not assumed", "मापा गया, माना नहीं गया")}
-            sub={t(
-              "Coding is scored against 30 hand-labelled teacher answers (paraphrases, negations, Hinglish, English, new practices). Each guardrail is attacked with deliberately bad outputs and checked for false alarms on good ones.",
-              "कोडिंग को 30 हाथ से लेबल किए जवाबों पर परखा गया। हर जाँच को जानबूझकर गलत जवाबों से परखा गया, और सही जवाबों पर झूठे अलार्म भी गिने गए।",
-            )}
-          />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="overflow-x-auto">
-              <div className="label mb-2">{t("Transcript coding", "बातचीत की कोडिंग")}</div>
-              <table className="w-full text-left text-sm">
-                <thead className="text-xs text-[var(--color-ink-3)]">
-                  <tr>
-                    <th className="py-1 pr-2">{t("coder", "कोडर")}</th>
-                    <th className="pr-2">P</th>
-                    <th className="pr-2">R</th>
-                    <th className="pr-2">F1</th>
-                    <th className="pr-2">{t("tricky", "कठिन")}</th>
-                    <th>{t("new", "नए")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ev.coding.map((c) => (
-                    <tr key={c.coder} className="border-t border-white/5">
-                      <td className="py-2 pr-2">{c.coder}</td>
-                      <td className="pr-2 tabular-nums">{c.precision}</td>
-                      <td className="pr-2 tabular-nums">{c.recall}</td>
-                      <td className="pr-2 tabular-nums font-semibold">{c.f1}</td>
-                      <td className="pr-2 tabular-nums">{c.tricky}</td>
-                      <td className="tabular-nums">{c.newPractices}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="mt-2 text-xs text-[var(--color-ink-3)]">
-                {t("Interviewer follow-ups:", "इंटरव्यूअर का दोबारा पूछना:")} {ev.interviewer.followsUpOnVague} {t("vague answers followed up", "अस्पष्ट जवाबों पर")} · {ev.interviewer.noFollowUpOnSpecific} {t("specific answers left alone", "ठोस जवाबों पर नहीं")}
-              </p>
-            </div>
-            <div className="overflow-x-auto">
-              <div className="label mb-2">{t("Guardrails under attack", "हमले में जाँच")}</div>
-              <table className="w-full text-left text-sm">
-                <thead className="text-xs text-[var(--color-ink-3)]">
-                  <tr>
-                    <th className="py-1 pr-2">{t("check", "जाँच")}</th>
-                    <th className="pr-2">{t("caught", "पकड़े")}</th>
-                    <th>{t("false alarms", "झूठे अलार्म")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ev.guardrails.map((r) => (
-                    <tr key={r.check} className="border-t border-white/5">
-                      <td className="py-2 pr-2">{r.check}</td>
-                      <td className={cx("pr-2 tabular-nums", r.caught === r.attacks ? "text-teal-200" : "text-amber-200")}>
-                        {r.caught}/{r.attacks}
-                      </td>
-                      <td className={cx("tabular-nums", r.falseAlarms ? "text-red-300" : "text-[var(--color-ink-3)]")}>
-                        {r.falseAlarms}/{r.clean}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+        <Card title={t("Try it yourself", "खुद आज़माएँ")} icon={ShieldCheck}>
+          <p className={cx("mb-3 text-sm text-[var(--color-ink-2)]", hi)}>{t("Type or speak anything. You'll see exactly what would be kept. Nothing you enter here is saved.", "कुछ भी लिखें या बोलें। आप देखेंगे कि क्या रखा जाएगा। यहाँ जो लिखेंगे वह सहेजा नहीं जाता।")}</p>
+          <VoiceText rows={3} value={text} onChange={(v) => (setText(v), setRes(null))} placeholder={t("For example: my number is 98765 43210", "जैसे: मेरा नंबर 98765 43210 है")} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className="btn btn-primary" onClick={run} disabled={busy || !text.trim()}>
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />} {t("Check it", "जाँचें")}
+            </button>
+            <button className={cx("btn btn-glass", hi)} onClick={() => (setText(t("Call me on 98765 43210 or write to rakesh@example.com. It is about my caste.", "मुझे 98765 43210 पर फ़ोन करें या rakesh@example.com पर लिखें। बात मेरी जाति की है।")), setRes(null))}>
+              {t("Use an example", "उदाहरण लें")}
+            </button>
           </div>
-        </Glass>
-      )}
-
-      <Glass className="p-5">
-        <SectionTitle eyebrow={t("Guardrails in action", "जाँच का असर")} title={t("Every check, how often it passed", "हर जाँच कितनी बार पास हुई")} />
-        {!trace?.summary.checks.length && <p className="text-sm text-[var(--color-ink-3)]">{t("Checks run on Claude's outputs; they appear here once Claude is connected and in use.", "जाँच Claude के जवाबों पर चलती है; Claude जुड़ने पर यहाँ दिखेगी।")}</p>}
-        <div className="grid gap-2 md:grid-cols-2">
-          {trace?.summary.checks.map((c) => (
-            <div key={c.name} className="glass-inset flex items-center justify-between p-3 text-sm">
-              <span>{c.name}</span>
-              <span className="tabular-nums">
-                <span className="text-teal-200">✓ {c.passed}</span> <span className={cx(c.failed ? "text-red-300" : "text-[var(--color-ink-3)]")}>✗ {c.failed}</span>
-              </span>
+          {res && (
+            <div className="card-inset mt-4 p-4">
+              <div className={cx("flex items-center gap-2 font-semibold", hi)} style={{ color: res.safe ? "var(--tone-good)" : "var(--tone-warn)" }}>
+                {res.safe ? <Check size={16} /> : <EyeOff size={16} />}
+                {res.safe ? t("Nothing to remove", "हटाने को कुछ नहीं") : t("Here is what would be kept", "यह रखा जाएगा")}
+              </div>
+              <p className="mt-2 font-deva text-[15px] leading-relaxed">{res.text}</p>
+              {!res.safe && (
+                <ul className={cx("mt-2 flex flex-wrap gap-1.5", hi)}>
+                  {res.findings.map((f) => {
+                    const k = KINDS.find((x) => x.kind === f.kind);
+                    return (
+                      <li key={f.kind} className="chip !text-xs">
+                        {t(k?.en ?? f.label, k?.hi ?? f.label)}
+                        {f.kind === "topic" ? `: ${f.detail}` : `: ${f.count}`}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
-          ))}
-        </div>
-      </Glass>
+          )}
+        </Card>
 
-      <Glass className="p-5">
-        <SectionTitle eyebrow={t("Live trace", "लाइव ट्रेस")} title={t("The last 150 AI calls", "पिछली 150 AI कॉल")} />
-        {err && <p className="text-sm text-[var(--color-ink-3)]">{err}</p>}
-        <div className="scroll-thin max-h-[520px] overflow-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="text-[var(--color-ink-3)]">
-              <tr>
-                <th className="py-2 pr-3">{t("time", "समय")}</th>
-                <th className="pr-3">{t("task", "काम")}</th>
-                <th className="pr-3">{t("by", "किसने")}</th>
-                <th className="pr-3">ms</th>
-                <th className="pr-3">{t("tokens", "टोकन")}</th>
-                <th>{t("guardrails", "जाँच")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trace?.calls.map((c) => (
-                <tr key={c.id} className="border-t border-white/5 align-top">
-                  <td className="py-2 pr-3 tabular-nums text-[var(--color-ink-3)]">{new Date(c.created_at).toLocaleTimeString()}</td>
-                  <td className="pr-3 font-mono">{c.task}</td>
-                  <td className="pr-3">{c.source === "claude" ? (c.ok ? "Claude" : <span className="text-amber-200">Claude → offline</span>) : t("offline", "ऑफ़लाइन")}</td>
-                  <td className="pr-3 tabular-nums">{c.latency_ms}</td>
-                  <td className="pr-3 tabular-nums">{c.input_tokens != null ? `${c.input_tokens}+${c.output_tokens}` : "—"}</td>
-                  <td>
-                    <div className="flex flex-wrap gap-1">
-                      {c.checks.map((k) => (
-                        <span key={k.name} className="chip !py-0 text-xs" title={k.detail}>
-                          {k.passed ? <ShieldCheck size={10} className="text-teal-300" /> : <ShieldAlert size={10} className="text-red-300" />} {k.name}
-                        </span>
-                      ))}
-                      {c.error && <span className="text-xs text-amber-200">{c.error}</span>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Glass>
+        <Card title={t("What it has done so far", "अब तक क्या किया")}>
+          <ul className="space-y-2">
+            {KINDS.map(({ kind, icon: Icon, en, hi: h, what }) => (
+              <li key={kind} className="card-inset flex items-center gap-3 px-3 py-2.5">
+                <span className="icon-tile h-9 w-9 shrink-0 rounded-full">
+                  <Icon size={16} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={cx("block text-sm font-medium", hi)}>{t(en, h)}</span>
+                  <span className={cx("block text-xs text-[var(--color-ink-2)]", hi)}>{t(...what)}</span>
+                </span>
+                <b className="font-display text-xl tabular-nums">{s?.totals[kind] ?? 0}</b>
+              </li>
+            ))}
+          </ul>
+          <dl className={cx("mt-3 grid grid-cols-2 gap-2 text-sm", hi)}>
+            <div className="card-inset p-3">
+              <dd className="font-display text-xl font-bold tabular-nums">{s?.answersChecked ?? 0}</dd>
+              <dt className="text-xs text-[var(--color-ink-2)]">{t("Teacher answers checked", "शिक्षकों के जवाब जाँचे")}</dt>
+            </div>
+            <div className="card-inset p-3">
+              <dd className="font-display text-xl font-bold tabular-nums">{s?.aiChecked ?? 0}</dd>
+              <dt className="text-xs text-[var(--color-ink-2)]">{t(`AI answers checked, ${s?.aiStopped ?? 0} stopped`, `AI के जवाब जाँचे, ${s?.aiStopped ?? 0} रोके`)}</dt>
+            </div>
+          </dl>
+          {!!s?.recent.length && (
+            <details className="mt-3">
+              <summary className={cx("tap-link cursor-pointer text-sm font-medium text-[var(--color-ink-2)]", hi)}>{t("Latest", "ताज़ा")}</summary>
+              <ul className={cx("mt-2 space-y-1 text-xs text-[var(--color-ink-2)]", hi)}>
+                {s.recent.map((r, i) => {
+                  const k = KINDS.find((x) => x.kind === r.kind);
+                  const src = SOURCE[r.source] ?? [r.source, r.source];
+                  return (
+                    <li key={i}>
+                      {new Date(r.created_at).toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "short" })} · {t(k?.en ?? r.kind, k?.hi ?? r.kind)} {t("in", "—")} {t(...src)}
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className={cx("mt-2 text-xs text-[var(--color-ink-3)]", hi)}>{t("Only the count is kept here, never the words.", "यहाँ सिर्फ़ गिनती रखी जाती है, शब्द कभी नहीं।")}</p>
+            </details>
+          )}
+        </Card>
+      </div>
+
+      <Card title={t("Promises that always hold", "वादे जो हमेशा निभते हैं")}>
+        <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {(
+            [
+              [UserCheck, t("A person decides", "फ़ैसला इंसान का"), t("Nothing written by AI reaches a teacher until a coordinator or the BEO approves it.", "AI का लिखा कुछ भी समन्वयक या BEO की मंज़ूरी के बिना शिक्षक तक नहीं जाता।")],
+              [UserX, t("Teachers can say no", "शिक्षक मना कर सकते हैं"), t(`Every conversation asks first. If a teacher says no, nothing is kept. ${s?.declined ? `${s.declined} have said no so far.` : ""}`, `हर बातचीत पहले अनुमति लेती है। मना करने पर कुछ नहीं रखा जाता।${s?.declined ? ` अब तक ${s.declined} ने मना किया।` : ""}`)],
+              [EyeOff, t("No data about children", "बच्चों का कोई डेटा नहीं"), t("Only school-level results and anonymous counts from a visit. No child's name is ever recorded.", "सिर्फ़ स्कूल-स्तर के नतीजे और दौरे की गिनती। किसी बच्चे का नाम कभी दर्ज नहीं होता।")],
+              [ShieldCheck, t("Nobody is punished", "किसी को सज़ा नहीं"), t("Schools are never ranked in public. Results that don't match lead to a respectful conversation.", "स्कूलों की सार्वजनिक रैंकिंग नहीं होती। नतीजे मेल न खाएँ तो सम्मान से बातचीत होती है।")],
+            ] as const
+          ).map(([Icon, title, text]) => (
+            <li key={title} className="card-inset p-4">
+              <Icon size={18} className="text-[var(--st-bright)]" aria-hidden />
+              <div className={cx("mt-2 font-semibold", hi)}>{title}</div>
+              <p className={cx("mt-1 text-sm text-[var(--color-ink-2)]", hi)}>{text}</p>
+            </li>
+          ))}
+        </ul>
+      </Card>
     </div>
   );
 }

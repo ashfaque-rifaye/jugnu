@@ -1,248 +1,106 @@
-import { Columns3, Footprints, Handshake, List, Map as MapIcon } from "lucide-react";
+// Share with schools: an approved method's rollout, the task board that carries it out, the audit
+// trail of everything that changed, and the map of who learns from whom.
+import { Columns3, Handshake, History, Layers, Map as MapIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ActionRow } from "../components/field";
-import { ExportPlanButton, WhatIfCard } from "../components/insights";
-import { Card, Empty, fieldBase, PageHeader, Segmented, Stat } from "../components/kit";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { AuditTrail } from "../components/Audit";
+import { Board } from "../components/Board";
+import { ExportPlanButton } from "../components/insights";
+import { Card, Empty, fieldBase, PageHeader, Segmented } from "../components/kit";
 import { LivingMap } from "../components/maps";
-import { cx } from "../components/ui";
+import { RolloutPanel } from "../components/Rollout";
 import { profileFor } from "../engine/district";
-import { PRACTICES } from "../engine/practices";
-import type { Action } from "../engine/types";
-import { usePrefs, useT } from "../lib/prefs";
-import { inMyPatch, useRole } from "../lib/role";
+import { useT } from "../lib/prefs";
+import { isMySchool, useRole } from "../lib/role";
 import { usePipeline } from "../lib/store";
 import { meanZ, schoolStatuses } from "../lib/status";
-
-const COLUMNS: { key: Action["status"]; en: string; hi: string; short: [string, string] }[] = [
-  { key: "todo", en: "To do", hi: "करना है", short: ["To do", "करना है"] },
-  { key: "scheduled", en: "Scheduled", hi: "तय है", short: ["Scheduled", "तय"] },
-  { key: "stuck", en: "Stuck — needs the BEO", hi: "अटका — BEO की ज़रूरत", short: ["Stuck", "अटके"] },
-  { key: "done", en: "Done", hi: "पूरा", short: ["Done", "पूरे"] },
-];
 
 export default function PlanPage() {
   const t = useT();
   const nav = useNavigate();
-  const { lang } = usePrefs();
   const [role] = useRole();
   const [params] = useSearchParams();
   const { state, select, blockKey, tracked } = usePipeline();
+  const onlyStuck = params.get("status") === "stuck";
+  const [view, setView] = useState<"rollout" | "board" | "history" | "map">(onlyStuck || role?.kind === "head" ? "board" : ((params.get("view") as "board" | null) ?? "rollout"));
   const [wave, setWave] = useState<1 | 2>(1);
-  const [view, setView] = useState<"board" | "schools" | "map">("board");
   const [owner, setOwner] = useState<"all" | "CRP" | "BEO" | "Jugnu AI">("all");
-  const [onlyStuck, setOnlyStuck] = useState(params.get("status") === "stuck");
-  // phones show one column of the board at a time
-  const [col, setCol] = useState<Action["status"]>(params.get("status") === "stuck" ? "stuck" : "todo");
-  const [more, setMore] = useState(false);
   const status = useMemo(() => schoolStatuses(state), [state]);
   const z = useMemo(() => meanZ(state), [state]);
   const byId = useMemo(() => new Map(state.block.schools.map((s) => [s.id, s])), [state.block]);
-  const recs = state.recs.filter((r) => inMyPatch(role, byId.get(r.schoolId)!.cluster));
+  const recs = state.recs.filter((r) => isMySchool(role, r.schoolId, byId.get(r.schoolId)!.cluster));
   const waveRecs = recs.filter((r) => r.wave === wave);
-  const actions = waveRecs
-    .flatMap((r) => r.actions)
-    .filter((a) => owner === "all" || a.ownerRole === owner)
-    .filter((a) => !onlyStuck || a.status === "stuck");
-  const all = recs.flatMap((r) => r.actions);
-  const done = all.filter((a) => a.status === "done").length;
-  const stuck = all.filter((a) => a.status === "stuck").length;
-  const avgKm = recs.length ? recs.reduce((a, r) => a + r.distanceKm, 0) / recs.length : 0;
-  const hi = lang === "hi" && "font-deva";
+  const actions = waveRecs.flatMap((r) => r.actions).filter((a) => owner === "all" || a.ownerRole === owner);
 
   if (!state.recs.length)
     return (
       <div>
-        <PageHeader title={t("Support plan", "मदद की योजना")} />
-        <Empty icon={Handshake} title={t("Nothing to spread yet", "अभी फैलाने को कुछ नहीं")}>
-          {t(
-            "Jugnu needs interviews with bright-spot teachers first — then it can match each school that needs support with a nearby teacher.",
-            "पहले अच्छे स्कूलों के शिक्षकों से बातचीत ज़रूरी है — फिर जुगनू हर स्कूल को पास के शिक्षक से जोड़ सकता है।",
-          )}
+        <PageHeader title={t("Share with schools", "स्कूलों तक पहुँचाएँ")} />
+        <Empty icon={Handshake} title={t("Nothing to share yet", "अभी पहुँचाने को कुछ नहीं")}>
+          {t("Jugnu first needs to talk to teachers at schools doing well. Then it can match each school that needs help with a teacher nearby.", "पहले अच्छा कर रहे स्कूलों के शिक्षकों से बात ज़रूरी है। फिर जुगनू मदद चाहने वाले हर स्कूल को पास के शिक्षक से जोड़ सकता है।")}
         </Empty>
       </div>
     );
 
   return (
     <div>
-        <PageHeader
-          title={t("Support plan", "मदद की योजना")}
-          sub={t(
-            "Each school that needs support gets one practice that fits its gap, a teacher nearby who already does it, and people who own each step. Schools start in two waves, so wave 2 shows fairly whether wave 1 improved.",
-            "मदद चाहने वाले हर स्कूल को उसकी कमी के हिसाब से एक तरीका, पास का एक शिक्षक जो यह पहले से करता है, और हर कदम के ज़िम्मेदार लोग। स्कूल दो लहरों में शुरू करते हैं, ताकि लहर 2 से साफ़ पता चले कि लहर 1 में सुधार हुआ या नहीं।",
-          )}
-          actions={
-            <Segmented
-              value={view}
-              onChange={setView}
-              options={[
-                {
-                  value: "board",
-                  label: (
-                    <>
-                      <Columns3 size={15} /> {t("Actions", "काम")}
-                    </>
-                  ),
-                },
-                {
-                  value: "schools",
-                  label: (
-                    <>
-                      <List size={15} /> {t("By school", "स्कूल के हिसाब से")}
-                    </>
-                  ),
-                },
-                {
-                  value: "map",
-                  label: (
-                    <>
-                      <MapIcon size={15} /> {t("Map", "नक्शा")}
-                    </>
-                  ),
-                },
-              ]}
-            />
-          }
-        />
-
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat
-          label={t("Schools getting support", "मदद पा रहे स्कूल")}
-          value={recs.length}
-          hint={t(
-            `${recs.filter((r) => r.wave === 1).length} now · ${recs.filter((r) => r.wave === 2).length} next term`,
-            `${recs.filter((r) => r.wave === 1).length} अभी · ${recs.filter((r) => r.wave === 2).length} अगले सत्र`,
-          )}
-        />
-        <Stat label={t("Distance to a teacher who does it", "करने वाले शिक्षक तक दूरी")} value={`${avgKm.toFixed(1)} km`} hint={t("on average", "औसतन")} tone="var(--tone-warn)" />
-        <Stat label={t("Actions done", "पूरे काम")} value={`${done}/${all.length}`} tone="var(--tone-good)" />
-        <button className="text-left" onClick={() => (setOnlyStuck((v) => !v), setView("board"))}>
-          <Stat
-            label={t("Stuck — needs someone", "अटके — किसी की ज़रूरत")}
-            value={stuck}
-            hint={onlyStuck ? t("showing only these · tap to show all", "सिर्फ़ ये दिख रहे · सब दिखाने को छुएँ") : t("tap to show only these", "सिर्फ़ ये देखने को छुएँ")}
-            tone="var(--tone-bad)"
-          />
-        </button>
-      </div>
-
-      <Card className="mb-4">
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        title={t("Share with schools", "स्कूलों तक पहुँचाएँ")}
+        sub={t(
+          "How each approved method reaches other schools: who does what, week by week, and how far it has got. Every school that needs help is matched with a teacher nearby who already does it.",
+          "मंज़ूर तरीका दूसरे स्कूलों तक कैसे पहुँचता है: कौन क्या करेगा, हफ़्ते-दर-हफ़्ते, और अब तक कितना हुआ। मदद चाहने वाले हर स्कूल को पास के उस शिक्षक से जोड़ा जाता है जो यह पहले से करता है।",
+        )}
+        actions={
           <Segmented
-            value={wave}
-            onChange={setWave}
+            value={view}
+            onChange={setView}
             options={[
-              { value: 1, label: t("Wave 1 · now", "लहर 1 · अभी"), count: recs.filter((r) => r.wave === 1).length },
-              { value: 2, label: t("Wave 2 · next term", "लहर 2 · अगला सत्र"), count: recs.filter((r) => r.wave === 2).length },
+              { value: "rollout", label: (<><Layers size={15} /> {t("Rollout", "रोलआउट")}</>) },
+              { value: "board", label: (<><Columns3 size={15} /> {t("Task board", "काम")}</>) },
+              { value: "history", label: (<><History size={15} /> {t("History", "इतिहास")}</>) },
+              { value: "map", label: (<><MapIcon size={15} /> {t("Map", "नक्शा")}</>) },
             ]}
           />
-          {view === "board" && (
-            <select className={fieldBase} value={owner} onChange={(e) => setOwner(e.target.value as typeof owner)} aria-label={t("Owner", "ज़िम्मेदार")}>
-              <option value="all">{t("Everyone's actions", "सबके काम")}</option>
-              <option value="CRP">{t("CRP actions", "CRP के काम")}</option>
-              <option value="BEO">{t("BEO actions", "BEO के काम")}</option>
-              <option value="Jugnu AI">{t("Jugnu's automatic actions", "जुगनू के अपने-आप होने वाले काम")}</option>
-            </select>
-          )}
-          {onlyStuck && (
-            <button className="chip" onClick={() => setOnlyStuck(false)}>
-              {t("Only stuck ✕", "सिर्फ़ अटके ✕")}
-            </button>
-          )}
-        </div>
-      </Card>
+        }
+      />
+
+      {view === "rollout" && <RolloutPanel initial={params.get("method")} />}
 
       {view === "board" && (
         <>
-          <div className="mb-3 lg:hidden">
-            <Segmented
-              size="sm"
-              value={col}
-              onChange={(v) => (setCol(v), setMore(false))}
-              options={COLUMNS.map((c) => ({ value: c.key, label: t(...c.short), count: actions.filter((a) => a.status === c.key).length }))}
-            />
-          </div>
-          <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
-            {COLUMNS.map((c) => {
-              const items = actions.filter((a) => a.status === c.key);
-              return (
-                <div key={c.key} className={cx("card p-3", c.key !== col && "max-lg:hidden")}>
-                  <div className={cx("mb-2 flex items-center justify-between px-1 text-sm font-semibold", hi)}>
-                    {t(c.en, c.hi)} <span className="chip">{items.length}</span>
-                  </div>
-                  <div className="scroll-thin space-y-2 lg:max-h-[560px] lg:overflow-y-auto lg:pr-1">
-                    {items.length === 0 && <p className="px-1 text-xs text-[var(--color-ink-3)]">{t("Nothing here.", "यहाँ कुछ नहीं।")}</p>}
-                    {items.slice(0, 60).map((a, i) => (
-                      <div key={a.id} className={cx(i >= 12 && !more && "max-lg:hidden")}>
-                        <ActionRow action={a} school={byId.get(a.schoolId)} />
-                      </div>
-                    ))}
-                    {items.length > 12 && !more && (
-                      <button className="btn btn-glass w-full justify-center lg:hidden" onClick={() => setMore(true)}>
-                        {t(`Show ${Math.min(60, items.length) - 12} more`, `${Math.min(60, items.length) - 12} और दिखाएँ`)}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <Card className="mb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Segmented
+                value={wave}
+                onChange={setWave}
+                options={[
+                  { value: 1, label: t("This term", "इस सत्र"), count: recs.filter((r) => r.wave === 1).length },
+                  { value: 2, label: t("Next term", "अगले सत्र"), count: recs.filter((r) => r.wave === 2).length },
+                ]}
+              />
+              <select className={fieldBase} value={owner} onChange={(e) => setOwner(e.target.value as typeof owner)} aria-label={t("Whose tasks", "किसके काम")}>
+                <option value="all">{t("Everyone's tasks", "सबके काम")}</option>
+                <option value="CRP">{t("Coordinators' tasks", "समन्वयकों के काम")}</option>
+                <option value="BEO">{t("BEO's tasks", "BEO के काम")}</option>
+                <option value="Jugnu AI">{t("Done by Jugnu", "जुगनू के अपने-आप होने वाले काम")}</option>
+              </select>
+              <span className="ml-auto">
+                <ExportPlanButton blockKey={blockKey} tracked={tracked} />
+              </span>
+            </div>
+          </Card>
+          <Board actions={actions} schools={byId} onlyStuck={onlyStuck} />
         </>
       )}
 
-      {view === "schools" && (
-        <div className="grid gap-3 md:grid-cols-2">
-          {waveRecs.map((r) => {
-            const s = byId.get(r.schoolId)!;
-            const d = byId.get(r.demonstratorId)!;
-            const n = r.actions.filter((a) => a.status === "done").length;
-            return (
-              <Link key={r.schoolId} to={`/schools/${s.id}`} onClick={() => select(s.id)} className="card card-hover block p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-semibold">{s.name}</div>
-                    <div className="text-xs text-[var(--color-ink-3)]">
-                      {s.teacher} · {s.clusterName}
-                    </div>
-                  </div>
-                  <span className="chip">
-                    {n}/{r.actions.length} {t("done", "पूरे")}
-                  </span>
-                </div>
-                <div className="mt-2 text-sm">
-                  <Footprints size={14} className="mr-1 inline text-amber-200" />
-                  <b>{lang === "hi" ? PRACTICES[r.practice].labelHi : PRACTICES[r.practice].label}</b> {t("from", "—")} {d.teacher} ({r.distanceKm} km)
-                </div>
-                {r.actions.some((a) => a.status === "stuck") && <div className="mt-1 text-xs text-rose-300">{t("Something is stuck", "कुछ अटका है")}</div>}
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      {view === "history" && <AuditTrail />}
 
       {view === "map" && (
         <Card title={t("Who learns from whom", "कौन किससे सीखता है")}>
-          <LivingMap
-            schools={state.block.schools}
-            status={status}
-            z={z}
-            links={waveRecs.map((r) => ({ from: r.demonstratorId, to: r.schoolId }))}
-            onSelect={(id) => (select(id), nav(`/schools/${id}`))}
-            height={580}
-            showLinks
-            block={profileFor(state.block.seed)?.block}
-          />
-          <p className="mt-2 text-xs text-[var(--color-ink-3)]">
-            {t("Each arc runs from a bright-spot teacher to a school learning that practice from them.", "हर रेखा अच्छे स्कूल के शिक्षक से उस स्कूल तक जाती है जो उनसे वह तरीका सीख रहा है।")}
-          </p>
+          <LivingMap schools={state.block.schools} status={status} z={z} links={recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} onSelect={(id) => (select(id), nav(`/schools/${id}`))} height={580} showLinks block={profileFor(state.block.seed)?.block} />
+          <p className="mt-2 text-xs text-[var(--color-ink-3)]">{t("Each line runs from a teacher who already does a method to a school learning it from them.", "हर रेखा उस शिक्षक से, जो तरीका पहले से करता है, उस स्कूल तक जाती है जो उनसे सीख रहा है।")}</p>
         </Card>
       )}
-      <div className="mt-5 space-y-5">
-        <WhatIfCard state={state} />
-        <div className="flex justify-end">
-          <ExportPlanButton blockKey={blockKey} tracked={tracked} />
-        </div>
-      </div>
     </div>
   );
 }

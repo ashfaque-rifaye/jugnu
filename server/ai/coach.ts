@@ -20,7 +20,7 @@ export interface CoachAnswer {
 }
 
 const Schema = z.object({
-  practice: z.enum(PRACTICE_IDS as [PracticeId, ...PracticeId[]]).nullable().describe("One of the proven practices listed, or null if none fits"),
+  practice: z.enum(PRACTICE_IDS as [PracticeId, ...PracticeId[]]).nullable().describe("One of the proven methods listed, or null if none fits"),
   answer: z.string().describe("2–3 sentences in the teacher's language, warm and practical"),
   steps: z.array(z.string()).max(4).describe("Concrete first steps for tomorrow, in the teacher's language"),
   quote: z.string().nullable().describe("One quote copied exactly from the list, or null"),
@@ -64,7 +64,7 @@ export function offlineCoach(question: string, st: PipelineState, lang: "hi" | "
       answer:
         lang === "hi"
           ? "आपके ब्लॉक में अभी इस समस्या के लिए कोई सिद्ध तरीका नहीं मिला है। अपने CRP से बात कीजिए — वे आपको पास के किसी स्कूल से जोड़ सकते हैं।"
-          : "No practice proven in your block fits this yet. Talk to your CRP; they can connect you with a nearby school.",
+          : "No method proven in your block fits this yet. Talk to your CRP; they can connect you with a nearby school.",
       steps: [],
       quote: null,
       demonstrator: null,
@@ -73,7 +73,7 @@ export function offlineCoach(question: string, st: PipelineState, lang: "hi" | "
   const x = list.find((y) => y.e.practice === pick)!;
   return {
     practice: pick,
-    answer: lang === "hi" ? `आपके ब्लॉक के अच्छे स्कूलों में "${x.p.labelHi}" काम कर रहा है।` : `In your block's bright spots, "${x.p.label}" is what works.`,
+    answer: lang === "hi" ? `आपके ब्लॉक के अच्छे स्कूलों में "${x.p.labelHi}" काम कर रहा है।` : `In your block's schools doing well, "${x.p.label}" is what works.`,
     steps: [x.p.what],
     quote: x.e.quotes[0]?.quote ?? null,
     demonstrator: nearestDoer(st, pick, schoolId),
@@ -84,7 +84,7 @@ export async function askCoach(question: string, st: PipelineState, lang: "hi" |
   const list = proven(st);
   const quotes = list.flatMap((x) => x.e.quotes.map((q) => q.quote));
   const menu = list
-    .map((x) => `- ${x.e.practice}: ${x.p.label} / ${x.p.labelHi}. ${x.p.what} In bright spots ${x.e.bright.k}/${x.e.bright.n}, in similar schools ${x.e.comparison.k}/${x.e.comparison.n}.\n  Quotes:\n${x.e.quotes.map((q) => `  · ${q.quote}`).join("\n")}`)
+    .map((x) => `- ${x.e.practice}: ${x.p.label} / ${x.p.labelHi}. ${x.p.what} In schools doing well ${x.e.bright.k}/${x.e.bright.n}, in similar schools ${x.e.comparison.k}/${x.e.comparison.n}.\n  Quotes:\n${x.e.quotes.map((q) => `  · ${q.quote}`).join("\n")}`)
     .join("\n");
   return runAI({
     task: "coach.answer",
@@ -95,10 +95,10 @@ export async function askCoach(question: string, st: PipelineState, lang: "hi" |
       askClaude({
         system: `${SAFETY}
 You coach a government primary-school teacher in ${st.block.name}, ${st.block.district}. Answer in ${lang === "hi" ? "simple Hindi (Devanagari)" : "simple English"}.
-Use ONLY the practices below — they are proven in this block's own bright spots against similar schools. If none fits the problem, set practice to null and say so kindly; never suggest anything else.
-Copy at most one quote exactly from the list. Steps must be things the teacher can do tomorrow with no new materials unless the practice needs them.
+Use ONLY the methods below — they are proven in this block's own schools doing well against similar schools. If none fits the problem, set method to null and say so kindly; never suggest anything else.
+Copy at most one quote exactly from the list. Steps must be things the teacher can do tomorrow with no new materials unless the method needs them.
 
-Proven practices:
+Proven methods:
 ${menu || "(none yet)"}`,
         content: `Teacher's problem: ${question}`,
         schema: Schema,
@@ -110,7 +110,7 @@ ${menu || "(none yet)"}`,
       const okPractice = raw.practice === null || list.some((x) => x.e.practice === raw.practice);
       const g = raw.quote ? groundQuote(raw.quote, quotes) : { grounded: true };
       const checks: Check[] = [
-        { name: "practice is proven in this block", passed: okPractice },
+        { name: "method is proven in this block", passed: okPractice },
         { name: "quote is one of the block's coded quotes", passed: g.grounded },
         { name: "answer in the teacher's language", passed: lang === "hi" ? /[ऀ-ॿ]/.test(raw.answer) : true },
       ];

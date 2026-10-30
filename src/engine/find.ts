@@ -1,6 +1,6 @@
 // FIND: which schools do much better than their context predicts — consistently?
 // Ordinary least squares on context the state already holds (UDISE+-style fields), pooled
-// over cycles with cycle effects. A school is a candidate "bright spot" only if its residual
+// over cycles with cycle effects. A school is a candidate "school doing well" only if its residual
 // is high in at least two of three cycles — one good year is not a bright spot.
 import { CYCLES, type Block, type FindResult, type School } from "./types";
 

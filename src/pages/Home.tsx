@@ -1,18 +1,15 @@
 // The front door. Instead of explaining modules, it follows ONE practice through the block —
 // from a number that looked unusual to a teacher next door trying it — using the live demo
 // block, so every step opens the real page where that work happens.
-import { AnimatePresence, motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { motion, useScroll, useSpring } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
   Clapperboard,
-  Footprints,
-  Landmark,
   Languages,
   LineChart,
   MapPinned,
   Mic,
-  PhoneCall,
   Play,
   ShieldCheck,
   Smartphone,
@@ -21,34 +18,31 @@ import {
   UserCheck,
   Volume2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ActivityFeed } from "../components/ActivityFeed";
 import { useDemo } from "../components/Demo";
 import { AppBackground } from "../components/kit";
 import { LogoMark, Wordmark } from "../components/Logo";
 import { LoopFlow } from "../components/LoopFlow";
-import { LivingMap } from "../components/maps";
+import { SpreadMap } from "../components/SpreadMap";
+import { Threshold } from "../components/Threshold";
 import { cx } from "../components/ui";
 import { PRACTICES } from "../engine/practices";
 import { MEDIA } from "../lib/clips";
 import { usePrefs, useT } from "../lib/prefs";
 import { setWelcomed } from "../lib/journey";
 import { useRole, type Role } from "../lib/role";
-import { meanZ, schoolStatuses } from "../lib/status";
 import { usePipeline } from "../lib/store";
 import { pickStory, type Story } from "../lib/story";
-import { useTasks } from "../lib/tasks";
-import { ThemeToggle, useTheme } from "../lib/theme";
-import { CountUp, EASE, Tilt, useReveal, usePointerSheen, WordReveal } from "../lib/motion";
+import { ThemeToggle } from "../lib/theme";
+import { EASE, useReveal, usePointerSheen, WordReveal } from "../lib/motion";
 
 export default function HomePage({ onTour }: { onTour: () => void }) {
   const t = useT();
   const nav = useNavigate();
   const { lang, setLang, lite } = usePrefs();
-  const { mode } = useTheme();
   const [role, setRole] = useRole();
-  const { state, followUps, events } = usePipeline();
+  const { state, followUps } = usePipeline();
   const story = useMemo(() => pickStory(state, followUps), [state, followUps]);
   const hi = lang === "hi" && "font-deva";
   const demo = useDemo();
@@ -66,37 +60,12 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
     nav(to);
   };
 
-  const video = mode === "light" ? MEDIA.dawn : MEDIA.welcome;
-  const poster = mode === "light" ? MEDIA.dawnPoster : MEDIA.welcomePoster;
-
-  // motion: the first visit of a session opens like the Lodge reference — the frame draws itself
-  // with a counter, then the words arrive; the video drifts in slowly and lags behind on scroll.
+  const [doors, setDoors] = useState(false);
+  const openDoors = () => (role ? enter("/today") : setDoors(true));
   const mainRef = useRef<HTMLElement>(null);
   useReveal(mainRef);
   usePointerSheen();
-  const [intro, setIntro] = useState(() => {
-    try {
-      return !lite && !matchMedia("(prefers-reduced-motion: reduce)").matches && !sessionStorage.getItem("jugnu-intro");
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    if (!intro) return;
-    try {
-      sessionStorage.setItem("jugnu-intro", "1");
-    } catch {
-      /* private mode */
-    }
-    const id = window.setTimeout(() => setIntro(false), 1650);
-    return () => window.clearTimeout(id);
-  }, [intro]);
-  const d = useRef(intro ? 1.3 : 0.1).current;
   const hero = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: hero, offset: ["start start", "end start"] });
-  const videoY = useTransform(scrollYProgress, [0, 1], ["0%", "9%"]);
-  const textY = useTransform(scrollYProgress, [0, 1], [0, -90]);
-  const textFade = useTransform(scrollYProgress, [0, 0.65], [1, 0]);
 
   return (
     <div className="min-h-dvh">
@@ -115,9 +84,9 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             <a href="#story" className="rounded-full px-3 py-1.5 hover:bg-[var(--hover)] hover:text-[var(--color-ink)]">
               {t("How it works", "कैसे काम करता है")}
             </a>
-            <a href="#start" className="rounded-full px-3 py-1.5 hover:bg-[var(--hover)] hover:text-[var(--color-ink)]">
+            <button onClick={() => setDoors(true)} className="rounded-full px-3 py-1.5 hover:bg-[var(--hover)] hover:text-[var(--color-ink)]">
               {t("Who it is for", "किसके लिए")}
-            </a>
+            </button>
             <button onClick={() => enter("/about")} className="rounded-full px-3 py-1.5 hover:bg-[var(--hover)] hover:text-[var(--color-ink)]">
               {t("About", "परिचय")}
             </button>
@@ -128,98 +97,63 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               <span className="hidden sm:inline">{lang === "hi" ? "English" : "हिंदी"}</span>
             </button>
             <ThemeToggle labels={{ dark: t("Dark mode", "डार्क मोड"), light: t("Light mode", "लाइट मोड") }} />
-            <button className="btn btn-primary whitespace-nowrap !px-3.5 !py-2" onClick={() => (role ? enter("/today") : document.getElementById("start")?.scrollIntoView({ behavior: "smooth" }))}>
+            <button className="btn btn-primary whitespace-nowrap !px-3.5 !py-2" onClick={openDoors}>
               {t("Open Jugnu", "जुगनू खोलें")} <ArrowRight size={15} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* hero: a framed, cinematic window — dusk in dark mode, dawn in light mode */}
+      {/* hero: one sharp picture of what this is about, the words low on the left */}
       <div className="-mt-[66px] px-2 md:px-3">
-      <section ref={hero} className="relative isolate overflow-hidden rounded-b-[2.4rem] md:rounded-[2.4rem]">
-        {lite ? (
-          <img className="welcome-video" src={poster} alt="" aria-hidden />
-        ) : (
-          <motion.video
-            key={video}
-            className="welcome-video"
-            src={video}
-            poster={poster}
-            autoPlay
-            muted
-            loop
-            playsInline
-            aria-hidden
-            style={{ y: videoY }}
-            initial={{ scale: 1.32 }}
-            animate={{ scale: 1.14 }}
-            transition={{ duration: 3.2, ease: EASE }}
-          />
-        )}
-        <div className={cx("home-shade", mode === "light" ? "home-shade-light" : "home-shade-dark")} />
-        <HeroFrame intro={intro} />
-        <motion.div style={{ y: textY }} className="relative mx-auto grid min-h-[min(92svh,820px)] max-w-[1240px] items-center gap-10 px-5 pb-20 pt-28 md:px-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <motion.div style={{ opacity: textFade }} className="min-w-0">
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: d, ease: EASE }} className="chip mb-5 w-fit !bg-[var(--chrome)] backdrop-blur">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--st-bright-fill)]" />
-              {t(`Live demo · ${state.block.name} · ${state.block.schools.length} schools`, `लाइव डेमो · ${state.block.name} · ${state.block.schools.length} स्कूल`)}
-            </motion.div>
-            <h1 className={cx("display-xl max-w-[15ch] text-[2.9rem] md:text-[4.2rem] lg:text-[5.1rem]", hi && "!max-w-[18ch] !leading-[1.2]")}>
-              <WordReveal text={t("Somewhere in your block, a teacher has", "आपके ब्लॉक में कहीं, कोई शिक्षक")} delay={d + 0.05} stagger={0.07} />{" "}
-              <WordReveal text={t("already cracked it.", "यह कर दिखा चुका है।")} delay={d + 0.55} stagger={0.08} className="font-semibold" wordClassName="gradient-text" />
+        <section ref={hero} className="on-dark relative isolate overflow-hidden rounded-b-[2.4rem] md:rounded-[2.4rem]">
+          {lite ? (
+            <img className="welcome-video" src={MEDIA.doorClassroomPoster} alt="" aria-hidden />
+          ) : (
+            <video className="welcome-video" src={MEDIA.doorClassroom} poster={MEDIA.doorClassroomPoster} autoPlay muted loop playsInline aria-hidden />
+          )}
+          <div className="hero-scrim" aria-hidden />
+          <div className="relative mx-auto flex min-h-[min(94svh,860px)] max-w-[1240px] flex-col justify-end px-5 pb-8 pt-28 text-white md:px-8 md:pb-10">
+            <h1 className={cx("display-xl max-w-[17ch] text-[2.9rem] md:text-[4.4rem] lg:text-[5.2rem]", hi && "!max-w-[20ch] !leading-[1.2]")}>
+              <WordReveal text={t("Somewhere in your block, a teacher has", "आपके ब्लॉक में कहीं, कोई शिक्षक")} delay={0.1} stagger={0.06} />{" "}
+              <WordReveal text={t("already cracked it.", "यह कर दिखा चुका है।")} delay={0.5} stagger={0.07} className="font-semibold" />
             </h1>
-            <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: d + 0.8, ease: EASE }} className={cx("mt-6 max-w-xl text-[17px] leading-relaxed text-[var(--color-ink-2)] md:text-lg", hi)}>
+            <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.7, ease: EASE }} className={cx("mt-5 max-w-2xl text-[17px] leading-relaxed text-white/90 md:text-lg", hi)}>
               {t(
-                "Jugnu finds the teachers whose children read and count better than anyone expected, learns exactly what they do by talking to them, and carries it to the school next door — teacher to teacher. Then it checks that it worked.",
-                "जुगनू उन शिक्षकों को ढूँढता है जिनके बच्चे उम्मीद से बेहतर पढ़ते-गिनते हैं, उनसे बात करके समझता है कि वे ठीक-ठीक क्या करते हैं, और उसे पास के स्कूल तक पहुँचाता है — शिक्षक से शिक्षक। फिर जाँचता है कि असर हुआ।",
+                "Jugnu finds the teachers whose children learn better than anyone expected, asks them exactly what they do, and helps the school next door do it too. Then it checks that it worked.",
+                "जुगनू उन शिक्षकों को ढूँढता है जिनके बच्चे उम्मीद से बेहतर सीखते हैं, उनसे पूछता है कि वे ठीक-ठीक क्या करते हैं, और पास के स्कूल को भी वही करने में मदद करता है। फिर जाँचता है कि असर हुआ।",
               )}
             </motion.p>
-            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: d + 0.95, ease: EASE }} className="mt-8 flex flex-wrap gap-3">
-              <a href="#start" className="btn btn-primary !px-5 !py-3 text-base">
-                {t("Find your way in", "अपनी भूमिका चुनें")} <ArrowRight size={17} />
-              </a>
+            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.85, ease: EASE }} className="mt-7 flex flex-wrap gap-3">
+              <button className="btn btn-primary !px-5 !py-3 text-base" onClick={openDoors}>
+                {t("Open Jugnu", "जुगनू खोलें")} <ArrowRight size={17} />
+              </button>
               {demo.available && (
                 <button className="btn btn-glass !px-5 !py-3 text-base" onClick={play}>
-                  <Play size={17} /> {t("Play a whole term · 40 s", "पूरा सत्र चलाएँ · 40 से.")}
+                  <Play size={17} /> {t("Watch a whole term · 40 s", "पूरा सत्र देखें · 40 से.")}
                 </button>
               )}
-              <button className="btn btn-ghost !px-4 !py-3 text-base" onClick={onTour}>
+              <button className="btn btn-glass !px-4 !py-3 text-base" onClick={onTour}>
                 <Clapperboard size={17} /> {t("2-minute film", "2 मिनट की फ़िल्म")}
               </button>
             </motion.div>
-            <motion.ul initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: d + 0.5 }} className={cx("mt-8 flex flex-wrap gap-x-5 gap-y-2 text-[15px] font-medium text-[var(--color-ink)]", hi)}>
+            <motion.dl initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1.1 }} className={cx("mt-9 grid gap-x-8 gap-y-3 border-t border-white/25 pt-4 sm:grid-cols-3", hi)}>
               {[
-                [Smartphone, t("Any phone, even 2G", "कोई भी फ़ोन, 2G पर भी")],
-                [Languages, t("Hindi first", "पहले हिंदी")],
-                [ShieldCheck, t("No data about children", "बच्चों का कोई डेटा नहीं")],
-              ].map(([Icon, label]) => {
-                const I = Icon as typeof Smartphone;
-                return (
-                  <li key={String(label)} className="flex items-center gap-1.5">
-                    <I size={15} className="text-[var(--st-bright)]" aria-hidden /> {label as string}
-                  </li>
-                );
-              })}
-            </motion.ul>
-            {story && <MomentsStrip story={story} delay={d + 1.1} />}
-          </motion.div>
-          {story && <HeroMoments story={story} delay={d + 0.7} />}
-        </motion.div>
-      </section>
+                [t("1,365 real schools", "1,365 असली स्कूल"), t("Every government school in Damoh's 7 blocks", "दमोह के 7 ब्लॉक का हर सरकारी स्कूल")],
+                [t("Any phone, even 2G", "कोई भी फ़ोन, 2G पर भी"), t("A link or an ordinary call, in Hindi first", "एक लिंक या साधारण कॉल, पहले हिंदी में")],
+                [t("No data about children", "बच्चों का कोई डेटा नहीं"), t("A person approves everything before it is sent", "भेजने से पहले हर चीज़ इंसान मंज़ूर करता है")],
+              ].map(([a1, b1]) => (
+                <div key={a1}>
+                  <dt className="text-[15px] font-semibold">{a1}</dt>
+                  <dd className="text-[13.5px] text-white/75">{b1}</dd>
+                </div>
+              ))}
+            </motion.dl>
+          </div>
+        </section>
       </div>
 
       <main ref={mainRef} className="mx-auto max-w-[1240px] space-y-24 px-4 pb-16 pt-16 md:px-6">
-        {/* who it is for */}
-        <section id="start" className="scroll-mt-24">
-          <SectionHead
-            eyebrow={t("Start where you are", "जहाँ आप हैं, वहीं से")}
-            title={t("One block, three people, one loop", "एक ब्लॉक, तीन लोग, एक चक्र")}
-            sub={t("Pick who you are. Jugnu opens on the work that is yours — you can switch any time.", "आप कौन हैं, चुनें। जुगनू आपके काम से खुलेगा — आप कभी भी बदल सकते हैं।")}
-          />
-          <Doors onEnter={enter} />
-        </section>
-
         {/* the story of one practice */}
         {story && (
           <section id="story" className="scroll-mt-24">
@@ -227,7 +161,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               eyebrow={t("How it works — one real example from the demo block", "कैसे काम करता है — डेमो ब्लॉक से एक असली उदाहरण")}
               title={
                 <>
-                  {t("Follow one practice from ", "एक तरीके का सफ़र: ")}
+                  {t("Follow one method from ", "एक तरीके का सफ़र: ")}
                   <span className="gradient-text">{story.bright.name}</span>
                   {t(" to the school next door", " से पास के स्कूल तक")}
                 </>
@@ -249,36 +183,8 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             sub={t("From data the state already collects to a named teacher, a visit and a follow-up call. Tap a step to open it.", "राज्य के पास पहले से मौजूद डेटा से — नाम वाले शिक्षक, दौरे और फ़ॉलो-अप कॉल तक। कोई भी कदम छूकर खोलें।")}
           />
           <LoopFlow onEnter={() => !role && setRole({ kind: "guest" })} />
-          <div className="mt-5 grid gap-5 lg:grid-cols-[1.35fr_1fr]">
-            <BlockMap onOpen={(id) => enter(`/schools/${id}`)} />
-            <div className="card p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className={cx("font-semibold", hi)}>{t("Recorded in the field", "मैदान से दर्ज")}</h3>
-                <span className="chip text-xs">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--tone-good)]" /> {t("shared by everyone", "सबके लिए")}
-                </span>
-              </div>
-              {events.length ? (
-                <ActivityFeed events={events} limit={5} />
-              ) : (
-                <p className={cx("text-sm text-[var(--color-ink-2)]", hi)}>
-                  {t(
-                    "When a cluster resource person records a spot check, a visit or a follow-up call, it shows here for the whole block. Open the app to see what has been recorded.",
-                    "जब कोई CRP मौके की जाँच, दौरा या फ़ॉलो-अप कॉल दर्ज करता है, वह पूरे ब्लॉक को यहाँ दिखता है। जो दर्ज हुआ है, उसे देखने के लिए ऐप खोलें।",
-                  )}
-                </p>
-              )}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {demo.available && (
-                  <button className="btn btn-primary" onClick={play}>
-                    <Play size={15} /> {t("Play the term", "सत्र चलाकर देखें")}
-                  </button>
-                )}
-                <button className="btn btn-glass" onClick={() => enter("/today")}>
-                  {t("Open today's work", "आज का काम खोलें")} <ArrowRight size={15} />
-                </button>
-              </div>
-            </div>
+          <div className="mt-5">
+            <SpreadMap onOpen={(id) => enter(`/schools/${id}`)} />
           </div>
         </section>
 
@@ -320,7 +226,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               [
                 [Smartphone, t("Works where they are", "जहाँ वे हैं, वहीं चले"), t("A teacher needs only a link or a phone call. Low-data mode turns off video and 3D on slow networks.", "शिक्षक को सिर्फ़ एक लिंक या फ़ोन कॉल चाहिए। धीमे नेटवर्क पर कम-डेटा मोड वीडियो और 3D बंद कर देता है।"), "/testing"],
                 [Languages, t("Hindi first", "पहले हिंदी"), t("Interviews, voice notes and the whole app in Hindi or English — one tap to switch.", "बातचीत, आवाज़-संदेश और पूरा ऐप हिंदी या अंग्रेज़ी में — एक टैप में बदलें।"), "/interviews"],
-                [UserCheck, t("A person approves every AI draft", "हर AI ड्राफ़्ट को इंसान मंज़ूर करे"), t("Practice cards and voice notes wait in Review until a CRP or the BEO says yes.", "तरीकों के कार्ड और आवाज़-संदेश तब तक 'समीक्षा' में रुकते हैं जब तक CRP या BEO हाँ न कहें।"), "/review"],
+                [UserCheck, t("A person approves every AI draft", "हर AI ड्राफ़्ट को इंसान मंज़ूर करे"), t("Method cards and voice notes wait in Approvals until a coordinator or the BEO says yes.", "तरीकों के कार्ड और आवाज़-संदेश तब तक 'मंज़ूरी' में रुकते हैं जब तक समन्वयक या BEO हाँ न कहें।"), "/review"],
                 [ShieldCheck, t("Adults only, with consent", "सिर्फ़ वयस्क, सहमति से"), t("No child-level data is stored. Names and numbers are removed from notes; any interview can be deleted.", "बच्चों का कोई व्यक्तिगत डेटा नहीं। नोट्स से नाम और नंबर हटाए जाते हैं; कोई भी बातचीत मिटाई जा सकती है।"), "/ai"],
               ] as const
             ).map(([Icon, title, text, to]) => (
@@ -337,7 +243,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
 
         {/* closing band */}
         <section className="card on-dark relative overflow-hidden">
-          {lite ? <img className="welcome-video" src={MEDIA.networkPoster} alt="" aria-hidden /> : <video className="welcome-video" src={MEDIA.network} poster={MEDIA.networkPoster} autoPlay muted loop playsInline aria-hidden />}
+          {lite ? <img className="welcome-video" src={MEDIA.doorHeadPoster} alt="" aria-hidden /> : <video className="welcome-video" src={MEDIA.doorHead} poster={MEDIA.doorHeadPoster} autoPlay muted loop playsInline aria-hidden />}
           <div className="welcome-shade" />
           <div className="relative flex flex-col items-start gap-5 p-7 md:flex-row md:items-center md:justify-between md:p-10">
             <div className="max-w-xl">
@@ -346,9 +252,9 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
               <p className={cx("mt-2 text-[var(--color-ink-2)]", hi)}>{t("Jugnu helps the light travel from one classroom to the next.", "जुगनू उनकी रोशनी को एक कक्षा से अगली तक पहुँचाता है।")}</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <a href="#start" className="btn btn-primary !px-5 !py-3">
+              <button className="btn btn-primary !px-5 !py-3" onClick={openDoors}>
                 {t("Open Jugnu", "जुगनू खोलें")} <ArrowRight size={16} />
-              </a>
+              </button>
               <a href="/talk" target="_blank" rel="noreferrer" className="btn btn-glass !px-5 !py-3">
                 <Mic size={16} /> {t("Talk to Jugnu as a teacher", "शिक्षक बनकर बात करें")}
               </a>
@@ -357,14 +263,15 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
         </section>
       </main>
 
+      <Threshold open={doors} closable onClose={() => setDoors(false)} />
       <footer className="border-t border-[var(--line)]">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-4 py-8 text-sm text-[var(--color-ink-3)] md:flex-row md:items-start md:justify-between md:px-6">
           <div className="max-w-xl">
             <Wordmark size={26} />
             <p className={cx("mt-3 text-xs leading-relaxed", hi)}>
               {t(
-                "AI for Foundational Learning Hackathon · Challenge 4. Schools are real: Damoh's 7 blocks and their 1,365 government schools from UDISE+ (names, locations, clusters, enrolment, teachers). Learning results, attendance and teachers' names are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated (Google Veo).",
-                "AI for Foundational Learning हैकाथॉन · चुनौती 4। स्कूल असली हैं: दमोह के 7 ब्लॉक और उनके 1,365 सरकारी स्कूल UDISE+ से (नाम, जगह, संकुल, नामांकन, शिक्षक)। सीखने के नतीजे, उपस्थिति और शिक्षकों के नाम सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं (Google Veo)।",
+                "AI for Foundational Learning Hackathon · Challenge 4. Schools are real: Damoh's 7 blocks and their 1,365 government schools from UDISE+ (names, locations, clusters, enrolment, teachers). Learning results, attendance and teachers' names are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated.",
+                "AI for Foundational Learning हैकाथॉन · चुनौती 4। स्कूल असली हैं: दमोह के 7 ब्लॉक और उनके 1,365 सरकारी स्कूल UDISE+ से (नाम, जगह, संकुल, नामांकन, शिक्षक)। सीखने के नतीजे, उपस्थिति और शिक्षकों के नाम सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं।",
               )}
             </p>
           </div>
@@ -372,9 +279,8 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             {(
               [
                 ["/about", t("About Jugnu", "जुगनू के बारे में")],
-                ["/ai", t("AI & safety checks", "AI व सुरक्षा जाँच")],
-                ["/method", t("Data & method", "डेटा व पद्धति")],
-                ["/testing", t("User testing", "उपयोगकर्ता परीक्षण")],
+                ["/ai", t("Safety", "सुरक्षा")],
+                ["/testing", t("Test lab", "टेस्ट लैब")],
               ] as const
             ).map(([to, label]) => (
               <button key={to} onClick={() => enter(to)} className="tap-link hover:text-[var(--color-ink)]">
@@ -396,227 +302,6 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: ReactNod
       <div className={cx("label mb-2", hi)}>{eyebrow}</div>
       <h2 className={cx("text-3xl font-bold leading-tight md:text-[2.4rem]", hi)}>{title}</h2>
       {sub && <p className={cx("mt-3 text-[16px] leading-relaxed text-[var(--color-ink-2)]", hi)}>{sub}</p>}
-    </div>
-  );
-}
-
-/** The frame inset in the hero, drawn in on the first visit with a counter (as in the Lodge reference). */
-function HeroFrame({ intro }: { intro: boolean }) {
-  return (
-    <>
-      <svg className="pointer-events-none absolute inset-3 z-[1] hidden h-[calc(100%-24px)] w-[calc(100%-24px)] overflow-visible md:block" aria-hidden>
-        <motion.rect
-          x="0"
-          y="0"
-          width="100%"
-          height="100%"
-          rx="32"
-          fill="none"
-          stroke="rgb(var(--fg) / 0.2)"
-          strokeWidth="1.2"
-          initial={intro ? { pathLength: 0, opacity: 0.4 } : false}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ duration: 1.5, ease: [0.65, 0, 0.35, 1] }}
-        />
-      </svg>
-      <AnimatePresence>
-        {intro && (
-          <motion.div
-            className="display-xl pointer-events-none fixed bottom-8 left-6 z-[2] text-[3.4rem] text-[rgb(var(--fg)/0.8)] md:bottom-10 md:left-12 md:text-[4.6rem]"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16, filter: "blur(8px)", transition: { duration: 0.5 } }}
-            aria-hidden
-          >
-            <CountUp value={100} duration={1.35} />%
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
-
-function useMoments(story: Story) {
-  const t = useT();
-  const { lang } = usePrefs();
-  const y = story.years[story.years.length - 1];
-  const items: { icon: typeof Stars; tone: string; title: string; text: string }[] = [
-    {
-      icon: Stars,
-      tone: "var(--st-bright)",
-      title: t("Bright spot verified", "अच्छा स्कूल — जाँच पूरी"),
-      text: t(
-        `${story.bright.name}: ${y.actual}% of Class 3 ${story.measure === "reading" ? "read" : "do subtraction"}, where ${y.expected}% was expected`,
-        `${story.bright.name}: कक्षा 3 के ${y.actual}% बच्चे ${story.measure === "reading" ? "पढ़ लेते हैं" : "घटाव कर लेते हैं"}, अपेक्षा ${y.expected}% थी`,
-      ),
-    },
-    {
-      icon: Mic,
-      tone: "var(--tone-teal)",
-      title: t(`${story.bright.teacher} talked to Jugnu · 12 min`, `${story.bright.teacher} ने जुगनू से बात की · 12 मिनट`),
-      text: lang === "hi" ? story.quote.hi : (story.quote.en ?? story.quote.hi),
-    },
-    {
-      icon: Volume2,
-      tone: "var(--st-support)",
-      title: t("Voice note on its way", "आवाज़-संदेश भेजा जा रहा है"),
-      text: t(`To ${story.recipient.teacher} at ${story.recipient.name}, ${story.rec.distanceKm.toFixed(1)} km away`, `${story.recipient.name} की ${story.recipient.teacher} को, ${story.rec.distanceKm.toFixed(1)} किमी दूर`),
-    },
-  ];
-  return items;
-}
-
-/** Phones: the same three moments as cards you swipe through. */
-function MomentsStrip({ story, delay }: { story: Story; delay: number }) {
-  const { lang } = usePrefs();
-  const hi = lang === "hi" && "font-deva";
-  const items = useMoments(story);
-  return (
-    <div className="no-scrollbar -mx-5 mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 lg:hidden" aria-hidden>
-      {items.map((it, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.9, delay: delay + i * 0.12, ease: EASE }}
-          className="glass w-[78%] shrink-0 snap-start !rounded-[1.4rem] p-4"
-        >
-          <div className="flex gap-3">
-            <span className="icon-tile h-9 w-9 rounded-full" style={{ "--tile": it.tone } as CSSProperties}>
-              <it.icon size={17} />
-            </span>
-            <span className="min-w-0">
-              <span className={cx("block text-sm font-semibold", hi)}>{it.title}</span>
-              <span className={cx("mt-0.5 line-clamp-3 block text-[13px] leading-snug text-[var(--color-ink-2)]", (hi || i === 1) && "font-deva")}>{it.text}</span>
-            </span>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-/** Three moments from the story, floating over the hero like notifications on an officer's phone. */
-function HeroMoments({ story, delay }: { story: Story; delay: number }) {
-  const { lang } = usePrefs();
-  const hi = lang === "hi" && "font-deva";
-  const items = useMoments(story);
-  return (
-    <div className="relative hidden h-[420px] lg:block" aria-hidden>
-      {items.map((it, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, y: 40, scale: 0.94 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ delay: delay + i * 0.35, duration: 1, ease: EASE }}
-          className="absolute w-[360px]"
-          style={{ top: 18 + i * 128, left: i === 1 ? 48 : i === 2 ? 12 : 0 }}
-        >
-          <Tilt className="glass !rounded-[1.4rem] p-4">
-          <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut" }} className="flex gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: `color-mix(in srgb, ${it.tone} 16%, transparent)`, color: it.tone }}>
-              <it.icon size={17} />
-            </span>
-            <span className="min-w-0">
-              <span className={cx("block text-sm font-semibold", hi)}>{it.title}</span>
-              <span className={cx("mt-0.5 line-clamp-2 block text-[13px] leading-snug text-[var(--color-ink-2)]", (hi || i === 1) && "font-deva")}>{it.text}</span>
-            </span>
-          </motion.div>
-          </Tilt>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-function Doors({ onEnter }: { onEnter: (to: string, as?: Role) => void }) {
-  const t = useT();
-  const { lang } = usePrefs();
-  const hi = lang === "hi" && "font-deva";
-  const { state } = usePipeline();
-  const beoTasks = useTasks(state, { kind: "beo" }, 0);
-  const clusters = useMemo(() => {
-    const m = new Map<number, { name: string; crp: string; n: number }>();
-    for (const s of state.block.schools) m.set(s.cluster, { name: s.clusterName, crp: s.crp, n: (m.get(s.cluster)?.n ?? 0) + 1 });
-    return [...m.entries()].sort((a, b) => a[0] - b[0]);
-  }, [state.block]);
-  const [cluster, setCluster] = useState(clusters[0]?.[0] ?? 0);
-  const crpTasks = useTasks(state, { kind: "crp", cluster }, 0);
-  const door = "card flex flex-col p-6";
-  return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className={door}>
-        <DoorHead icon={Landmark} tone="var(--st-bright)" who={t("Block Education Officer", "ब्लॉक शिक्षा अधिकारी")} />
-        <p className={cx("mt-3 flex-1 text-[15px] leading-relaxed text-[var(--color-ink-2)]", hi)}>
-          {t("Monday morning, the whole block on one page: which schools to act on, who owns each step, what is stuck, and whether it worked.", "सोमवार सुबह, पूरा ब्लॉक एक पेज पर: किन स्कूलों पर काम करना है, हर कदम किसके ज़िम्मे, क्या अटका है, और असर हुआ या नहीं।")}
-        </p>
-        <div className={cx("mt-4 text-sm", hi)}>
-          <b className="font-display text-lg tabular-nums">{beoTasks.length}</b> <span className="text-[var(--color-ink-3)]">{t("things waiting for the BEO today", "काम आज BEO का इंतज़ार कर रहे")}</span>
-        </div>
-        <button className="btn btn-primary mt-4 justify-center" onClick={() => onEnter("/today", { kind: "beo" })}>
-          {t("Open as BEO", "BEO के रूप में खोलें")} <ArrowRight size={15} />
-        </button>
-      </div>
-
-      <div className={door}>
-        <DoorHead icon={Footprints} tone="var(--tone-info)" who={t("Cluster resource person", "क्लस्टर संसाधन व्यक्ति (CRP)")} />
-        <p className={cx("mt-3 flex-1 text-[15px] leading-relaxed text-[var(--color-ink-2)]", hi)}>
-          {t("Your week in your cluster: 15-minute spot checks, teacher interviews, peer visits and follow-up calls — in the order that matters.", "आपके क्लस्टर में आपका हफ़्ता: 15 मिनट की मौके की जाँच, शिक्षकों से बातचीत, साथी-दौरे और फ़ॉलो-अप कॉल — सही क्रम में।")}
-        </p>
-        <label className="mt-4 block text-xs text-[var(--color-ink-3)]">
-          {t("Your cluster", "आपका क्लस्टर")}
-          <select
-            className="mt-1 w-full rounded-xl border border-[var(--chip-line)] bg-[var(--inset-bg)] px-3 py-2 text-sm text-[var(--color-ink)]"
-            value={cluster}
-            onChange={(e) => setCluster(Number(e.target.value))}
-          >
-            {clusters.map(([i, c]) => (
-              <option key={i} value={i}>
-                {c.name} — {c.crp} ({c.n} {t("schools", "स्कूल")})
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className={cx("mt-2 text-sm", hi)}>
-          <b className="font-display text-lg tabular-nums">{crpTasks.length}</b> <span className="text-[var(--color-ink-3)]">{t("tasks in this cluster", "काम इस क्लस्टर में")}</span>
-        </div>
-        <button className="btn btn-primary mt-4 justify-center" onClick={() => onEnter("/today", { kind: "crp", cluster })}>
-          {t("Open my cluster", "मेरा क्लस्टर खोलें")} <ArrowRight size={15} />
-        </button>
-      </div>
-
-      <div className={door}>
-        <DoorHead icon={Mic} tone="var(--tone-teal)" who={t("Teacher", "शिक्षक")} />
-        <p className={cx("mt-3 flex-1 text-[15px] leading-relaxed text-[var(--color-ink-2)]", hi)}>
-          {t("A 12-minute conversation in Hindi about what happens in your classroom. No app, no login — a link on WhatsApp or a phone call.", "आपकी कक्षा में क्या होता है, इस पर हिंदी में 12 मिनट की बातचीत। न ऐप, न लॉगिन — WhatsApp पर एक लिंक या एक फ़ोन कॉल।")}
-        </p>
-        <div className={cx("mt-4 flex flex-wrap gap-2 text-xs text-[var(--color-ink-3)]", hi)}>
-          <span className="chip">
-            <PhoneCall size={12} /> {t("or a normal phone call", "या साधारण फ़ोन कॉल")}
-          </span>
-          <span className="chip">{t("your words reach other teachers", "आपकी बात दूसरे शिक्षकों तक")}</span>
-        </div>
-        <a href="/talk" target="_blank" rel="noreferrer" className="btn btn-glass mt-4 justify-center">
-          <Mic size={15} /> {t("Try the teacher interview", "शिक्षक वाली बातचीत आज़माएँ")}
-        </a>
-      </div>
-
-      <button onClick={() => onEnter("/today", { kind: "guest" })} className={cx("text-left text-sm text-[var(--color-ink-2)] hover:text-[var(--color-ink)] lg:col-span-3", hi)}>
-        {t("Just looking — a judge or a visitor? ", "सिर्फ़ देख रहे हैं — जज या मेहमान? ")}
-        <span className="font-semibold text-[var(--st-bright)] underline decoration-dotted underline-offset-4">{t("Explore everything as a visitor →", "मेहमान के रूप में सब कुछ देखें →")}</span>
-      </button>
-    </div>
-  );
-}
-
-function DoorHead({ icon: Icon, tone, who }: { icon: typeof Mic; tone: string; who: string }) {
-  const { lang } = usePrefs();
-  return (
-    <div className="flex items-center gap-3">
-      <span className="icon-tile h-11 w-11 rounded-[1rem]" style={{ "--tile": tone } as CSSProperties}>
-        <Icon size={20} />
-      </span>
-      <h3 className={cx("text-lg font-bold", lang === "hi" && "font-deva")}>{who}</h3>
     </div>
   );
 }
@@ -667,12 +352,12 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
       who: t(`${b.crp}, cluster resource person`, `${b.crp}, क्लस्टर संसाधन व्यक्ति`),
       title: t("Then someone went to see", "फिर कोई खुद देखने गया"),
       body: t(
-        `Reported numbers can be inflated, so the CRP spent 15 minutes with ${story.spot.sampled} children: ${story.spot.proficient} could ${verb}. That matches what the school reported (${story.spot.reported}%), so it is a real bright spot.`,
+        `Reported numbers can be inflated, so the CRP spent 15 minutes with ${story.spot.sampled} children: ${story.spot.proficient} could ${verb}. That matches what the school reported (${story.spot.reported}%), so it is a real school doing well.`,
         `दर्ज आँकड़े बढ़ा-चढ़ाकर हो सकते हैं, इसलिए CRP ने ${story.spot.sampled} बच्चों के साथ 15 मिनट बिताए: ${story.spot.proficient} ${verb}। यह स्कूल के दर्ज आँकड़े (${story.spot.reported}%) से मेल खाता है — यह सच में अच्छा स्कूल है।`,
       ),
       visual: <SpotDots sampled={story.spot.sampled} proficient={story.spot.proficient} />,
       to: `/schools/${b.id}`,
-      link: t("See the spot check", "जाँच देखें"),
+      link: t("See the confirmation visit", "जाँच देखें"),
     },
     {
       icon: Mic,
@@ -693,14 +378,14 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
       tone: "var(--tone-lime)",
       verb: t("Compared", "तुलना की"),
       who: t("Jugnu, across every interview in the block", "जुगनू, ब्लॉक की सारी बातचीत मिलाकर"),
-      title: t(`“${practice}” is what sets bright spots apart`, `“${practice}” ही अच्छे स्कूलों को अलग बनाता है`),
+      title: t(`“${practice}” is what sets schools doing well apart`, `“${practice}” ही अच्छे स्कूलों को अलग बनाता है`),
       body: t(
-        `Jugnu also talks to teachers in similar, ordinary schools. ${ev.bright.k} of ${ev.bright.n} bright-spot teachers described this routine in detail; in similar schools, ${ev.comparison.k} of ${ev.comparison.n}. It costs nothing extra.`,
+        `Jugnu also talks to teachers in similar, ordinary schools. ${ev.bright.k} of ${ev.bright.n} teachers at schools doing well described this routine in detail; in similar schools, ${ev.comparison.k} of ${ev.comparison.n}. It costs nothing extra.`,
         `जुगनू उन जैसे सामान्य स्कूलों के शिक्षकों से भी बात करता है। ${ev.bright.n} में से ${ev.bright.k} अच्छे स्कूलों के शिक्षकों ने यह तरीका विस्तार से बताया; वैसे ही दूसरे स्कूलों में ${ev.comparison.n} में से ${ev.comparison.k}। इसमें कोई अतिरिक्त खर्च नहीं।`,
       ),
       visual: (
         <div className="space-y-3">
-          <Bar label={t("Bright spots", "अच्छे स्कूल")} k={ev.bright.k} n={ev.bright.n} tone="var(--st-bright-fill)" />
+          <Bar label={t("Schools doing well", "अच्छे स्कूल")} k={ev.bright.k} n={ev.bright.n} tone="var(--st-bright-fill)" />
           <Bar label={t("Similar schools", "उन जैसे स्कूल")} k={ev.comparison.k} n={ev.comparison.n} tone="var(--st-ok)" />
           <div className="text-xs text-[var(--color-ink-3)]">
             {pct(ev.bright.k, ev.bright.n)}% vs {pct(ev.comparison.k, ev.comparison.n)}%
@@ -708,7 +393,7 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
         </div>
       ),
       to: "/practices",
-      link: t("See what works", "क्या काम करता है, देखें"),
+      link: t("See what works", "जो तरीके काम करते हैं, देखें"),
     },
     {
       icon: Volume2,
@@ -732,11 +417,11 @@ function Journey({ story, onEnter }: { story: Story; onEnter: (to: string) => vo
       title: story.followUp ? t(`${r.teacher} ${outcomeText[story.followUp.outcome][0]}`, `${r.teacher} ${outcomeText[story.followUp.outcome][1]}`) : t("Two weeks later, a call: did you try it?", "दो हफ़्ते बाद एक कॉल: क्या आपने आज़माया?"),
       body: story.followUp
         ? t(
-            `On the follow-up call: “${story.followUp.saidEn || story.followUp.said}”. At the next assessment, Jugnu compares the schools that got a practice with those still waiting — so the block learns what really transfers.`,
+            `On the follow-up call: “${story.followUp.saidEn || story.followUp.said}”. At the next assessment, Jugnu compares the schools that got a method with those still waiting — so the block learns what really transfers.`,
             `फ़ॉलो-अप कॉल में: “${story.followUp.said || story.followUp.saidEn}”। अगली परीक्षा में जुगनू तरीका पाने वाले स्कूलों की तुलना बाकी स्कूलों से करता है — ताकि ब्लॉक सीखे कि सच में क्या काम आता है।`,
           )
         : t(
-            `Jugnu calls ${r.teacher} to ask what happened. If something is in the way, it goes back to the CRP or the BEO with a name next to it. At the next assessment, schools that got a practice are compared with those still waiting.`,
+            `Jugnu calls ${r.teacher} to ask what happened. If something is in the way, it goes back to the CRP or the BEO with a name next to it. At the next assessment, schools that got a method are compared with those still waiting.`,
             `जुगनू ${r.teacher} को कॉल करके पूछता है कि क्या हुआ। कोई रुकावट हो तो वह नाम के साथ CRP या BEO तक जाती है। अगली परीक्षा में तरीका पाने वाले स्कूलों की तुलना बाकी स्कूलों से होती है।`,
           ),
       visual: <FollowUpVisual story={story} />,
@@ -932,37 +617,6 @@ function FollowUpVisual({ story }: { story: Story }) {
         );
       })}
       {!story.followUp && <div className="text-xs text-[var(--color-ink-3)]">{t("The call has not happened yet in the demo — the answer will light up here.", "डेमो में यह कॉल अभी नहीं हुई — जवाब यहाँ दिखेगा।")}</div>}
-    </div>
-  );
-}
-
-/** The 3D night map, loaded only when it scrolls into view (it is the heaviest part of the page). */
-function BlockMap({ onOpen }: { onOpen: (id: string) => void }) {
-  const t = useT();
-  const { lang } = usePrefs();
-  const { state } = usePipeline();
-  const ref = useRef<HTMLDivElement>(null);
-  const [show, setShow] = useState(false);
-  const status = useMemo(() => schoolStatuses(state), [state]);
-  const z = useMemo(() => meanZ(state), [state]);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && (setShow(true), io.disconnect()), { rootMargin: "200px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return (
-    <div ref={ref} className="card on-dark overflow-hidden p-3">
-      <div className="flex items-center justify-between px-2 pb-2">
-        <h3 className={cx("font-semibold", lang === "hi" && "font-deva")}>{t(`${state.block.name} tonight`, `आज रात ${state.block.name}`)}</h3>
-        <span className={cx("text-xs text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{t("fireflies = bright spots · arcs = who learns from whom", "जुगनू = अच्छे स्कूल · रेखाएँ = कौन किससे सीखता है")}</span>
-      </div>
-      {show ? (
-        <LivingMap mode="3d" schools={state.block.schools} status={status} z={z} links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} onSelect={onOpen} height={380} autoRotate />
-      ) : (
-        <div className="h-[380px]" />
-      )}
     </div>
   );
 }

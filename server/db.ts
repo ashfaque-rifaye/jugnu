@@ -82,6 +82,15 @@ CREATE TABLE IF NOT EXISTS reviews (
   decided_at   TEXT
 );
 
+-- What the safety layer removed: kinds and counts only, never the words themselves.
+CREATE TABLE IF NOT EXISTS safety_log (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind         TEXT NOT NULL,
+  source       TEXT NOT NULL,
+  count        INTEGER NOT NULL,
+  created_at   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id           TEXT PRIMARY KEY,
   role         TEXT NOT NULL,                     -- teacher | crp | beo | other
@@ -173,6 +182,7 @@ CREATE TABLE IF NOT EXISTS wa_contacts (
 const MIGRATIONS = [
   `ALTER TABLE interviews ADD COLUMN school_id TEXT`,
   `ALTER TABLE interviews ADD COLUMN call_status TEXT`, // dialing | in-call | completed | busy | no-answer | failed …
+  `ALTER TABLE interviews ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`, // tests and practice runs: kept, but not listed
 ];
 
 export const storage = (): "turso" | "sqlite" | "temporary" =>

@@ -4,7 +4,7 @@
 // the comparisons were matched on), with what each teacher said about every practice. This is the
 // contrast the statistics summarise, shown one pair at a time so the officer can read it.
 //
-// WHAT-IF — "if CRPs take these schools to see this practice, what should we expect?" A Monte Carlo
+// WHAT-IF — "if CRPs take these schools to see this method, what should we expect?" A Monte Carlo
 // over three uncertainties: whether the practice really matters (its probability of being
 // distinctive), whether each school adopts it (higher with a peer visit, and visits are limited by
 // CRP time and road distance), and how big the effect is (measured in wave 1 when Track has run,
@@ -160,9 +160,9 @@ export function whatIf(st: PipelineState, input: WhatIfInput, draws = 2000): Wha
     const observed = fu.filter((f) => f.outcome === "adopted").length / fu.length;
     pVisited = Math.min(0.95, observed * 1.15);
     pNot = Math.min(pVisited, observed * 0.7);
-    assumptions.push(`Adoption from wave 1: ${Math.round(observed * 100)}% of teachers reached had adopted by day 14.`);
+    assumptions.push(`Adoption from group 1: ${Math.round(observed * 100)}% of teachers reached had adopted by day 14.`);
   } else {
-    assumptions.push(`Adoption is a planning figure until wave 1 reports: ${PRIOR_ADOPT.visited * 100}% with a peer visit, ${PRIOR_ADOPT.notVisited * 100}% with the voice note alone.`);
+    assumptions.push(`Adoption is a planning figure until group 1 reports: ${PRIOR_ADOPT.visited * 100}% with a classroom visit, ${PRIOR_ADOPT.notVisited * 100}% with the voice note alone.`);
   }
 
   // Effect per adopting school.
@@ -173,14 +173,14 @@ export function whatIf(st: PipelineState, input: WhatIfInput, draws = 2000): Wha
     const share = row.adopters / Math.max(1, row.wave1);
     effect = { mean: row.effect / share, se: Math.max(0.5, (row.ci[1] - row.ci[0]) / 3.92 / share) };
     source = "wave1";
-    assumptions.push(`Effect measured in wave 1 (difference-in-differences): ${row.effect} points [${row.ci[0]}, ${row.ci[1]}] per recommended school.`);
+    assumptions.push(`Effect measured in group 1 (difference-in-differences): ${row.effect} points [${row.ci[0]}, ${row.ci[1]}] per recommended school.`);
   } else {
-    assumptions.push(`Effect is a cautious planning figure until wave 1 is measured: ${PLANNING_EFFECT.mean} ± ${PLANNING_EFFECT.se * 2} points per adopting school.`);
+    assumptions.push(`Effect is a cautious planning figure until group 1 is measured: ${PLANNING_EFFECT.mean} ± ${PLANNING_EFFECT.se * 2} points per adopting school.`);
   }
   const pMatters = source === "wave1" ? 1 : (ev?.pDistinctive ?? 0);
-  if (source === "planning") assumptions.push(`${label} is distinctive with probability ${Math.round(pMatters * 100)}% (bright spots vs matched comparisons); the rest of the time it is assumed to do nothing.`);
-  assumptions.push(`A peer visit costs the CRP the round trip by motorbike plus ${VISIT_MIN_AT_SCHOOL / 60} hours; each CRP gives ${input.daysEach ?? 3} days of the fortnight.`);
-  if (!demos.length) assumptions.push(`No bright spot has described ${label} in detail yet, so no peer visits are possible.`);
+  if (source === "planning") assumptions.push(`${label} is distinctive with probability ${Math.round(pMatters * 100)}% (schools doing well vs matched comparisons); the rest of the time it is assumed to do nothing.`);
+  assumptions.push(`A classroom visit costs the CRP the round trip by motorbike plus ${VISIT_MIN_AT_SCHOOL / 60} hours; each CRP gives ${input.daysEach ?? 3} days of the fortnight.`);
+  if (!demos.length) assumptions.push(`No school doing well has described ${label} in detail yet, so no classroom visits are possible.`);
 
   const perSchool = legs.map((l) => ({
     schoolId: l.s.id,

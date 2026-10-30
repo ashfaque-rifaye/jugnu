@@ -38,7 +38,7 @@ export const UI_TOOLS: BetaToolUnion[] = [
   },
   {
     name: "show_on_map",
-    description: "Fly the map to a school and open its card (photo from above, distances, nearest bright spot).",
+    description: "Fly the map to a school and open its card (photo from above, distances, nearest school doing well).",
     input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
   },
   {
@@ -106,7 +106,7 @@ export interface AgentContext {
 }
 
 const ACTOR = "Jugnu AI";
-const STEPS = { note: "voice note", visit: "peer visit", review: "BEO review", call: "follow-up call" } as const;
+const STEPS = { note: "voice note", visit: "classroom visit", review: "BEO review", call: "follow-up call" } as const;
 const phoneOk = (s: string) => /^\+?[0-9]{10,15}$/.test(s.replace(/[\s-]/g, ""));
 
 /**
@@ -125,7 +125,7 @@ export function writeTools(st: PipelineState, ctx: AgentContext) {
   return [
     betaZodTool({
       name: "move_action",
-      description: "Move an action on the plan board for a school: step = note (peer voice note) | visit (peer visit) | review (BEO review) | call (follow-up call); status = todo | scheduled | done | stuck. Scheduling a step puts its follow-up on Jugnu's clock automatically.",
+      description: "Move an action on the plan board for a school: step = note (peer voice note) | visit (classroom visit) | review (BEO review) | call (follow-up call); status = todo | scheduled | done | stuck. Scheduling a step puts its follow-up on Jugnu's clock automatically.",
       inputSchema: z.object({
         school: z.string().describe("School name as the block tools return it"),
         step: z.enum(["note", "visit", "review", "call"]),
@@ -275,7 +275,7 @@ The officer is on: ${ctx.page}${ctx.school ? ` (school: ${ctx.school})` : ""}. R
 
 How to work:
 - Look numbers and names up with the block tools; never guess. Name schools exactly as the tools return them.
-- "What does X do that similar schools don't?" → contrast_pairs. "What if we send N CRPs / spread this practice to …?" → what_if; give the expected value with its range and name the biggest assumption (planning figure or wave-1 measurement).
+- "What does X do that similar schools don't?" → contrast_pairs. "What if we send N CRPs / spread this method to …?" → what_if; give the expected value with its range and name the biggest assumption (planning figure or group 1 measurement).
 - Do things on screen with the UI tools when asked ("open", "show", "go to", "fill", "mark", "record"). Use read_screen before click or fill.
 - Write to the shared log (record) only when the officer clearly asked for it; repeat back what you recorded.
 - You can also act: move_action moves a step on the plan board, schedule_followup puts a reminder, visit check or follow-up call on Jugnu's clock, escalate_to_beo opens a BEO review, dial_teacher places a real phone call, send_whatsapp sends a voice note, check-in or message on WhatsApp, list_followups shows what is pending. Act when asked plainly ("schedule", "escalate", "call", "mark done"); confirm first only for a phone call with no number given. Say what you did in one sentence.
@@ -374,7 +374,7 @@ export async function agentBrief(facts: string[], lang: "en" | "hi", name?: stri
         max_tokens: 900,
         system: `${SAFETY}
 You are Jugnu, briefing a Block Education Officer${name ? ` (${name})` : ""} out loud at the start of their day. Use only the facts given; never invent numbers or names.
-Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian colleague talks — English words like spot check or CRP are fine" : "in plain spoken Indian English"}.
+Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian colleague talks — English words like confirmation visit or CRP are fine" : "in plain spoken Indian English"}.
 5 to 7 short sentences, one per line, no lists or markdown, numbers as digits. Open with a one-line greeting and the headline, put the most urgent thing second, end by offering one concrete next step as a question.`,
         messages: [{ role: "user", content: facts.map((f) => `- ${f}`).join("\n") }],
       },
@@ -405,7 +405,7 @@ export async function agentPageGuide(page: string, screen: string, facts: string
         thinking: { type: "disabled" },
         system: `${SAFETY}
 You are Jugnu, the voice guide inside a console for a Block Education Officer in India. The officer has just opened the "${page}" page. Say, out loud, in 2 short sentences: what this page helps them do, and the single most useful thing to do on it right now, naming a real school or number from the screen or the facts. Never invent names or numbers.
-${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like spot check or CRP are fine." : "Speak plain Indian English."} No greeting, no lists, no markdown, numbers as digits, under 40 words. End with a short offer such as "Want me to open it?"`,
+${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like confirmation visit or CRP are fine." : "Speak plain Indian English."} No greeting, no lists, no markdown, numbers as digits, under 40 words. End with a short offer such as "Want me to open it?"`,
         messages: [{ role: "user", content: `On screen now:\n${screen.slice(0, 2500)}\n\nBlock facts:\n${facts.map((f) => `- ${f}`).join("\n")}` }],
       },
       { signal: AbortSignal.timeout(12000) },

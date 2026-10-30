@@ -35,6 +35,24 @@ export interface School {
   /** UDISE+ school code, when the school is a real one */
   udise?: string;
   clusterNameHi?: string;
+  /** Highest class taught (UDISE+): 5 = primary, 8 = middle. */
+  classTo?: number;
+  /** Teachers for classes 1–5. */
+  teacherCount: number;
+  /** Head, point of contact and class teachers. Names are simulated; phone numbers are never held here. */
+  staff: Staff[];
+  /** Across classes 1–5, per assessment year. */
+  subjectTrend: Record<"hindi" | "maths" | "science" | "english" | "spoken", number[]>;
+}
+
+export interface Staff {
+  id: string;
+  name: string;
+  /** head: runs the school. contact: collects and shares for the school. teacher: teaches. */
+  role: "head" | "contact" | "teacher";
+  grades: number[];
+  /** Subjects this teacher answers for across the school. */
+  leads: ("hindi" | "maths" | "science" | "english" | "spoken")[];
 }
 
 export interface GradeRow {
@@ -43,6 +61,9 @@ export interface GradeRow {
   attendance: number; // share present on an average day
   reading: number; // % at grade level
   numeracy: number; // % at grade level
+  science: number; // % at grade level (simulated)
+  english: number; // % at grade level (simulated)
+  spoken: number; // % at grade level (simulated)
 }
 
 /** Hidden truth — only the simulator reads this. */
@@ -123,7 +144,8 @@ export interface Action {
   ownerRole: "CRP" | "BEO" | "Jugnu AI" | "Teacher";
   task: string;
   due: number; // days from today
-  status: "todo" | "scheduled" | "done" | "stuck";
+  /** submitted = the school or owner says it is done, and someone else must sign it off. */
+  status: "todo" | "scheduled" | "submitted" | "done" | "stuck";
   note?: string;
 }
 

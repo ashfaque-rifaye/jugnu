@@ -106,7 +106,7 @@ export async function runJob(job: Job): Promise<string> {
       return "reminder posted";
     }
     case "visit_check": {
-      await writeEvent(job.block, "note", school, { text: `Peer visit check: it is a week since the visit for ${who(job)} was scheduled. CRP, please mark it done or stuck.` }, ACTOR);
+      await writeEvent(job.block, "note", school, { text: `Classroom visit check: it is a week since the visit for ${who(job)} was scheduled. CRP, please mark it done or stuck.` }, ACTOR);
       await finish(job, "done", "visit check posted");
       return "visit check posted";
     }

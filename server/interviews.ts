@@ -3,7 +3,7 @@
 import crypto from "node:crypto";
 import type { Turn } from "../src/engine/types";
 import { codeTranscript } from "./ai/coder";
-import { scrubPII } from "./ai/guardrails";
+import { cleanAndLog } from "./safety";
 import { clarifyTurn, closingTurn, nextTurn, type Lang, type LiveTurn, type NextTurn } from "./ai/interviewer";
 import { db, now, type Stmt } from "./db";
 import { later } from "./later";
@@ -68,7 +68,7 @@ export const codingsOf = (id: string) =>
 
 export async function listInterviews() {
   const rows = await db.all<InterviewRow & { turns: number }>(
-    `SELECT i.*, (SELECT COUNT(*) FROM turns t WHERE t.interview_id = i.id AND t.speaker = 'teacher') AS turns FROM interviews i ORDER BY i.created_at DESC LIMIT 200`,
+    `SELECT i.*, (SELECT COUNT(*) FROM turns t WHERE t.interview_id = i.id AND t.speaker = 'teacher') AS turns FROM interviews i WHERE COALESCE(i.archived, 0) = 0 ORDER BY i.created_at DESC LIMIT 200`,
   );
   const coded = await db.all<{ interview_id: string; name: string | null }>(`SELECT interview_id, COALESCE(practice, new_name) name FROM codings WHERE grounded = 1 ORDER BY id`);
   return rows.map((r) => ({ ...r, practices: coded.filter((c) => c.interview_id === r.id).map((c) => c.name) }));
@@ -77,7 +77,7 @@ export async function listInterviews() {
 /** Completed interviews linked to a school in the block, with their grounded codings — they feed the block's evidence. */
 export async function codedForBlock() {
   const rows = await db.all<{ id: string; school_id: string; grp: Group; language: Lang; updated_at: string }>(
-    `SELECT id, school_id, grp, language, updated_at FROM interviews WHERE status = 'completed' AND school_id IS NOT NULL ORDER BY updated_at`,
+    `SELECT id, school_id, grp, language, updated_at FROM interviews WHERE status = 'completed' AND school_id IS NOT NULL AND id NOT LIKE 'demo-iv-%' ORDER BY updated_at`,
   );
   const coded = await db.all<{ interview_id: string; practice: string | null; new_name: string | null; quote: string; specificity: number; coder: string }>(
     `SELECT c.interview_id, c.practice, c.new_name, c.quote, c.specificity, c.coder FROM codings c JOIN interviews i ON i.id = c.interview_id WHERE c.grounded = 1 AND i.status = 'completed' AND i.school_id IS NOT NULL ORDER BY c.id`,
@@ -155,7 +155,7 @@ export interface AnswerResult {
 /** The teacher said something; store it (PII scrubbed) and produce Jugnu's next turn. */
 export async function answer(row: InterviewRow, raw: string, meta: { source?: "asr" | "typed"; confidence?: number | null; deadlineMs?: number } = {}): Promise<AnswerResult> {
   if (row.status === "completed" || row.status === "declined") return { reply: closingTurn(row.language), source: "script", status: row.status };
-  const text = scrubPII(raw.trim()).text;
+  const text = cleanAndLog(raw.trim(), "interview");
   const lastJugnu = [...(await start(row))].reverse().find((t) => t.speaker === "jugnu");
 
   // Silence or noise: ask again, don't store an empty answer.

@@ -1,9 +1,9 @@
-// Who is using the console. A Block Education Officer sees the whole block; a cluster resource
-// person (CRP) sees their own cluster first. Kept on the device; anyone can switch.
+// Who is using the console. A Block Education Officer sees the whole block; a cluster coordinator
+// (CRP) their own cluster; a school head their own school. Kept on the device; anyone can switch.
 import { useCallback, useSyncExternalStore } from "react";
-import type { Block } from "../engine/types";
+import type { Action, Block } from "../engine/types";
 
-export type Role = { kind: "beo" } | { kind: "crp"; cluster: number } | { kind: "guest" };
+export type Role = { kind: "beo" } | { kind: "crp"; cluster: number } | { kind: "head"; schoolId: string; cluster: number } | { kind: "guest" };
 
 const KEY = "jugnu-role";
 const listeners = new Set<() => void>();
@@ -45,10 +45,26 @@ export function useRole(): [Role | null, (r: Role | null) => void] {
 export function roleName(role: Role | null, block?: Block): string | null {
   if (!role) return null;
   if (role.kind === "beo") return "BEO";
-  if (role.kind === "guest") return "Visitor";
+  if (role.kind === "guest") return "Guest";
+  if (role.kind === "head") {
+    const s = block?.schools.find((x) => x.id === role.schoolId);
+    const head = s?.staff.find((p) => p.role === "head");
+    return s ? `Head ${head?.name ?? ""}, ${s.name}`.replace("  ", " ") : "School head";
+  }
   const s = block?.schools.find((x) => x.cluster === role.cluster);
   return s ? `CRP ${s.crp} (${s.clusterName})` : `CRP, cluster ${role.cluster + 1}`;
 }
 
-/** Is this school in the user's own patch? (BEOs and visitors: every school.) */
-export const inMyPatch = (role: Role | null, cluster: number) => role?.kind !== "crp" || role.cluster === cluster;
+/** Is this cluster in the user's own patch? (BEOs and guests: every school.) */
+export const inMyPatch = (role: Role | null, cluster: number) => (role?.kind !== "crp" && role?.kind !== "head") || role.cluster === cluster;
+
+/** Is this school one the user answers for? */
+export const isMySchool = (role: Role | null, schoolId: string, cluster: number) => (role?.kind === "head" ? role.schoolId === schoolId : inMyPatch(role, cluster));
+
+/** Who may sign off finished work. A school reports it done; someone outside the school confirms it.
+ *  A coordinator confirms schools' work, and the BEO confirms the coordinator's. */
+export function canSignOff(role: Role | null, action: Pick<Action, "ownerRole">): boolean {
+  if (role?.kind === "beo" || role?.kind === "guest" || !role) return true;
+  if (role.kind === "crp") return action.ownerRole !== "CRP";
+  return false;
+}

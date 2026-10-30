@@ -110,14 +110,34 @@ export function checkSafeTopic(s: string): Check {
   return { name: "stays on classroom routines", passed: !hit, detail: hit ? `touches ${hit[0]}` : undefined };
 }
 
-/** Remove phone numbers, Aadhaar-like numbers and e-mails before text is stored or sent to a model. */
-export function scrubPII(s: string): { text: string; removed: number } {
-  let removed = 0;
+// Words no teacher or officer should meet in a note, a transcript or a shared comment.
+const PROFANITY =
+  /\b(?:fuck\w*|shit\w*|bitch\w*|bastard\w*|asshole\w*|dickhead\w*|motherfuck\w*|madarchod\w*|behenchod\w*|bhenchod\w*|chutiya\w*|gandu\w*|bhosdi\w*|harami\w*|kamina\w*)\b|मादरचोद|बहनचोद|बहिनचोद|भोसड़ी\S*|चूतिया|गांडू|हरामी|कमीन[ाी]/gi;
+
+export interface SafetyFinding {
+  kind: "phone" | "id" | "email" | "profanity" | "topic";
+  count: number;
+  detail?: string;
+}
+
+/** What a piece of text contains that should not be kept, and the text with it removed. */
+export function inspectText(s: string): { text: string; findings: SafetyFinding[] } {
+  const counts = { id: 0, phone: 0, email: 0, profanity: 0 };
   const text = s
-    .replace(/\b\d{4}\s?\d{4}\s?\d{4}\b/g, () => (removed++, "[number removed]"))
-    .replace(/(?:\+?91[\s-]?)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, () => (removed++, "[phone removed]"))
-    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, () => (removed++, "[email removed]"));
-  return { text, removed };
+    .replace(/\b\d{4}\s?\d{4}\s?\d{4}\b/g, () => (counts.id++, "[number removed]"))
+    .replace(/(?:\+?91[\s-]?)?\b[6-9]\d{4}[\s-]?\d{5}\b/g, () => (counts.phone++, "[phone removed]"))
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, () => (counts.email++, "[email removed]"))
+    .replace(PROFANITY, () => (counts.profanity++, "[removed]"));
+  const findings: SafetyFinding[] = (Object.entries(counts) as [SafetyFinding["kind"], number][]).filter(([, n]) => n > 0).map(([kind, count]) => ({ kind, count }));
+  const topic = BANNED.find(([, re]) => re.test(s));
+  if (topic) findings.push({ kind: "topic", count: 1, detail: topic[0] });
+  return { text, findings };
+}
+
+/** Remove phone numbers, ID numbers, e-mails and bad language before text is stored or sent to a model. */
+export function scrubPII(s: string): { text: string; removed: number } {
+  const { text, findings } = inspectText(s);
+  return { text, removed: findings.filter((f) => f.kind !== "topic").reduce((a, f) => a + f.count, 0) };
 }
 
 export const allPassed = (checks: Check[]) => checks.every((c) => c.passed);

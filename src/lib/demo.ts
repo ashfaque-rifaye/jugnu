@@ -61,7 +61,7 @@ export function buildTerm(state: PipelineState): DemoBeat[] | null {
     {
       key: "checks",
       day: ["Day 2", "दिन 2"],
-      title: ["Spot checks: 15 children, 15 minutes", "मौके की जाँच: 15 बच्चे, 15 मिनट"],
+      title: ["Confirmation visits: 15 children, 15 minutes", "पुष्टि दौरा: 15 बच्चे, 15 मिनट"],
       sub: [
         `CRPs visit the ${checks.length} schools still waiting.${caught ? ` ${caught} had over-reported results — flagged for a respectful revisit.` : ""}${confirmed ? ` ${confirmed} confirmed as bright spots.` : ""}`,
         `CRP बाकी ${checks.length} स्कूलों में जाते हैं।${caught ? ` ${caught} में परिणाम ज़्यादा दर्ज थे — सम्मान से दोबारा देखने को चिह्नित।` : ""}${confirmed ? ` ${confirmed} अच्छे स्कूल पक्के हुए।` : ""}`,
@@ -81,9 +81,9 @@ export function buildTerm(state: PipelineState): DemoBeat[] | null {
     {
       key: "visits",
       day: ["Day 7", "दिन 7"],
-      title: ["Peer visits", "साथी-दौरे"],
+      title: ["Classroom visits", "साथी-दौरे"],
       sub: [
-        "Each CRP takes a teacher to watch the practice in a classroom a few kilometres away.",
+        "Each CRP takes a teacher to watch the method in a classroom a few kilometres away.",
         "हर CRP एक शिक्षक को कुछ किलोमीटर दूर की कक्षा में तरीका देखने ले जाते हैं।",
       ],
       events: wave1.map((r) => {
@@ -107,8 +107,8 @@ export function buildTerm(state: PipelineState): DemoBeat[] | null {
       day: ["Next term", "अगला सत्र"],
       title: ["Did it work?", "क्या असर हुआ?"],
       sub: [
-        "The next assessment arrives. Wave 1 is compared with wave 2 — schools that get the same help a term later — so the block learns what really transfers.",
-        "अगली परीक्षा आती है। पहली लहर की तुलना दूसरी लहर से — जिन्हें यही मदद एक सत्र बाद मिलेगी — ताकि ब्लॉक सीखे कि क्या सच में काम करता है।",
+        "The next assessment arrives. Group 1 is compared with group 2 — schools that get the same help a term later — so the block learns what really transfers.",
+        "अगली परीक्षा आती है। पहला समूह की तुलना दूसरा समूह से — जिन्हें यही मदद एक सत्र बाद मिलेगी — ताकि ब्लॉक सीखे कि क्या सच में काम करता है।",
       ],
       events: [],
       track: true,

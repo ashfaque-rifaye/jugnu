@@ -36,7 +36,7 @@ export function offlineFollowUp(reply: string): FollowUpReading {
     outcome,
     barrier: outcome === "barrier" ? (material ? "materials missing" : "needs a demonstration or time") : null,
     owner: outcome === "barrier" ? (material ? "BEO" : "CRP") : null,
-    summary_en: { adopted: "Uses the practice regularly.", trying: "Has started trying it.", barrier: "Wants to, but something is in the way.", not_tried: "Has not started yet." }[outcome],
+    summary_en: { adopted: "Uses the method regularly.", trying: "Has started trying it.", barrier: "Wants to, but something is in the way.", not_tried: "Has not started yet." }[outcome],
     quote: reply,
   };
 }
@@ -50,11 +50,11 @@ export async function readFollowUp(reply: string, practice: string, ref?: string
     claude: (signal) =>
       askClaude({
         system: `${SAFETY}
-Read a teacher's answer to a follow-up call two weeks after they were invited to try a peer's practice. Classify honestly:
+Read a teacher's answer to a follow-up call two weeks after they were invited to try a peer's method. Classify honestly:
 - "barrier" whenever they name something that stops or limits them (missing materials, no time, no permission, not sure how) — even if they have started. A barrier becomes a task for whoever can remove it, so do not hide it under "trying".
 - "trying" when they started but not regularly, and name nothing in the way.
 - "adopted" when they do it regularly; "not_tried" when they have not started and give no reason.`,
-        content: `Practice suggested: ${practice}\nTeacher said: ${reply}`,
+        content: `Method suggested: ${practice}\nTeacher said: ${reply}`,
         schema: Schema,
         effort: "low",
         maxTokens: 1500,

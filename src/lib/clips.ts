@@ -1,5 +1,15 @@
-// Cinematic clips generated with Google Flow (Veo 3.1) for this project — see public/media.
+// Cinematic clips made for this project — see public/media. The door-* loops are cut from the film.
 export const MEDIA = {
+  doorClassroom: "/media/door-classroom.mp4",
+  doorClassroomPoster: "/media/door-classroom.jpg",
+  doorOfficer: "/media/door-officer.mp4",
+  doorOfficerPoster: "/media/door-officer.jpg",
+  doorCoordinator: "/media/door-coordinator.mp4",
+  doorCoordinatorPoster: "/media/door-coordinator.jpg",
+  doorHead: "/media/door-head.mp4",
+  doorHeadPoster: "/media/door-head.jpg",
+  doorTeacher: "/media/door-teacher.mp4",
+  doorTeacherPoster: "/media/door-teacher.jpg",
   hero: "/media/jugnu-hero.mp4",
   map: "/media/jugnu-map.mp4",
   call: "/media/jugnu-call.mp4",

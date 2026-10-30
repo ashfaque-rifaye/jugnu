@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, Newspaper, PartyPopper, Play, Search, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, CheckCheck, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, Newspaper, PartyPopper, Play, Search, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ActivityFeed } from "../components/ActivityFeed";
@@ -20,7 +20,7 @@ import { usePipeline } from "../lib/store";
 import { loopCounts } from "../lib/story";
 import { useTasks, type Task, type TaskKind } from "../lib/tasks";
 
-const TASK_ICON: Record<TaskKind, typeof Search> = { spotcheck: Stethoscope, interview: Mic, visit: Footprints, stuck: AlertTriangle, data: Search, review: ClipboardCheck };
+const TASK_ICON: Record<TaskKind, typeof Search> = { spotcheck: Stethoscope, interview: Mic, visit: Footprints, stuck: AlertTriangle, data: Search, review: ClipboardCheck, signoff: CheckCheck, weekly: ClipboardCheck };
 const TASK_TONE: Record<TaskKind, string> = {
   spotcheck: "var(--st-check-due)",
   interview: "var(--st-bright)",
@@ -28,15 +28,19 @@ const TASK_TONE: Record<TaskKind, string> = {
   stuck: "var(--tone-bad)",
   data: "var(--tone-bad)",
   review: "var(--tone-review)",
+  signoff: "var(--tone-good)",
+  weekly: "var(--tone-info)",
 };
 const GROUPS: { kind: TaskKind | "all"; en: string; hi: string }[] = [
   { kind: "all", en: "All", hi: "सभी" },
   { kind: "stuck", en: "Stuck", hi: "अटके" },
+  { kind: "signoff", en: "To sign off", hi: "पुष्टि बाकी" },
+  { kind: "weekly", en: "Weekly report", hi: "साप्ताहिक रिपोर्ट" },
   { kind: "review", en: "Approvals", hi: "मंज़ूरी" },
-  { kind: "spotcheck", en: "Spot checks", hi: "जाँच" },
-  { kind: "interview", en: "Interviews", hi: "बातचीत" },
-  { kind: "data", en: "Data to check", hi: "डेटा जाँच" },
-  { kind: "visit", en: "Peer visits", hi: "साथी-दौरे" },
+  { kind: "spotcheck", en: "School visits", hi: "दौरे" },
+  { kind: "interview", en: "Talk to teachers", hi: "बातचीत" },
+  { kind: "data", en: "Results to check", hi: "नतीजे जाँचें" },
+  { kind: "visit", en: "Classroom visits", hi: "कक्षा-दौरे" },
 ];
 
 interface PilotRow {
@@ -48,7 +52,7 @@ interface PilotRow {
   practices: (string | null)[];
 }
 
-const taskLink = (task: Task) => (task.kind === "review" ? "/review" : task.schoolId ? `/schools/${task.schoolId}` : "/today");
+const taskLink = (task: Task) => (task.kind === "review" ? "/review" : task.kind === "signoff" ? "/plan?view=board" : task.kind === "weekly" ? `/schools/${task.schoolId}?tab=people` : task.schoolId ? `/schools/${task.schoolId}?tab=act` : "/today");
 
 export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void; onRole: () => void; onTour: () => void }) {
   const t = useT();
@@ -68,6 +72,8 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
   const links = state.recs.filter((r) => r.wave === 1 && mine.some((s) => s.id === r.schoolId)).map((r) => ({ from: r.demonstratorId, to: r.schoolId }));
   const hi = lang === "hi" && "font-deva";
   const guest = role?.kind === "guest" || !role;
+  const hero = role?.kind === "beo" ? { video: MEDIA.doorOfficer, poster: MEDIA.doorOfficerPoster } : role?.kind === "crp" ? { video: MEDIA.doorCoordinator, poster: MEDIA.doorCoordinatorPoster } : role?.kind === "head" ? { video: MEDIA.doorHead, poster: MEDIA.doorHeadPoster } : { video: MEDIA.doorClassroom, poster: MEDIA.doorClassroomPoster };
+  const headSchool = role?.kind === "head" ? state.block.schools.find((s) => s.id === role.schoolId) : undefined;
   const first = tasks[0];
 
   const greeting =
@@ -75,13 +81,15 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
       ? t(`Namaste, ${crp.crp.split(" ")[0]} ji`, `नमस्ते, ${crp.crp.split(" ")[0]} जी`)
       : role?.kind === "beo"
         ? t("Namaste", "नमस्ते")
-        : t("Welcome, visitor", "स्वागत है");
-  const where = role?.kind === "crp" && crp ? t(`${crp.clusterName} cluster`, `${crp.clusterName} क्लस्टर`) : state.block.name;
+        : headSchool
+          ? t(`Namaste, ${headSchool.staff.find((p) => p.role === "head")?.name.split(" ")[0] ?? ""} ji`, `नमस्ते, ${headSchool.staff.find((p) => p.role === "head")?.name.split(" ")[0] ?? ""} जी`)
+          : t("Welcome", "स्वागत है");
+  const where = role?.kind === "crp" && crp ? t(`${crp.clusterName} cluster`, `${crp.clusterName} क्लस्टर`) : headSchool ? headSchool.name : state.block.name;
   const stuck = tasks.filter((x) => x.kind === "stuck").length;
   const summary = guest
     ? t(
-        "You are seeing what a Block Education Officer sees — every school in the demo block. Start with the first task, or play a whole term.",
-        "आप वही देख रहे हैं जो ब्लॉक शिक्षा अधिकारी देखते हैं — डेमो ब्लॉक का हर स्कूल। पहले काम से शुरू करें, या पूरा सत्र चलाकर देखें।",
+        "You are seeing what a Block Education Officer sees: every school in the block. Start with the first task, or watch a whole term.",
+        "आप वही देख रहे हैं जो ब्लॉक शिक्षा अधिकारी देखते हैं: ब्लॉक का हर स्कूल। पहले काम से शुरू करें, या पूरा सत्र देखें।",
       )
     : tasks.length === 0
       ? t(`Nothing is waiting in ${where}. Well done.`, `${where} में कुछ बाकी नहीं। बहुत बढ़िया।`)
@@ -94,8 +102,8 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
     <div className="space-y-5">
       {/* the day: a calm hero with the one next step floating on it */}
       <section className="card on-dark relative overflow-hidden !rounded-[2rem]">
-        {!lite && <video className="welcome-video" src={MEDIA.welcome} poster={MEDIA.welcomePoster} autoPlay muted loop playsInline aria-hidden />}
-        {lite && <img className="welcome-video" src={MEDIA.welcomePoster} alt="" aria-hidden />}
+        {!lite && <video key={hero.video} className="welcome-video" src={hero.video} poster={hero.poster} autoPlay muted loop playsInline aria-hidden />}
+        {lite && <img className="welcome-video" src={hero.poster} alt="" aria-hidden />}
         <div className="welcome-shade" />
         <div className="pointer-events-none absolute inset-3 rounded-[1.6rem] border border-white/10" aria-hidden />
         <div className="relative grid gap-5 p-5 md:p-8 lg:grid-cols-[1fr_380px] lg:items-end">
@@ -133,7 +141,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               <div className={cx("text-white", hi)}>
                 <div className="label !text-white/60">{t("Start here", "यहीं से शुरू करें")}</div>
                 <div className="mt-1 text-lg font-semibold">{t("Nothing waiting for you", "आपके लिए कुछ बाकी नहीं")}</div>
-                <p className="mt-1 text-sm text-white/70">{t("Play the term to watch spot checks, visits and calls arrive.", "जाँच, दौरे और कॉल आते देखने के लिए सत्र चलाएँ।")}</p>
+                <p className="mt-1 text-sm text-white/70">{t("Play the term to watch confirmation visits, visits and calls arrive.", "जाँच, दौरे और कॉल आते देखने के लिए सत्र चलाएँ।")}</p>
               </div>
             )}
           </motion.div>
@@ -202,7 +210,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
             {lite
               ? t("Each dot is a school. Tap one to open it.", "हर बिंदु एक स्कूल है। खोलने के लिए छुएँ।")
               : t(
-                  "Each dot is a real school, where it stands. Tap one for its card — attendance, grades 1–5 and the distance to the nearest bright spot. The ruler measures between any two schools; the link button shows who learns from whom.",
+                  "Each dot is a real school, where it stands. Tap one for its card — attendance, grades 1–5 and the distance to the nearest school doing well. The ruler measures between any two schools; the link button shows who learns from whom.",
                   "हर बिंदु एक असली स्कूल है, अपनी असली जगह पर। कार्ड के लिए छुएँ — उपस्थिति, कक्षा 1–5 और सबसे पास के अच्छे स्कूल की दूरी। पैमाना किन्हीं दो स्कूलों की दूरी नापता है; लिंक बटन बताता है कौन किससे सीखता है।",
                 )}
           </p>
@@ -210,7 +218,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
       </div>
 
       <Card
-        title={t("Interviews from the field", "मैदान से बातचीत")}
+        title={t("Teacher conversations", "शिक्षकों से बातचीत")}
         icon={Mic}
         tone="var(--tone-teal)"
         right={
@@ -221,7 +229,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
       >
         {!pilot?.length ? (
           <p className="text-sm text-[var(--color-ink-2)]">
-            {t("No real interviews yet. Open a bright-spot school and press “Invite for interview”.", "अभी कोई असली बातचीत नहीं। किसी अच्छे स्कूल को खोलें और “बातचीत के लिए बुलाएँ” दबाएँ।")}
+            {t("No conversations yet. Open a school doing well and invite its teacher.", "अभी कोई बातचीत नहीं। अच्छा कर रहा कोई स्कूल खोलें और शिक्षक को आमंत्रित करें।")}
           </p>
         ) : (
           <ul className="grid gap-2 md:grid-cols-2">
@@ -233,7 +241,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
                 <span className="chip shrink-0 text-xs" style={p.status === "completed" ? { color: "var(--tone-good)" } : p.status === "in_progress" ? { color: "var(--tone-teal)" } : undefined}>
                   {p.status === "in_progress" && <span className="live-dot !h-1.5 !w-1.5" />}
                   {p.status === "completed"
-                    ? t(`done · ${new Set(p.practices).size} practices`, `पूरी · ${new Set(p.practices).size} तरीके`)
+                    ? t(`done · ${new Set(p.practices).size} methods`, `पूरी · ${new Set(p.practices).size} तरीके`)
                     : p.status === "in_progress"
                       ? t("talking now", "बात जारी")
                       : p.status === "declined"
@@ -291,8 +299,8 @@ function TermRings({ onPlay }: { onPlay?: () => void }) {
   const wave2 = state.recs.length - wave1;
   const checked = c.candidates - c.checksDue;
   const rows = [
-    { color: "var(--ring-1)", label: t("Checked on the spot", "मौके पर जाँचे"), k: checked, n: c.candidates, to: "/schools" },
-    { color: "var(--ring-2)", label: t("Reached with a practice", "तरीका पहुँचा"), k: c.reached, n: wave1, to: "/plan" },
+    { color: "var(--ring-1)", label: t("Confirmed by a visit", "दौरे से पुष्टि"), k: checked, n: c.candidates, to: "/schools" },
+    { color: "var(--ring-2)", label: t("Reached with a method", "तरीका पहुँचा"), k: c.reached, n: wave1, to: "/plan" },
     { color: "var(--ring-3)", label: t("Called back on day 14", "14वें दिन कॉल"), k: c.calls, n: wave1, to: "/results" },
   ];
   const pct = Math.round((rows.reduce((a, r) => a + (r.n ? r.k / r.n : 0), 0) / rows.length) * 100);
@@ -322,8 +330,8 @@ function TermRings({ onPlay }: { onPlay?: () => void }) {
       </div>
       <p className={cx("mt-4 text-xs leading-relaxed text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>
         {t(
-          `Wave 1 is ${wave1} schools. Wave 2 (${wave2}) gets the same help next term — the fair comparison for “did it work?”.`,
-          `पहली लहर ${wave1} स्कूल। दूसरी लहर (${wave2}) को यही मदद अगले सत्र मिलेगी — “क्या असर हुआ?” की सही तुलना।`,
+          `${wave1} schools start this term and ${wave2} next term. Comparing the two is how we will know if it worked.`,
+          `${wave1} स्कूल इस सत्र और ${wave2} अगले सत्र शुरू करते हैं। दोनों की तुलना से पता चलेगा कि असर हुआ या नहीं।`,
         )}
       </p>
       {onPlay && c.calls === 0 && (
@@ -354,7 +362,7 @@ function NeedsYou({ tasks }: { tasks: Task[] }) {
     <Card title={t("Needs you", "आपके काम")} icon={CalendarCheck2} tone="var(--st-check-due)" right={<span className="chip tabular-nums">{tasks.length}</span>}>
       {tasks.length === 0 ? (
         <Empty icon={PartyPopper} title={t("Nothing waiting for you", "आपके लिए कुछ बाकी नहीं")}>
-          {t("All spot checks, visits and approvals are done. Check the Results page for follow-up calls.", "सब जाँचें, दौरे और मंज़ूरियाँ पूरी हैं। फ़ॉलो-अप कॉल के लिए 'नतीजे' पेज देखें।")}
+          {t("All confirmation visits, visits and approvals are done. Check the Results page for follow-up calls.", "सब जाँचें, दौरे और मंज़ूरियाँ पूरी हैं। फ़ॉलो-अप कॉल के लिए 'नतीजे' पेज देखें।")}
         </Empty>
       ) : (
         <>
@@ -406,7 +414,7 @@ function NeedsYou({ tasks }: { tasks: Task[] }) {
           </ul>
           {shown.length > 7 && (
             <Link to="/plan" className={cx("tap-link mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[var(--st-bright)]", hi)}>
-              {t(`${shown.length - 7} more — see them on the support plan`, `${shown.length - 7} और — मदद की योजना में देखें`)} <ArrowRight size={14} />
+              {t(`${shown.length - 7} more — see them on the sharing plan`, `${shown.length - 7} और — स्कूलों तक पहुँचाएँ में देखें`)} <ArrowRight size={14} />
             </Link>
           )}
         </>

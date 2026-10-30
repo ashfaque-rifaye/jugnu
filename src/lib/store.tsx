@@ -13,7 +13,7 @@ import { delJSON, getJSON, postJSON } from "./api";
 import type { DemoEvent } from "./demo";
 import { roleName, useRole } from "./role";
 
-export type EventKind = "action" | "spotcheck" | "followup" | "note";
+export type EventKind = "action" | "spotcheck" | "followup" | "note" | "weekly";
 export interface BlockEvent {
   id: number | string;
   kind: EventKind;

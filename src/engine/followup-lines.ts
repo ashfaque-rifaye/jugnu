@@ -21,7 +21,7 @@ export const PRACTICE_LINES: Partial<Record<PracticeId, Record<"adopted" | "tryi
         hi: "हओ सर, रोज़ सुबह पौन घंटा स्तर के हिसाब से ही बैठा रहे हैं। जो बच्चे अक्षर पर थे, अब शब्द पढ़ने लगे हैं।",
         en: "Yes sir, every morning for forty-five minutes we seat them by level. Kids stuck on letters are now reading words.",
         summary: ["Teacher runs level groups daily with visible reading progress", "रोज़ स्तर अनुसार समूह बनाकर पढ़ाने से बच्चे आगे बढ़े"],
-        insight: ["Practice is working well. CRP can help teacher design the weekly regrouping assessment.", "अभ्यास सफल है। संकुल समन्वयक साप्ताहिक स्तर जांच में मदद करें।"],
+        insight: ["Method is working well. CRP can help teacher design the weekly regrouping assessment.", "अभ्यास सफल है। संकुल समन्वयक साप्ताहिक स्तर जांच में मदद करें।"],
         owner: "CRP",
       },
       {
@@ -139,7 +139,7 @@ export const PRACTICE_LINES: Partial<Record<PracticeId, Record<"adopted" | "tryi
         hi: "{demo} ने जैसे बताया था, नया पाठ पहले अपनी बोली में गपशप करके समझाते हैं। समझना बहुत तेज़ हो गया है।",
         en: "Just as {demo} suggested, we discuss new lessons first in local dialect. Comprehension is much faster.",
         summary: ["Dialect chat before textbook reading accelerated comprehension", "{demo} के तरीके से पहले बोली में बात करने से समझ बढ़ी"],
-        insight: ["Pedagogical bridge functioning as intended. Share practice across cluster meetings.", "सटीक शिक्षण विधि। यह तरीका संकुल की अन्य शालाओं में साझा करें।"],
+        insight: ["Pedagogical bridge functioning as intended. Share method across cluster meetings.", "सटीक शिक्षण विधि। यह तरीका संकुल की अन्य शालाओं में साझा करें।"],
         owner: "CRP",
       },
     ],
@@ -238,7 +238,7 @@ export const PRACTICE_LINES: Partial<Record<PracticeId, Record<"adopted" | "tryi
       {
         hi: "{demo} जैसी तरकीब काम कर गई। अनपढ़ माता-पिता भी आवाज़ सुनकर समझ जाते हैं कि बच्चे से क्या पढ़वाना है।",
         en: "The idea from {demo} worked. Even non-literate parents listen to audio and know what to hear.",
-        summary: ["Voice notes enabled illiterate parents to monitor reading practice", "{demo} की तरह ऑडियो संदेश से अनपढ़ पालक भी सहयोग कर रहे"],
+        summary: ["Voice notes enabled illiterate parents to monitor reading method", "{demo} की तरह ऑडियो संदेश से अनपढ़ पालक भी सहयोग कर रहे"],
         insight: ["Bridged home literacy gap. Highlight this low-cost innovation across the block.", "कम पढ़ी-लिखी माताओं तक संदेश पहुंचा। इस नवाचार को पूरे ब्लॉक में बताएं।"],
         owner: "BEO",
       },
@@ -470,7 +470,7 @@ export const FOLLOW_UP_LINES: Record<FollowUp["outcome"], FollowUpLine[]> = {
     {
       hi: "कार्यपुस्तिकाएं अभी तक भोपाल से नहीं पहुंची हैं। बिना किताब के अभ्यास कैसे करवाएं?",
       en: "FLN workbooks have not arrived from Bhopal yet. How to conduct exercises without books?",
-      summary: ["State FLN workbooks delayed; practice halted without print materials", "एफएलएन कार्यपुस्तिकाएं न मिलने से अभ्यास रुका"],
+      summary: ["State FLN workbooks delayed; method halted without print materials", "एफएलएन कार्यपुस्तिकाएं न मिलने से अभ्यास रुका"],
       insight: [
         "Textbook supply chain delay; BEO office must follow up textbook depot distribution immediately.",
         "पुस्तिका वितरण में देरी; बीईओ कार्यालय पाठ्यपुस्तक डिपो से शीघ्र वितरण कराए।",
@@ -481,7 +481,7 @@ export const FOLLOW_UP_LINES: Record<FollowUp["outcome"], FollowUpLine[]> = {
     {
       hi: "हम दस दिन से अस्वस्थ थे, मेडिकल छुट्टी पर रहे। कल ही स्कूल लौटे हैं, अभी शुरू नहीं कर पाए।",
       en: "I was unwell on medical leave for ten days. Just returned yesterday; haven't started.",
-      summary: ["Teacher was on approved medical leave; couldn't initiate practice", "शिक्षक के अस्वस्थ होने से अभ्यास शुरू नहीं हुआ"],
+      summary: ["Teacher was on approved medical leave; couldn't initiate method", "शिक्षक के अस्वस्थ होने से अभ्यास शुरू नहीं हुआ"],
       insight: [
         "Legitimate medical absence; CRP should check in next week without pressure to support fresh start.",
         "स्वास्थ्य अवकाश पर थे; अगले सप्ताह संकुल समन्वयक सहज शुरुआत में मदद करें।",

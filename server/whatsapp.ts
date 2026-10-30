@@ -122,7 +122,7 @@ export async function rememberContact(rawTo: string, c: { block: string; schoolI
 
 export const checkinText = (teacher: string | undefined, practice: string | undefined, lang: "hi" | "en") =>
   lang === "en"
-    ? `Namaste${teacher ? ` ${teacher}` : ""}! Two weeks ago you heard about ${practice ?? "a practice from a nearby school"}. Did you try it? What happened? Reply here — typing or a voice note is fine.`
+    ? `Namaste${teacher ? ` ${teacher}` : ""}! Two weeks ago you heard about ${practice ?? "a method from a nearby school"}. Did you try it? What happened? Reply here — typing or a voice note is fine.`
     : `नमस्ते${teacher ? ` ${teacher} जी` : ""}! दो हफ़्ते पहले आपने ${practice ?? "पास के स्कूल का एक तरीका"} के बारे में सुना था। क्या आपने इसे आज़माया? क्या हुआ? यहीं जवाब दीजिए — लिखकर या बोलकर (वॉइस नोट)।`;
 
 /** Ask the day-14 question on WhatsApp and wait for the answer. */
@@ -185,7 +185,7 @@ export async function handleIncoming(m: Incoming): Promise<string> {
     return "noted";
   }
 
-  const reading = await readFollowUp(said, contact.practice ?? "the suggested practice", contact.ref ?? school);
+  const reading = await readFollowUp(said, contact.practice ?? "the suggested method", contact.ref ?? school);
   const r = reading.value;
   const outcome = r.outcome === "not_tried" ? "trying" : r.outcome;
   await writeEvent(

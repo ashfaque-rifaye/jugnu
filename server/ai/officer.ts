@@ -44,7 +44,7 @@ function schoolRow(st: PipelineState, id: string) {
     expected_reading_pct: pct(st.find.expected[id]?.reading[last] ?? 0),
     expected_maths_pct: pct(st.find.expected[id]?.numeracy[last] ?? 0),
     beats_expectation_sd: Math.round((z[z.length - 1] ?? 0) * 10) / 10,
-    status: st.bright.includes(id) ? "verified bright spot" : v?.verdict === "inflation_suspected" ? "data may be inflated — revisit" : st.find.struggling.includes(id) ? "needs support" : st.find.candidates.includes(id) ? "candidate" : "ordinary",
+    status: st.bright.includes(id) ? "verified school doing well" : v?.verdict === "inflation_suspected" ? "data may be inflated — revisit" : st.find.struggling.includes(id) ? "needs support" : st.find.candidates.includes(id) ? "candidate" : "ordinary",
   };
 }
 
@@ -53,7 +53,7 @@ export function officerTools(st: PipelineState) {
   return [
     betaZodTool({
       name: "block_overview",
-      description: "Counts for the whole block: schools, candidates, verified bright spots, schools needing support, suspected inflation, distinctive practices, action status.",
+      description: "Counts for the whole block: schools, candidates, schools confirmed to be doing well, schools needing support, suspected inflation, distinctive methods, action status.",
       inputSchema: z.object({}),
       run: () =>
         JSON.stringify({
@@ -88,7 +88,7 @@ export function officerTools(st: PipelineState) {
     }),
     betaZodTool({
       name: "school_detail",
-      description: "Everything about one school: scores vs expectation, verification checks, its recommendation, demonstrator, actions and interview quotes.",
+      description: "Everything about one school: scores vs expectation, verification checks, its recommendation, teacher who can show it, actions and interview quotes.",
       inputSchema: z.object({ name: z.string() }),
       run: ({ name }) => {
         const s = byName(name);
@@ -106,7 +106,7 @@ export function officerTools(st: PipelineState) {
     }),
     betaZodTool({
       name: "practice_evidence",
-      description: "For every coded practice: how many bright-spot vs comparison interviews describe it specifically, probability it is distinctive, verdict, and example quotes.",
+      description: "For every coded method: how many bright-spot vs comparison interviews describe it specifically, probability it is distinctive, verdict, and example quotes.",
       inputSchema: z.object({}),
       run: () =>
         JSON.stringify(
@@ -136,7 +136,7 @@ export function officerTools(st: PipelineState) {
     }),
     betaZodTool({
       name: "pilot_interviews",
-      description: "Real interviews from the live pilot (web voice calls and phone calls): who, status, and the practices coded from them with verbatim quotes.",
+      description: "Real interviews from the live pilot (web voice calls and phone calls): who, status, and the methods coded from them with verbatim quotes.",
       inputSchema: z.object({ limit: z.number().int().min(1).max(30).default(10) }),
       run: async ({ limit }) => {
         const rows = await db.all<Record<string, string>>(`SELECT id, school_name, teacher_name, channel, status, created_at FROM interviews ORDER BY created_at DESC LIMIT ?`, limit);
@@ -159,13 +159,13 @@ export function officerTools(st: PipelineState) {
     }),
     betaZodTool({
       name: "contrast_pairs",
-      description: "Each verified bright spot beside the ordinary school most like it (matched on context), how far each is above or below expectation, what they have in common, and what each teacher said about every practice. Use for 'what does X do that similar schools don't?'.",
-      inputSchema: z.object({ school: z.string().optional().describe("Only the pair for this bright spot"), limit: z.number().int().min(1).max(12).default(4) }),
+      description: "Each verified school doing well beside the ordinary school most like it (matched on context), how far each is above or below expectation, what they have in common, and what each teacher said about every method. Use for 'what does X do that similar schools don't?'.",
+      inputSchema: z.object({ school: z.string().optional().describe("Only the pair for this school doing well"), limit: z.number().int().min(1).max(12).default(4) }),
       run: ({ school, limit }) => {
         const name = (id: string) => st.block.schools.find((s) => s.id === id)?.name ?? id;
         const target = school ? byName(school)?.id : null;
         const pairs = contrastPairs(st).filter((p) => !target || p.bright.schoolId === target || p.comparison.schoolId === target);
-        if (!pairs.length) return school ? `${school} is not a verified bright spot or its match.` : "No interviewed bright spots yet, so there are no pairs.";
+        if (!pairs.length) return school ? `${school} is not a verified school doing well or its match.` : "No interviewed schools doing well yet, so there are no pairs.";
         return JSON.stringify(
           pairs.slice(0, limit).map((p) => ({
             bright_spot: name(p.bright.schoolId),
@@ -181,12 +181,12 @@ export function officerTools(st: PipelineState) {
     }),
     betaZodTool({
       name: "what_if",
-      description: "Estimate what happens if CRPs spread one practice to chosen schools this fortnight: peer visits that fit in CRP time, expected adopters, change in Grade 3 proficiency (points, 90% range) and children reached, with every assumption. Defaults to the schools needing support.",
+      description: "Estimate what happens if CRPs spread one method to chosen schools this fortnight: classroom visits that fit in CRP time, expected adopters, change in Grade 3 proficiency (points, 90% range) and children reached, with every assumption. Defaults to the schools needing support.",
       inputSchema: z.object({
         practice: z.enum(PRACTICE_IDS as [PracticeId, ...PracticeId[]]),
         schools: z.array(z.string()).max(60).optional().describe("School names; omit for all schools needing support"),
         crps: z.number().int().min(0).max(30).default(3),
-        days_each: z.number().int().min(1).max(10).default(3).describe("CRP days per person given to peer visits"),
+        days_each: z.number().int().min(1).max(10).default(3).describe("CRP days per person given to classroom visits"),
       }),
       run: ({ practice, schools, crps, days_each }) => {
         const ids = schools?.length ? schools.map((n) => byName(n)?.id).filter((x): x is string => Boolean(x)) : st.find.struggling;
@@ -204,7 +204,7 @@ export function offlineAnswer(question: string, st: PipelineState): OfficerAnswe
   const names = (ids: string[]) => ids.map((id) => st.block.schools.find((s) => s.id === id)!.name);
   if (/inflat|fake|गलत|बढ़ा/.test(q)) {
     const ids = st.verify.filter((v) => v.verdict === "inflation_suspected").map((v) => v.schoolId);
-    return { answer: `${ids.length} schools reported results that a 15-child spot check did not support. They should be revisited respectfully, not penalised.`, schools: names(ids).slice(0, 8), next_step: "Schedule a second spot check with a different CRP.", owner: "BEO" };
+    return { answer: `${ids.length} schools reported results that a 15-child confirmation visit did not support. They should be revisited respectfully, not penalised.`, schools: names(ids).slice(0, 8), next_step: "Schedule a second confirmation visit with a different CRP.", owner: "BEO" };
   }
   if (/stuck|अटक|barrier|रुका/.test(q)) {
     const rows = st.recs.flatMap((r) => r.actions.filter((a) => a.status === "stuck").map(() => r.schoolId));
@@ -212,7 +212,7 @@ export function offlineAnswer(question: string, st: PipelineState): OfficerAnswe
   }
   if (/practice|what works|तरीक|क्या काम/.test(q)) {
     const d = st.evidence.filter((e) => e.verdict === "distinctive");
-    return { answer: d.length ? `Practices that separate bright spots here: ${d.map((e) => PRACTICES[e.practice].label).join("; ")}.` : "No practice is distinctive yet — more interviews are needed.", schools: [], next_step: "Review the practice cards before they are sent.", owner: "CRP" };
+    return { answer: d.length ? `Methods that separate schools doing well here: ${d.map((e) => PRACTICES[e.practice].label).join("; ")}.` : "No method is distinctive yet — more interviews are needed.", schools: [], next_step: "Review the method cards before they are sent.", owner: "CRP" };
   }
   if (/help|support|struggl|पीछे|कमज़ोर|कमजोर|math|गणित|reading|पढ़/.test(q)) {
     const school = (id: string) => st.block.schools.find((s) => s.id === id)!;
@@ -225,9 +225,9 @@ export function offlineAnswer(question: string, st: PipelineState): OfficerAnswe
       return `${school(r.schoolId).name}${maths || reading ? ` (${Math.round(score(r.schoolId))}%)` : ""} can learn from ${d.teacher} at ${d.name}, ${r.distanceKm.toFixed(1)} km away`;
     });
     const scope = maths ? ", lowest in maths first" : reading ? ", lowest in reading first" : "";
-    return { answer: `${st.find.struggling.length} schools are below what their context predicts. Start with these${scope}: ${pairs.join("; ")}.`, schools: top.map((r) => school(r.schoolId).name), next_step: "Confirm wave-1 peer visits with the CRPs.", owner: "CRP" };
+    return { answer: `${st.find.struggling.length} schools are below what their context predicts. Start with these${scope}: ${pairs.join("; ")}.`, schools: top.map((r) => school(r.schoolId).name), next_step: "Confirm group 1 classroom visits with the CRPs.", owner: "CRP" };
   }
-  return { answer: `${st.bright.length} verified bright spots and ${st.find.struggling.length} schools needing support in ${st.block.name}.`, schools: names(st.bright).slice(0, 8), next_step: "Ask about a cluster, a school, or what works.", owner: null };
+  return { answer: `${st.bright.length} schools confirmed to be doing well and ${st.find.struggling.length} schools needing support in ${st.block.name}.`, schools: names(st.bright).slice(0, 8), next_step: "Ask about a cluster, a school, or what works.", owner: null };
 }
 
 export function guardAnswer(out: OfficerAnswer, st: PipelineState, toolCalls: number) {

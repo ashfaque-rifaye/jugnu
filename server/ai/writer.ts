@@ -74,10 +74,10 @@ export async function draftCard(practice: PracticeId, quotes: CardQuote[]): Prom
     claude: (signal) =>
       askClaude({
         system: `${SAFETY}
-Turn teachers' own descriptions of a classroom routine into a one-page practice card another government-school teacher can use tomorrow.
+Turn teachers' own descriptions of a classroom routine into a one-page method card another government-school teacher can use tomorrow.
 Use ONLY what the quotes say. Every step must cite the quote ids it comes from. Do not add numbers, materials or claims that are not in the quotes.
 Write Hindi in simple spoken style (Devanagari).`,
-        content: `Practice: ${PRACTICES[practice].label}\nQuotes (JSON):\n${JSON.stringify(quotes)}`,
+        content: `Method: ${PRACTICES[practice].label}\nQuotes (JSON):\n${JSON.stringify(quotes)}`,
         schema: CardSchema,
         effort: "medium",
         maxTokens: 6000,
@@ -115,8 +115,8 @@ export async function polishNote(args: { draftHi: string; draftEn: string; pract
     claude: (signal) =>
       askClaude({
         system: `${SAFETY}
-Rewrite a 60-second peer-to-peer voice note from one teacher to another (under 150 words). Keep every fact, every number, the demonstrator's own words and the invitation to visit. Warm, spoken, simple Hindi.`,
-        content: `Practice: ${args.practice}\nDraft (Hindi): ${args.draftHi}\nDraft (English): ${args.draftEn}`,
+Rewrite a 60-second peer-to-peer voice note from one teacher to another (under 150 words). Keep every fact, every number, the teacher who can show it's own words and the invitation to visit. Warm, spoken, simple Hindi.`,
+        content: `Method: ${args.practice}\nDraft (Hindi): ${args.draftHi}\nDraft (English): ${args.draftEn}`,
         schema: NoteSchema,
         effort: "low",
         maxTokens: 3000,

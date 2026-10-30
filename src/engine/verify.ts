@@ -45,7 +45,7 @@ export function runVerify(block: Block, find: FindResult, spotCheck: SpotCheck):
       numeracyPValue = binomTail(sc.numeracyProficient, sc.sampled, Math.min(0.99, numeracyReported));
       const contradicted = Math.min(pValue, numeracyPValue) < 0.01 || Math.max(pValue, numeracyPValue) < 0.05;
       checks.push({
-        name: "Spot check matches",
+        name: "Confirmation visit matches",
         passed: !contradicted,
         detail: `${sc.proficient}/${sc.sampled} read a Std II text (reported ${Math.round(reported * 100)}%), ${sc.numeracyProficient}/${sc.sampled} did 2-digit subtraction (reported ${Math.round(numeracyReported * 100)}%)`,
       });
@@ -55,7 +55,7 @@ export function runVerify(block: Block, find: FindResult, spotCheck: SpotCheck):
       else if (failed.length <= 1) verdict = "verified";
       else verdict = "revisit";
     } else {
-      checks.push({ name: "Spot check", passed: false, detail: "Pending — ask the cluster resource person to visit" });
+      checks.push({ name: "Confirmation visit", passed: false, detail: "Pending — ask the cluster resource person to visit" });
     }
     return {
       schoolId: id,

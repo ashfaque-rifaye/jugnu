@@ -203,7 +203,7 @@ export function Dumbbell({ bright, comparison }: { bright: number; comparison: n
   const W = 260, H = 26;
   const x = (v: number) => 8 + v * (W - 16);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[260px]" role="img" aria-label={`Bright spots ${Math.round(bright * 100)}%, comparison ${Math.round(comparison * 100)}%`}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[260px]" role="img" aria-label={`Schools doing well ${Math.round(bright * 100)}%, comparison ${Math.round(comparison * 100)}%`}>
       <line x1={x(0)} x2={x(1)} y1={H / 2} y2={H / 2} stroke="rgb(var(--fg) / 0.1)" strokeWidth={2} strokeLinecap="round" />
       <line x1={x(Math.min(bright, comparison))} x2={x(Math.max(bright, comparison))} y1={H / 2} y2={H / 2} stroke="rgb(var(--fg) / 0.35)" strokeWidth={2} />
       <circle cx={x(comparison)} cy={H / 2} r={5} fill="#9ca3af" stroke="var(--dot-ring)" strokeWidth={2} />
@@ -247,7 +247,7 @@ export function EffectBars({ rows }: { rows: { label: string; effect: number; ci
           <span className={stacked ? "truncate" : "line-clamp-2"}>{r.label}</span>
         </div>
       ))}
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute inset-0" role="img" aria-label="Estimated effect of each practice with 95% intervals">
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute inset-0" role="img" aria-label="Estimated effect of each method with 95% intervals">
         <line x1={x(0)} x2={x(0)} y1={stacked ? 24 : 8} y2={H - 26} stroke="rgb(var(--fg) / 0.35)" />
         {[lo, 0, hi].map((t) => (
           <text key={t} x={x(t)} y={H - 8} textAnchor="middle" fontSize={12} fill="rgb(var(--fg) / 0.45)">

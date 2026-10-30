@@ -14,7 +14,7 @@ type Cue = [number, number, string];
 
 /** Chapters start where their shot does (8 s shots, 0.6 s crossfades). */
 export const CHAPTERS: { at: number; thumb: string; en: string; hi: string }[] = [
-  { at: 0, thumb: "/film/ch-1.jpg", en: "Bright spots exist", hi: "अच्छे स्कूल हैं" },
+  { at: 0, thumb: "/film/ch-1.jpg", en: "Schools doing well exist", hi: "अच्छे स्कूल हैं" },
   { at: 14.8, thumb: "/film/ch-2.jpg", en: "The officer's problem", hi: "अधिकारी की मुश्किल" },
   { at: 22.2, thumb: "/film/ch-3.jpg", en: "Find", hi: "खोजें" },
   { at: 37, thumb: "/film/ch-4.jpg", en: "Verify", hi: "जाँचें" },

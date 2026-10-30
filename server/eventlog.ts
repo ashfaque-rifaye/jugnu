@@ -2,15 +2,24 @@
 // console), the scheduler (Jugnu's own follow-ups) and the agent's write tools. Everything is
 // validated the same way and free text never keeps phone or ID numbers.
 import { z } from "zod";
-import { scrubPII } from "./ai/guardrails";
+import { cleanAndLog } from "./safety";
 import { db, now } from "./db";
 
 export const BlockKey = z.string().min(1).max(80);
-export const EventKind = z.enum(["action", "spotcheck", "followup", "note"]);
+export const EventKind = z.enum(["action", "spotcheck", "followup", "note", "weekly"]);
 export type EventKind = z.infer<typeof EventKind>;
 
 export const Payloads = {
-  action: z.object({ status: z.enum(["todo", "scheduled", "done", "stuck"]), note: z.string().max(500).optional() }),
+  action: z.object({ status: z.enum(["todo", "scheduled", "submitted", "done", "stuck"]), from: z.string().max(20).optional(), note: z.string().max(500).optional() }),
+  // A school's weekly report, filed by its point of contact.
+  weekly: z.object({
+    method: z.string().max(40).optional(),
+    teachersUsing: z.number().int().min(0).max(60),
+    childrenReached: z.number().int().min(0).max(3000),
+    classes: z.array(z.number().int().min(1).max(5)).max(5),
+    going: z.enum(["well", "mixed", "hard"]),
+    note: z.string().max(500).optional(),
+  }),
   spotcheck: z.object({ sampled: z.number().int().min(5).max(40), proficient: z.number().int().min(0), numeracyProficient: z.number().int().min(0) }),
   followup: z.object({
     outcome: z.enum(["adopted", "trying", "barrier", "no_answer"]),
@@ -46,7 +55,7 @@ export async function writeEvent(block: string, kind: EventKind, ref: string, pa
   const p = parsed.data as Record<string, unknown>;
   if (kind === "spotcheck" && (Number(p.proficient) > Number(p.sampled) || Number(p.numeracyProficient) > Number(p.sampled)))
     throw new EventError("More children passed than were checked");
-  for (const k of ["note", "said", "saidEn", "text"]) if (typeof p[k] === "string") p[k] = scrubPII(p[k] as string).text;
+  for (const k of ["note", "said", "saidEn", "text"]) if (typeof p[k] === "string") p[k] = cleanAndLog(p[k] as string, kind);
   const created = now();
   await db.run(`INSERT INTO events (block, kind, ref, payload, actor, created_at) VALUES (?, ?, ?, ?, ?, ?)`, b.data, kind, ref, JSON.stringify(p), actor?.slice(0, 80) ?? null, created);
   const row = await db.get<{ id: number }>(`SELECT MAX(id) id FROM events WHERE block = ?`, b.data);

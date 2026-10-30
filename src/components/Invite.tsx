@@ -138,8 +138,8 @@ export function InviteForSchool({ school, group, onCreated }: { school: School; 
       <p className="flex items-start gap-2 text-xs text-[var(--color-ink-3)]">
         <ShieldCheck size={14} className="mt-0.5 shrink-0 text-teal-300" />
         {t(
-          "Jugnu asks for consent first; if the teacher says no, nothing is kept. When the interview is done, what the teacher described is added to this school and to “What works”.",
-          "जुगनू पहले अनुमति लेता है; मना करने पर कुछ नहीं रखा जाता। बातचीत पूरी होने पर शिक्षक के बताए तरीके इस स्कूल और “क्या काम करता है” में जुड़ जाते हैं।",
+          "Jugnu asks for consent first; if the teacher says no, nothing is kept. When the interview is done, what the teacher described is added to this school and to “Methods that work”.",
+          "जुगनू पहले अनुमति लेता है; मना करने पर कुछ नहीं रखा जाता। बातचीत पूरी होने पर शिक्षक के बताए तरीके इस स्कूल और “जो तरीके काम करते हैं” में जुड़ जाते हैं।",
         )}
       </p>
     </div>

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { z } from "zod";
-import { scrubPII } from "./ai/guardrails";
+import { cleanAndLog } from "./safety";
 import { rateLimit, requireOfficer } from "./auth";
 import { db, json, now } from "./db";
 
@@ -48,7 +48,7 @@ testing.post("/feedback", rateLimit("feedback", 60, 600000), async (req, res) =>
   const b = body.data;
   await db.run(
     `INSERT INTO feedback (session_id, role, page, kind, task, rating, text, lang, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    b.sessionId ?? null, b.role ?? null, b.page, b.kind, b.task ?? null, b.rating ?? null, b.text ? scrubPII(b.text).text : null, b.lang ?? null, now());
+    b.sessionId ?? null, b.role ?? null, b.page, b.kind, b.task ?? null, b.rating ?? null, b.text ? cleanAndLog(b.text, "comment") : null, b.lang ?? null, now());
   res.json({ ok: true });
 });
 

@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BookOpen,
   BrainCircuit,
   CalendarCheck2,
   ChevronDown,
@@ -40,10 +39,10 @@ import { LogoMark, Wordmark } from "./components/Logo";
 import { FilmPlayer } from "./components/Film";
 import { PasscodeGate } from "./components/Passcode";
 import { cx } from "./components/ui";
-import { Welcome } from "./components/Welcome";
+import { Threshold } from "./components/Threshold";
 import { DAMOH, profileFor } from "./engine/district";
 import { usePoll } from "./lib/api";
-import { markJourney, setWelcomed, useWelcomed } from "./lib/journey";
+import { markJourney } from "./lib/journey";
 import { usePrefs, useT } from "./lib/prefs";
 import { roleName, useRole, type Role } from "./lib/role";
 import { schoolStatuses, STATUS_INFO } from "./lib/status";
@@ -64,7 +63,6 @@ const ResultsPage = lazy(() => import("./pages/Results"));
 const ReviewPage = lazy(() => import("./pages/Review"));
 const TestingPage = lazy(() => import("./pages/Testing"));
 const AIPage = lazy(() => import("./pages/AI"));
-const MethodPage = lazy(() => import("./pages/Method"));
 const DistrictPage = lazy(() => import("./pages/District"));
 const AboutPage = lazy(() => import("./pages/About"));
 
@@ -110,7 +108,7 @@ function Home() {
   );
 }
 
-type NavItem = { to: string; label: string; icon: typeof Stars; badge?: number; n?: string; meta?: string };
+type NavItem = { to: string; label: string; icon: typeof Stars; badge?: number; n?: string; meta?: string; sub?: string };
 
 function Console() {
   const t = useT();
@@ -124,7 +122,6 @@ function Console() {
   const [more, setMore] = useState(false);
   const [role] = useRole();
   const [roleSheet, setRoleSheet] = useState(false);
-  const welcomed = useWelcomed();
   const { state, select, followUps } = usePipeline();
   const session = useSession();
   const mainRef = useRef<HTMLElement>(null);
@@ -150,28 +147,35 @@ function Console() {
 
   const wave1 = state.recs.filter((r) => r.wave === 1).length;
   const LOOP: NavItem[] = [
-    { to: "/schools", n: "1", label: t("Schools", "स्कूल"), icon: SchoolIcon, meta: c.checksDue ? t(`${c.checksDue} due`, `${c.checksDue} बाकी`) : String(c.bright) },
-    { to: "/interviews", n: "2", label: t("Interviews", "बातचीत"), icon: Mic, meta: String(c.heard) },
-    { to: "/practices", n: "3", label: t("What works", "क्या काम करता है"), icon: Stars, meta: String(c.practices) },
-    { to: "/plan", n: "4", label: t("Support plan", "मदद की योजना"), icon: Handshake, meta: `${c.reached}/${wave1}` },
-    { to: "/results", n: "5", label: t("Results", "नतीजे"), icon: LineChart, meta: `${c.calls}/${wave1}` },
+    { to: "/schools", n: "1", label: t("Find schools", "स्कूल देखें"), sub: t("Who is doing well, who needs help", "कौन अच्छा कर रहा, किसे मदद चाहिए"), icon: SchoolIcon, meta: c.checksDue ? t(`${c.checksDue} to visit`, `${c.checksDue} दौरे`) : undefined },
+    { to: "/interviews", n: "2", label: t("Talk to teachers", "शिक्षकों से बात"), sub: t("Ask what they actually do", "पूछें वे क्या करते हैं"), icon: Mic, meta: String(c.heard) },
+    { to: "/practices", n: "3", label: t("Methods that work", "जो तरीके काम करते हैं"), sub: t("Keep what makes the difference", "जिससे फ़र्क पड़े, वही रखें"), icon: Stars, meta: String(c.practices) },
+    { to: "/plan", n: "4", label: t("Share with schools", "स्कूलों तक पहुँचाएँ"), sub: t("Help others do it too", "दूसरों को भी सिखाएँ"), icon: Handshake, meta: `${c.reached}/${wave1}` },
+    { to: "/results", n: "5", label: t("Check progress", "प्रगति देखें"), sub: t("Did children learn more?", "क्या बच्चों ने ज़्यादा सीखा?"), icon: LineChart, meta: `${c.calls}/${wave1}` },
   ];
-  const TOP: NavItem[] = [
-    { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
-    { to: "/review", label: t("Approvals", "मंज़ूरी"), icon: ClipboardCheck, badge: pending?.length ?? 0 },
-    { to: "/district", label: t("District (Damoh)", "ज़िला (दमोह)"), icon: Landmark },
-  ];
+  const mySchool = role?.kind === "head" ? role.schoolId : null;
+  const TOP: NavItem[] = mySchool
+    ? [
+        { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
+        { to: `/schools/${mySchool}`, label: t("My school", "मेरा स्कूल"), icon: SchoolIcon },
+        { to: "/plan", label: t("Our tasks", "हमारे काम"), icon: Handshake },
+        { to: "/practices", label: t("Methods that work", "जो तरीके काम करते हैं"), icon: Stars },
+      ]
+    : [
+        { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
+        { to: "/review", label: t("Approvals", "मंज़ूरी"), icon: ClipboardCheck, badge: pending?.length ?? 0 },
+        { to: "/district", label: t("District (Damoh)", "ज़िला (दमोह)"), icon: Landmark },
+      ];
   const TOOLS: NavItem[] = [
     { to: "/", label: t("Home page", "होम पेज"), icon: House },
-    { to: "/testing", label: t("User testing", "उपयोगकर्ता परीक्षण"), icon: FlaskConical },
-    { to: "/ai", label: t("AI & safety checks", "AI व सुरक्षा जाँच"), icon: BrainCircuit },
-    { to: "/method", label: t("Data & method", "डेटा व पद्धति"), icon: BookOpen },
+    { to: "/testing", label: t("Test lab", "टेस्ट लैब"), icon: FlaskConical },
+    { to: "/ai", label: t("Safety", "सुरक्षा"), icon: BrainCircuit },
     { to: "/about", label: t("About Jugnu", "जुगनू के बारे में"), icon: Info },
   ];
 
   const showTools = toolsOpen || TOOLS.some((x) => x.to !== "/" && location.pathname.startsWith(x.to));
 
-  const navLink = ({ to, label, icon: Icon, badge, n, meta }: NavItem, group: string) => (
+  const navLink = ({ to, label, icon: Icon, badge, n, meta, sub }: NavItem, group: string) => (
     <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("nav-item", isActive && to !== "/" && "active")}>
       {({ isActive }) => (
         <>
@@ -183,7 +187,10 @@ function Console() {
           ) : (
             <Icon size={18} aria-hidden />
           )}
-          <span className={cx("flex-1 truncate", lang === "hi" && "font-deva")}>{label}</span>
+          <span className={cx("min-w-0 flex-1", lang === "hi" && "font-deva")}>
+            <span className="block truncate">{label}</span>
+            {sub && <span className="block truncate text-xs font-normal text-[var(--color-ink-3)]">{sub}</span>}
+          </span>
           {!!badge && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#fcd34d] px-1.5 text-xs font-bold text-[#0b1308]">{badge}</span>}
           {meta && <span className="text-xs font-medium tabular-nums text-[var(--color-ink-3)]">{meta}</span>}
         </>
@@ -199,15 +206,14 @@ function Console() {
       <nav className="space-y-0.5" aria-label={t("Main", "मुख्य")}>
         {TOP.map((x) => navLink(x, "main"))}
       </nav>
-      <div data-tour="nav-loop">
-        <div className="label mb-1.5 flex items-center justify-between px-3">
-          <span>{t("The loop", "चक्र")}</span>
-          <span className="normal-case tracking-normal">{t("this term", "इस सत्र")}</span>
+      {!mySchool && (
+        <div data-tour="nav-loop">
+          <div className="label mb-1.5 px-3">{t("Five steps, every term", "हर सत्र, पाँच कदम")}</div>
+          <nav className="space-y-0.5" aria-label={t("Five steps", "पाँच कदम")}>
+            {LOOP.map((x) => navLink(x, "main"))}
+          </nav>
         </div>
-        <nav className="space-y-0.5" aria-label={t("The loop", "चक्र")}>
-          {LOOP.map((x) => navLink(x, "main"))}
-        </nav>
-      </div>
+      )}
       <button className="btn btn-primary justify-center" onClick={() => setAsk(true)}>
         <MessageCircleQuestion size={16} /> {t("Ask Jugnu", "जुगनू से पूछें")}
       </button>
@@ -240,8 +246,8 @@ function Console() {
   const TABS: NavItem[] = [
     { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
     { to: "/schools", label: t("Schools", "स्कूल"), icon: SchoolIcon },
-    { to: "/plan", label: t("Support plan", "मदद की योजना"), icon: Handshake },
-    { to: "/results", label: t("Results", "नतीजे"), icon: LineChart },
+    { to: "/plan", label: t("Share", "पहुँचाएँ"), icon: Handshake },
+    { to: "/results", label: t("Progress", "प्रगति"), icon: LineChart },
   ];
   const tabMatch = TABS.find((x) => location.pathname === x.to || location.pathname.startsWith(`${x.to}/`));
 
@@ -302,7 +308,7 @@ function Console() {
                 <Route path="/review" element={<ReviewPage />} />
                 <Route path="/testing" element={<TestingPage />} />
                 <Route path="/ai" element={<AIPage />} />
-                <Route path="/method" element={<MethodPage />} />
+                <Route path="/method" element={<Navigate to="/about" replace />} />
                 <Route path="/district" element={<DistrictPage />} />
                 <Route path="/about" element={<AboutPage onTour={() => setFilm(true)} />} />
                 {/* older links */}
@@ -316,10 +322,7 @@ function Console() {
           </motion.div>
         </main>
         <footer className="no-print mx-auto max-w-[1400px] px-6 pb-28 text-xs leading-relaxed text-[var(--color-ink-3)] lg:pb-8">
-          {t("Schools are real (UDISE+). Learning results and teacher names are simulated. Live interviews are real.", "स्कूल असली हैं (UDISE+)। सीखने के नतीजे और शिक्षकों के नाम सिम्युलेटेड हैं। लाइव बातचीत असली है।")}{" "}
-          <NavLink to="/method" className="font-semibold underline underline-offset-2 hover:text-[var(--color-ink)]">
-            {t("Data & method", "डेटा व पद्धति")}
-          </NavLink>
+          {t("Schools and their locations are real (UDISE+). Learning results and teacher names are simulated. Live interviews are real.", "स्कूल और उनकी जगहें असली हैं (UDISE+)। सीखने के नतीजे और शिक्षकों के नाम सिम्युलेटेड हैं। लाइव बातचीत असली है।")}
         </footer>
       </div>
 
@@ -399,8 +402,8 @@ function Console() {
                 </button>
               )}
               <div className="mt-3 rounded-[1.4rem] bg-[var(--inset-bg)] p-1.5">
-                <div className="label px-3 pb-1 pt-1.5">{t("The loop", "चक्र")}</div>
-                {[TOP[1], ...LOOP].map((x) => navLink(x, "sheet"))}
+                <div className="label px-3 pb-1 pt-1.5">{t("Five steps, every term", "हर सत्र, पाँच कदम")}</div>
+                {(mySchool ? TOP.slice(1) : [TOP[1], ...LOOP]).map((x) => navLink(x, "sheet"))}
               </div>
               <div className="mt-2 rounded-[1.4rem] bg-[var(--inset-bg)] p-1.5">
                 {TOOLS.map((x) => navLink(x, "sheet-tools"))}
@@ -424,15 +427,7 @@ function Console() {
       <AgentDock open={ask} onOpen={() => setAsk(true)} onClose={() => setAsk(false)} />
       <LiveToasts />
       <FeedbackButton />
-      <Welcome
-        open={!welcomed || roleSheet}
-        mode={welcomed ? "role" : "full"}
-        onDone={(withTour) => {
-          setRoleSheet(false);
-          if (!welcomed) setWelcomed(true);
-          if (withTour) window.setTimeout(() => tour.start(tourSteps), 350);
-        }}
-      />
+      <Threshold open={!role || roleSheet} closable={!!role} onClose={() => setRoleSheet(false)} />
       <PasscodeGate />
     </>
   );
@@ -520,9 +515,9 @@ function useTourSteps(): TourStep[] {
     const st = school ? status.get(school) : undefined;
     const nextBody: [string, string] =
       st === "check_due"
-        ? ["Record the spot check right here — 15 children, 15 minutes. The school's status changes the moment you save.", "जाँच यहीं दर्ज करें — 15 बच्चे, 15 मिनट। सहेजते ही स्कूल की स्थिति बदल जाती है।"]
+        ? ["Record the confirmation visit right here — 15 children, 15 minutes. The school's status changes the moment you save.", "जाँच यहीं दर्ज करें — 15 बच्चे, 15 मिनट। सहेजते ही स्कूल की स्थिति बदल जाती है।"]
         : st === "bright"
-          ? ["For a bright spot the next step is a 12-minute voice interview: one button creates the WhatsApp link and QR code for the teacher.", "अच्छे स्कूल के लिए अगला कदम 12 मिनट की बातचीत है: एक बटन से शिक्षक के लिए WhatsApp लिंक और QR बनता है।"]
+          ? ["For a school doing well the next step is a 12-minute voice interview: one button creates the WhatsApp link and QR code for the teacher.", "अच्छे स्कूल के लिए अगला कदम 12 मिनट की बातचीत है: एक बटन से शिक्षक के लिए WhatsApp लिंक और QR बनता है।"]
           : ["Every school page opens with one clear next step, and the action to take it.", "हर स्कूल का पेज एक साफ़ अगले कदम से शुरू होता है।"];
     const steps: TourStep[] = [
       {
@@ -535,8 +530,8 @@ function useTourSteps(): TourStep[] {
         target: "rings",
         title: ["This term at a glance", "इस सत्र की झलक"],
         body: [
-          "Three rings fill as the term moves: candidates checked on the spot, struggling schools reached with a practice, and teachers called back on day 14.",
-          "सत्र आगे बढ़ते ही तीन घेरे भरते हैं: मौके पर जाँचे स्कूल, तरीका पहुँचे स्कूल, और 14वें दिन फ़ोन किए गए शिक्षक।",
+          "Three rings fill as the term moves: candidates checked on the spot, struggling schools reached with a method, and teachers called back on day 14.",
+          "सत्र आगे बढ़ते ही तीन घेरे भरते हैं: दौरे से पुष्टि स्कूल, तरीका पहुँचे स्कूल, और 14वें दिन फ़ोन किए गए शिक्षक।",
         ],
       },
       {
@@ -546,8 +541,8 @@ function useTourSteps(): TourStep[] {
       },
       {
         target: "nav-loop",
-        title: ["The loop, in order", "चक्र, क्रम से"],
-        body: ["Schools → Interviews → What works → Support plan → Results. Each page is one step; the numbers show what is waiting.", "स्कूल → बातचीत → क्या काम करता है → मदद की योजना → नतीजे। हर पेज एक कदम है; अंक बताते हैं क्या बाकी है।"],
+        title: ["Five steps, in order", "पाँच कदम, क्रम से"],
+        body: ["Find schools, talk to teachers, keep the methods that work, share them, and check progress. The numbers show what is waiting at each step.", "स्कूल देखें, शिक्षकों से बात करें, काम के तरीके रखें, उन्हें पहुँचाएँ, और प्रगति देखें। अंक बताते हैं हर कदम पर क्या बाकी है।"],
       },
       {
         target: "map",
@@ -558,12 +553,11 @@ function useTourSteps(): TourStep[] {
     if (school)
       steps.push(
         {
-          route: `/schools/${school}`,
-          target: "school-tracker",
-          title: ["Every school has a tracker", "हर स्कूल का ट्रैकर"],
-          body: ["Like a parcel on its way: where this school is in the loop, what is done, and what comes next.", "जैसे रास्ते में पार्सल: स्कूल चक्र में कहाँ है, क्या हो चुका, आगे क्या है।"],
+          route: `/schools/${school}?tab=act`,
+          target: "school-next",
+          title: ["One clear next step", "एक साफ़ अगला कदम"],
+          body: nextBody,
         },
-        { target: "school-next", title: ["One clear next step", "एक साफ़ अगला कदम"], body: nextBody },
       );
     steps.push(
       {
@@ -634,7 +628,7 @@ function LiveToasts() {
       toast({
         meta: t("Live · interview", "लाइव · बातचीत"),
         title: t(`${s?.teacher ?? "A teacher"} finished the interview`, `${s?.teacher ?? "एक शिक्षक"} ने बातचीत पूरी की`),
-        body: t(`${n} practice${n === 1 ? "" : "s"} described${s ? ` · ${s.name}` : ""}. Jugnu has added them to “What works”.`, `${n} तरीके बताए${s ? ` · ${s.name}` : ""}। जुगनू ने इन्हें “क्या काम करता है” में जोड़ा।`),
+        body: t(`${n} method${n === 1 ? "" : "s"} described${s ? ` · ${s.name}` : ""}. Jugnu has added them to “Methods that work”.`, `${n} तरीके बताए${s ? ` · ${s.name}` : ""}। जुगनू ने इन्हें “जो तरीके काम करते हैं” में जोड़ा।`),
         icon: Mic,
         tone: "var(--tone-teal)",
         to: "/interviews",
@@ -667,7 +661,7 @@ function LiveToasts() {
           body: t(`Next: ${STATUS_INFO[st].next[0]}`, `अगला: ${STATUS_INFO[st].next[1]}`),
         });
       else if (e.kind === "followup")
-        toast({ icon: LineChart, tone: "var(--tone-good)", title: t("Follow-up saved for everyone", "फ़ॉलो-अप सबके लिए सहेजा"), body: t("Results and the support plan are updated.", "नतीजे और योजना अपडेट हो गए।"), to: "/results", action: t("See results", "नतीजे देखें") });
+        toast({ icon: LineChart, tone: "var(--tone-good)", title: t("Follow-up saved for everyone", "फ़ॉलो-अप सबके लिए सहेजा"), body: t("Results and the sharing plan are updated.", "नतीजे और योजना अपडेट हो गए।"), to: "/results", action: t("See results", "नतीजे देखें") });
       else if (e.kind === "action" && (e.payload as { status?: string }).status === "stuck")
         toast({ icon: X, tone: "var(--tone-bad)", title: t("Escalated", "ऊपर भेजा"), body: t("The Block Education Officer sees it at the top of Today.", "BEO को यह ‘आज’ में सबसे ऊपर दिखेगा।") });
       else if (e.kind === "action" && e.ref.endsWith("-visit") && (e.payload as { status?: string }).status === "done")
@@ -682,7 +676,7 @@ function RoleBadge({ role, onChange }: { role: Role | null; onChange: () => void
   const t = useT();
   const { state } = usePipeline();
   const name = roleName(role, state.block);
-  const initials = role?.kind === "crp" ? (state.block.schools.find((s) => s.cluster === role.cluster)?.crp ?? "C").split(" ").map((w) => w[0]).slice(0, 2).join("") : role?.kind === "beo" ? "BEO" : "👋";
+  const initials = role?.kind === "crp" ? (state.block.schools.find((s) => s.cluster === role.cluster)?.crp ?? "C").split(" ").map((w) => w[0]).slice(0, 2).join("") : role?.kind === "beo" ? "BEO" : role?.kind === "head" ? "H" : "G";
   return (
     <button className="card-inset flex w-full items-center gap-3 px-2.5 py-2 text-left transition hover:bg-[var(--hover)]" onClick={onChange}>
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-[#0b1308]" style={{ background: "var(--grad-flat)" } as CSSProperties}>

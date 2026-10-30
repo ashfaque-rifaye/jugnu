@@ -794,3 +794,26 @@ main .grid > * { min-width: 0; }
 }
 
 .real-map .maplibregl-ctrl-scale { font-size: 12px; }
+
+/* Native dropdowns: the open list follows the theme instead of showing white on white. */
+select { color: var(--color-ink); }
+select option, select optgroup { background-color: var(--chrome-solid); color: var(--color-ink); }
+
+/* The home page's hero: strong at the foot and left, clear over the teacher and children. */
+.hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(4 6 10 / 0.5) 0%, rgb(4 6 10 / 0) 22%, rgb(4 6 10 / 0) 40%, rgb(4 6 10 / 0.72) 72%, rgb(4 6 10 / 0.92) 100%), linear-gradient(90deg, rgb(4 6 10 / 0.5) 0%, rgb(4 6 10 / 0) 55%); }
+
+/* The doors: the filmstrip you come in through. */
+.door { border-radius: 1.5rem; background: #0b0f17; outline: none; }
+.door:focus-within { box-shadow: inset 0 0 0 2px var(--st-bright); }
+.door-shade { background: linear-gradient(180deg, rgb(4 6 10 / 0.35) 0%, rgb(4 6 10 / 0.72) 100%); }
+.door:hover .door-shade { background: linear-gradient(180deg, rgb(4 6 10 / 0.2) 0%, rgb(4 6 10 / 0.6) 100%); }
+.door-shade-open { background: linear-gradient(180deg, rgb(4 6 10 / 0) 25%, rgb(4 6 10 / 0.6) 55%, rgb(4 6 10 / 0.94) 100%); }
+.door-num { font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: rgb(255 255 255 / 0.65); font-variant-numeric: tabular-nums; }
+.door-title { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; color: #fff; white-space: nowrap; }
+.door-link { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 0.85rem; border-radius: 9999px; font-size: 14px; font-weight: 500; color: rgb(255 255 255 / 0.85); transition: background 0.2s; }
+.door-link:hover { background: rgb(255 255 255 / 0.12); color: #fff; }
+.door-cta { display: inline-flex; align-items: center; gap: 0.5rem; height: 3rem; padding: 0 1.4rem; border-radius: 9999px; background: #fff; color: #0b1308; font-size: 15px; font-weight: 600; transition: transform 0.2s; }
+.door-cta:hover { transform: translateX(3px); }
+.door-select { width: 100%; height: 2.75rem; padding: 0 0.9rem; border-radius: 0.9rem; border: 1px solid rgb(255 255 255 / 0.28); background: rgb(11 15 23 / 0.75); color: #fff; font-size: 15px; outline: none; backdrop-filter: blur(10px); }
+.door-select:focus { border-color: var(--st-bright); }
+.door-select option { background: #0b0f17; color: #fff; }

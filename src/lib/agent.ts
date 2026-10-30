@@ -51,8 +51,8 @@ export function buildBriefing(st: PipelineState, events: BlockEvent[], t: T, hi:
   const due = count("check_due");
   lines.push(
     due
-      ? t(`${bright} bright spots are verified, and ${due} more need a spot check before anyone visits them.`, `${bright} अच्छे स्कूल पक्के हो चुके हैं, और ${due} की मौके पर जाँच बाकी है।`)
-      : t(`${bright} bright spots are verified.`, `${bright} अच्छे स्कूल पक्के हो चुके हैं।`),
+      ? t(`${bright} schools doing well are verified, and ${due} more need a confirmation visit before anyone visits them.`, `${bright} अच्छे स्कूल पक्के हो चुके हैं, और ${due} की मौके पर जाँच बाकी है।`)
+      : t(`${bright} schools doing well are verified.`, `${bright} अच्छे स्कूल पक्के हो चुके हैं।`),
   );
 
   const actions: (Action & { wave: number })[] = st.recs.flatMap((r) => r.actions.map((a) => ({ ...a, wave: r.wave })));
@@ -67,13 +67,13 @@ export function buildBriefing(st: PipelineState, events: BlockEvent[], t: T, hi:
     );
   }
   const visits = actions.filter((a) => a.wave === 1 && a.ownerRole === "CRP" && (a.status === "todo" || a.status === "scheduled")).length;
-  if (visits) lines.push(t(`${visits} peer visits are still to happen this term.`, `इस सत्र में ${visits} शिक्षक-भ्रमण अभी बाकी हैं।`));
+  if (visits) lines.push(t(`${visits} classroom visits are still to happen this term.`, `इस सत्र में ${visits} शिक्षक-भ्रमण अभी बाकी हैं।`));
 
   const calls = events.filter((e) => e.kind === "followup");
   if (calls.length) {
     const by = (o: string) => calls.filter((e) => (e.payload as { outcome?: string }).outcome === o).length;
     const working = by("adopted") + by("trying");
-    lines.push(t(`Follow-up calls: ${working} of ${calls.length} teachers say the new practice is working.`, `फ़ॉलो-अप कॉल: ${calls.length} में से ${working} शिक्षक कहते हैं नया तरीका काम कर रहा है।`));
+    lines.push(t(`Follow-up calls: ${working} of ${calls.length} teachers say the new method is working.`, `फ़ॉलो-अप कॉल: ${calls.length} में से ${working} शिक्षक कहते हैं नया तरीका काम कर रहा है।`));
     const barrier = [...calls].reverse().find((e) => (e.payload as { outcome?: string }).outcome === "barrier");
     if (barrier) {
       const p = barrier.payload as { summary?: [string, string]; barrierOwner?: string };
@@ -84,7 +84,7 @@ export function buildBriefing(st: PipelineState, events: BlockEvent[], t: T, hi:
   }
 
   const checks = events.filter((e) => e.kind === "spotcheck").length;
-  if (checks) lines.push(t(`${checks} spot check${checks === 1 ? " was" : "s were"} recorded.`, `${checks} जाँच दर्ज हुईं।`));
+  if (checks) lines.push(t(`${checks} confirmation visit${checks === 1 ? " was" : "s were"} recorded.`, `${checks} जाँच दर्ज हुईं।`));
 
   const withAtt = st.block.schools.filter((s) => s.attendanceByCycle?.length);
   if (withAtt.length) {
@@ -94,11 +94,11 @@ export function buildBriefing(st: PipelineState, events: BlockEvent[], t: T, hi:
   }
 
   const top = st.evidence.find((e) => e.verdict === "distinctive");
-  if (top) lines.push(t(`What works here: ${practiceLabel(top.practice)}.`, `यहाँ जो काम करता है: ${practiceLabel(top.practice, true)}।`));
+  if (top) lines.push(t(`Methods that work here: ${practiceLabel(top.practice)}.`, `यहाँ जो काम करता है: ${practiceLabel(top.practice, true)}।`));
 
   lines.push(
     due
-      ? t("Shall I open the schools that need a spot check?", "क्या जाँच वाले स्कूल खोलूँ?")
+      ? t("Shall I open the schools that need a confirmation visit?", "क्या जाँच वाले स्कूल खोलूँ?")
       : stuck.length
         ? t("Shall I open the stuck actions?", "क्या अटके काम खोलूँ?")
         : t("Ask me anything, or tell me where to go.", "कुछ भी पूछें, या बताएँ कहाँ चलना है।"),
@@ -115,9 +115,9 @@ export function briefingFacts(st: PipelineState, events: BlockEvent[]): string[]
   const name = (id: string) => st.block.schools.find((x) => x.id === id)?.name ?? id;
   const of = (k: string) => st.block.schools.filter((s) => status.get(s.id) === k).map((s) => s.name);
   const due = of("check_due");
-  if (due.length) facts.push(`Waiting for a spot check: ${due.slice(0, 4).join(", ")}${due.length > 4 ? ` and ${due.length - 4} more` : ""}.`);
+  if (due.length) facts.push(`Waiting for a confirmation visit: ${due.slice(0, 4).join(", ")}${due.length > 4 ? ` and ${due.length - 4} more` : ""}.`);
   const dataCheck = of("check_data");
-  if (dataCheck.length) facts.push(`Reported results look too good to be true at ${dataCheck.slice(0, 3).join(", ")} — the spot check disagreed.`);
+  if (dataCheck.length) facts.push(`Reported results look too good to be true at ${dataCheck.slice(0, 3).join(", ")} — the confirmation visit disagreed.`);
   facts.push(`${of("support").length} schools are getting help this term from a nearby school that does better.`);
   const actions = st.recs.flatMap((r) => r.actions);
   for (const a of actions.filter((x) => x.status === "stuck").slice(0, 3)) facts.push(`Stuck: "${a.task}" at ${name(a.schoolId)}; owner ${a.owner} (${a.ownerRole})${a.note ? `; note: ${a.note}` : ""}.`);

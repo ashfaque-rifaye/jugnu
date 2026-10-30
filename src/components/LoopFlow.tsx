@@ -19,13 +19,13 @@ export function LoopFlow({ compact = false, onEnter }: { compact?: boolean; onEn
     { n: c.candidates, label: t("do better than expected, year after year", "साल-दर-साल अपेक्षा से बेहतर"), to: "/schools", tone: "var(--st-check-due)" },
     {
       n: c.bright,
-      label: t("checked on the spot: bright spots", "मौके पर जाँचे: अच्छे स्कूल"),
+      label: t("confirmed by a visit: doing well", "दौरे से पुष्टि: अच्छा कर रहे"),
       sub: c.checksDue ? t(`${c.checksDue} checks still due`, `${c.checksDue} जाँच बाकी`) : undefined,
       to: "/schools?status=bright",
       tone: "var(--st-bright)",
     },
     { n: c.heard, label: t("teachers interviewed", "शिक्षकों से बातचीत"), to: "/interviews", tone: "var(--tone-teal)" },
-    { n: c.practices, label: t("practices worth spreading", "फैलाने लायक तरीके"), to: "/practices", tone: "var(--tone-lime)" },
+    { n: c.practices, label: t("methods worth spreading", "फैलाने लायक तरीके"), to: "/practices", tone: "var(--tone-lime)" },
     {
       n: c.support,
       label: t("schools learning one from a teacher nearby", "स्कूल पास के शिक्षक से एक तरीका सीख रहे"),

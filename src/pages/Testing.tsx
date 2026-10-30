@@ -1,12 +1,11 @@
-// User-testing mode for sessions with real teachers, CRPs and BEOs: consent, role-specific tasks
-// (done easily / with help / couldn't), the System Usability Scale in Hindi or English, and a
-// results dashboard with the "you said → we changed" log — the evidence judges ask for.
-import { CheckCircle2, ClipboardList, Download, ExternalLink, Loader2, Play, Square } from "lucide-react";
+// The test lab: every feature tried for real and marked as working or not, the "you said, we changed"
+// log, and sessions with real teachers, coordinators and officers (consent, tasks, a short survey).
+import { CheckCircle2, ClipboardList, Download, ExternalLink, Loader2, Play, Square, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { sendFeedback, useSession, VoiceText, type Role } from "../components/Feedback";
 import { Glass, SectionTitle, StatTile, cx } from "../components/ui";
-import { postJSON, usePoll } from "../lib/api";
+import { getJSON, postJSON, usePoll } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
 
@@ -63,26 +62,193 @@ const ROLES: [Role, string, string][] = [
   ["other", "Other", "अन्य"],
 ];
 
+interface Scenario {
+  id: string;
+  group: [string, string];
+  title: [string, string];
+  how: [string, string];
+  to?: string;
+  external?: boolean;
+  run?: "call" | "health";
+}
+
+// Real features, used for real: nothing here is simulated, so a pass means it works.
+const SCENARIOS: Scenario[] = [
+  { id: "lab-call", group: ["Calls and voice", "कॉल और आवाज़"], title: ["Call a phone", "फ़ोन पर कॉल करें"], how: ["Rings a real phone. Jugnu speaks Hindi, listens, and has the conversation.", "असली फ़ोन पर घंटी बजती है। जुगनू हिंदी में बोलता है, सुनता है और बातचीत करता है।"], run: "call" },
+  { id: "lab-link", group: ["Calls and voice", "कॉल और आवाज़"], title: ["Talk through a link", "लिंक से बात करें"], how: ["Open the teacher's page and answer by voice or typing.", "शिक्षक का पेज खोलें और बोलकर या लिखकर जवाब दें।"], to: "/talk", external: true },
+  { id: "lab-listen", group: ["Calls and voice", "कॉल और आवाज़"], title: ["Listen to a voice note", "वॉइस नोट सुनें"], how: ["Press Listen. The words should light up as they are read, and Stop should stop it.", "सुनें दबाएँ। पढ़ते समय शब्द चमकने चाहिए, और बंद करने पर रुकना चाहिए।"], to: "/review" },
+  { id: "lab-ask", group: ["Calls and voice", "कॉल और आवाज़"], title: ["Ask Jugnu a question", "जुगनू से सवाल पूछें"], how: ["Ask which schools need help with maths, and who can show them.", "पूछें किन स्कूलों को गणित में मदद चाहिए और कौन दिखा सकता है।"], to: "/today?ask=1" },
+  { id: "lab-ai", group: ["Calls and voice", "कॉल और आवाज़"], title: ["Check the AI services", "AI सेवाएँ जाँचें"], how: ["Makes one small real request to each service.", "हर सेवा को एक छोटा असली अनुरोध भेजता है।"], run: "health" },
+  { id: "lab-approve", group: ["Approve and share", "मंज़ूर करें और पहुँचाएँ"], title: ["Approve a draft", "ड्राफ़्ट मंज़ूर करें"], how: ["Approve one voice note. The count at the top should change.", "एक वॉइस नोट मंज़ूर करें। ऊपर की गिनती बदलनी चाहिए।"], to: "/review" },
+  { id: "lab-rollout", group: ["Approve and share", "मंज़ूर करें और पहुँचाएँ"], title: ["Follow a rollout", "रोलआउट देखें"], how: ["Open an approved method. Can you see who does what, and how far it has got?", "कोई मंज़ूर तरीका खोलें। क्या दिखता है कौन क्या करेगा, और कितना हुआ?"], to: "/plan" },
+  { id: "lab-board", group: ["Approve and share", "मंज़ूर करें और पहुँचाएँ"], title: ["Drag a task, then sign it off", "काम खींचें, फिर पुष्टि करें"], how: ["Drag a card to Done as a school head: it should wait for sign-off. Sign it off as the BEO.", "प्रधानाध्यापक बनकर कार्ड को 'पूरा' में खींचें: उसे पुष्टि का इंतज़ार करना चाहिए। फिर BEO बनकर पुष्टि करें।"], to: "/plan?view=board" },
+  { id: "lab-audit", group: ["Approve and share", "मंज़ूर करें और पहुँचाएँ"], title: ["Find a change in the history", "इतिहास में बदलाव खोजें"], how: ["The move you just made should appear, with who did it and when.", "आपका बदलाव दिखना चाहिए, किसने और कब किया।"], to: "/plan?view=history" },
+  { id: "lab-visit", group: ["In the field", "मैदान में"], title: ["Record a school visit", "स्कूल का दौरा दर्ज करें"], how: ["Enter how many of 15 children read and did the sum. The school's status should change.", "15 में से कितने बच्चों ने पढ़ा और सवाल किया, भरें। स्कूल की स्थिति बदलनी चाहिए।"], to: "/schools?status=check_due" },
+  { id: "lab-weekly", group: ["In the field", "मैदान में"], title: ["Send a weekly report", "साप्ताहिक रिपोर्ट भेजें"], how: ["Open a school's People tab, and send the report. It should count in the rollout.", "स्कूल का 'लोग' टैब खोलें और रिपोर्ट भेजें। यह रोलआउट में गिननी चाहिए।"], to: "/schools" },
+  { id: "lab-safety", group: ["In the field", "मैदान में"], title: ["Try the safety filter", "सुरक्षा फ़िल्टर आज़माएँ"], how: ["Say or type a phone number. It should be removed.", "फ़ोन नंबर बोलें या लिखें। वह हट जाना चाहिए।"], to: "/ai" },
+];
+
 export default function TestingPage() {
   const t = useT();
+  const { lang } = usePrefs();
   const session = useSession();
+  const hi = lang === "hi" && "font-deva";
   return (
     <div className="space-y-5">
-      <Glass strong className="p-5 md:p-7">
-        <div className="label">{t("User testing", "उपयोगकर्ता परीक्षण")}</div>
-        <h1 className="text-[1.9rem] font-semibold leading-tight tracking-[-0.035em]">{t("Test Jugnu with the people who will use it", "जुगनू को उन लोगों के साथ परखें जो इसे इस्तेमाल करेंगे")}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-[var(--color-ink-2)]">
-          {t(
-            "A 20-minute session: consent, three or four real tasks, a 10-question usability survey, and open comments by voice. Every rating and comment is tagged with the role and page, and what we change because of it is logged below.",
-            "20 मिनट का सत्र: अनुमति, तीन-चार असली काम, 10 सवालों का उपयोगिता सर्वे, और आवाज़ में खुली राय। हर राय पर भूमिका और पेज दर्ज होता है, और उससे जो बदला गया वह नीचे लिखा जाता है।",
-          )}
+      <div>
+        <h1 className="text-[1.9rem] font-semibold leading-tight tracking-[-0.035em]">{t("Test lab", "टेस्ट लैब")}</h1>
+        <p className={cx("mt-1 max-w-3xl text-[15px] text-[var(--color-ink-2)]", hi)}>
+          {t("Try each feature for real and record what happened. Calls ring real phones and saves are shared with everyone, so nothing here is pretend.", "हर सुविधा असल में आज़माएँ और जो हुआ वह दर्ज करें। कॉल असली फ़ोन पर जाती है और सहेजा हुआ सबको दिखता है, इसलिए यहाँ कुछ भी नकली नहीं।")}
         </p>
-      </Glass>
-      {session.id && session.role ? <ActiveSession role={session.role} id={session.id} onEnd={session.end} /> : <StartSession onStart={session.begin} />}
+      </div>
+      <Scenarios />
       <Changes />
       <ResetDemo />
-      <Results />
+      <details className="card p-5">
+        <summary className={cx("tap-link cursor-pointer font-semibold", hi)}>{t("Run a session with a person", "किसी व्यक्ति के साथ सत्र करें")}</summary>
+        <p className={cx("mt-1 text-sm text-[var(--color-ink-2)]", hi)}>{t("A 20-minute session with a teacher, coordinator or officer: consent, a few tasks, and a short survey.", "शिक्षक, समन्वयक या अधिकारी के साथ 20 मिनट का सत्र: अनुमति, कुछ काम, और छोटा सर्वे।")}</p>
+        <div className="mt-4 space-y-5">
+          {session.id && session.role ? <ActiveSession role={session.role} id={session.id} onEnd={session.end} /> : <StartSession onStart={session.begin} />}
+          <Results />
+        </div>
+      </details>
     </div>
+  );
+}
+
+function Scenarios() {
+  const t = useT();
+  const { lang } = usePrefs();
+  const hi = lang === "hi" && "font-deva";
+  const [summary, , reload] = usePoll<Summary>("/api/testing/summary", 20000);
+  const groups = [...new Map(SCENARIOS.map((x) => [x.group[0], x.group])).values()];
+  const score = (id: string) => summary?.tasks.find((k) => k.task === id);
+  const tried = SCENARIOS.filter((x) => score(x.id)).length;
+  const problems = SCENARIOS.filter((x) => {
+    const k = score(x.id);
+    return k && k.done < k.total;
+  }).length;
+  return (
+    <div className="space-y-4">
+      <div className="card flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
+        <span className={cx("text-sm", hi)}>
+          <b className="font-display text-xl tabular-nums">{tried}</b> <span className="text-[var(--color-ink-2)]">{t(`of ${SCENARIOS.length} tried`, `${SCENARIOS.length} में से आज़माए`)}</span>
+        </span>
+        <span className={cx("text-sm", hi)}>
+          <b className="font-display text-xl tabular-nums" style={problems ? { color: "var(--tone-bad)" } : undefined}>{problems}</b> <span className="text-[var(--color-ink-2)]">{t("with a problem", "में समस्या")}</span>
+        </span>
+      </div>
+      {groups.map((g) => (
+        <section key={g[0]}>
+          <h2 className={cx("label mb-2 px-1", hi)}>{t(...g)}</h2>
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {SCENARIOS.filter((x) => x.group[0] === g[0]).map((x) => (
+              <ScenarioCard key={x.id} x={x} result={score(x.id)} onSaved={reload} />
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ScenarioCard({ x, result, onSaved }: { x: Scenario; result?: { done: number; total: number }; onSaved: () => void }) {
+  const t = useT();
+  const { lang } = usePrefs();
+  const hi = lang === "hi" && "font-deva";
+  const [note, setNote] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [phone, setPhone] = useState("+91");
+  const [busy, setBusy] = useState(false);
+  const [out, setOut] = useState<{ ok: boolean; text: string } | null>(null);
+  const [saved, setSaved] = useState<number | null>(null);
+  const mark = async (rating: number, text?: string) => {
+    await sendFeedback({ page: x.to ?? "/testing", kind: "task", task: x.id, rating, text: text || null, lang }).catch(() => {});
+    setSaved(rating);
+    setAsking(false);
+    setNote("");
+    onSaved();
+  };
+  const call = async () => {
+    setBusy(true);
+    setOut(null);
+    try {
+      await postJSON("/api/ivr/call", { to: phone, teacherName: "Test lab", schoolName: "Test lab", group: "live", language: "hi" });
+      setOut({ ok: true, text: t("Ringing now. Answer the phone and say yes to begin.", "घंटी जा रही है। फ़ोन उठाकर हाँ बोलें।") });
+    } catch (e) {
+      setOut({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const health = async () => {
+    setBusy(true);
+    setOut(null);
+    try {
+      const h = await getJSON<{ ok: boolean; claude: { ok: boolean }; speaking: { ok: boolean }; listening: { ok: boolean } }>("/api/ai/health");
+      const word = (ok: boolean) => (ok ? t("working", "चालू") : t("not working", "बंद"));
+      setOut({ ok: h.ok, text: t(`Thinking: ${word(h.claude.ok)} · Speaking: ${word(h.speaking.ok)} · Listening: ${word(h.listening.ok)}`, `सोचना: ${word(h.claude.ok)} · बोलना: ${word(h.speaking.ok)} · सुनना: ${word(h.listening.ok)}`) });
+    } catch (e) {
+      setOut({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const last = saved ?? (result ? (result.done === result.total ? 5 : 1) : null);
+  return (
+    <li className="card flex flex-col p-4">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className={cx("font-semibold", hi)}>{t(...x.title)}</h3>
+        {last != null && (
+          <span className={cx("chip shrink-0 !text-xs", hi)} style={{ color: last >= 4 ? "var(--tone-good)" : "var(--tone-bad)" }}>
+            {last >= 4 ? <CheckCircle2 size={12} /> : <TriangleAlert size={12} />} {last >= 4 ? t("Worked", "चला") : t("Problem", "समस्या")}
+          </span>
+        )}
+      </div>
+      <p className={cx("mt-1 flex-1 text-sm text-[var(--color-ink-2)]", hi)}>{t(...x.how)}</p>
+      <div className="mt-3">
+        {x.run === "call" && (
+          <div className="flex gap-2">
+            <input className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-[var(--inset-bg)] px-3 py-2 font-mono text-sm outline-none" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" aria-label={t("Mobile number", "मोबाइल नंबर")} />
+            <button className="btn btn-primary" onClick={call} disabled={busy || phone.length < 10}>
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />} {t("Call", "कॉल")}
+            </button>
+          </div>
+        )}
+        {x.run === "health" && (
+          <button className="btn btn-primary" onClick={health} disabled={busy}>
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />} {t("Run the check", "जाँच चलाएँ")}
+          </button>
+        )}
+        {x.to && (
+          <Link className="btn btn-glass" to={x.to} target={x.external ? "_blank" : undefined}>
+            <ExternalLink size={14} /> {t("Open", "खोलें")}
+          </Link>
+        )}
+        {out && <p className={cx("mt-2 text-sm", hi)} style={{ color: out.ok ? "var(--tone-good)" : "var(--tone-bad)" }}>{out.text}</p>}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[var(--line)] pt-3">
+        <span className={cx("mr-1 text-xs text-[var(--color-ink-3)]", hi)}>{t("Did it work?", "क्या चला?")}</span>
+        <button className="chip" onClick={() => void mark(5)}>
+          <CheckCircle2 size={12} /> {t("Yes", "हाँ")}
+        </button>
+        <button className="chip" onClick={() => setAsking((v) => !v)}>
+          <TriangleAlert size={12} /> {t("No", "नहीं")}
+        </button>
+      </div>
+      {asking && (
+        <form
+          className="mt-2 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void mark(1, note.trim());
+          }}
+        >
+          <input className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-[var(--inset-bg)] px-3 py-2 text-sm outline-none" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("What went wrong?", "क्या गलत हुआ?")} autoFocus />
+          <button className="btn btn-primary">{t("Save", "सहेजें")}</button>
+        </form>
+      )}
+    </li>
   );
 }
 

@@ -33,10 +33,10 @@ describe("what-if", () => {
     expect(many.upliftPts.hi).toBeGreaterThanOrEqual(many.upliftPts.mean);
     expect(few.effectSource).toBe("planning");
   });
-  it("uses the measured wave-1 effect once Track has run", () => {
+  it("uses the measured group 1 effect once Track has run", () => {
     const tracked = runTrackStage(st);
     const r = whatIf(tracked, { practice, schoolIds: targets, crps: 3 });
-    expect(r.assumptions.some((a) => a.startsWith("Adoption from wave 1"))).toBe(true);
+    expect(r.assumptions.some((a) => a.startsWith("Adoption from group 1"))).toBe(true);
     expect(["wave1", "planning"]).toContain(r.effectSource);
   });
   it("is honest when nothing can be visited", () => {

@@ -8,7 +8,7 @@ import { DEFAULT_SEED } from "../src/engine/district";
 import { runPipeline } from "../src/engine/pipeline";
 import { PRACTICES, PRACTICE_IDS, type PracticeId } from "../src/engine/practices";
 import type { Check } from "./ai/guardrails";
-import { draftCard, guardNote, polishNote, type CardQuote } from "./ai/writer";
+import { draftCard, guardNote, offlineCard, polishNote, type CardQuote } from "./ai/writer";
 import { requireOfficer, rateLimit } from "./auth";
 import { db, json, now } from "./db";
 
@@ -26,7 +26,19 @@ async function enqueue(kind: string, ref: string | null, payload: unknown, check
 let demoSeeded = false;
 async function seedDemoDrafts() {
   if (demoSeeded) return;
-  const { recs } = runPipeline(generateBlock(DEFAULT_SEED));
+  const { recs, evidence, block } = runPipeline(generateBlock(DEFAULT_SEED));
+  // The methods the block has already approved, so their rollout can be followed from day one.
+  const day = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+  for (const [i, e] of evidence.filter((x) => x.verdict === "distinctive" && x.quotes.length).slice(0, 3).entries()) {
+    const quotes: CardQuote[] = e.quotes.slice(0, 5).map((q, k) => {
+      const s = block.schools.find((x) => x.id === q.schoolId);
+      return { id: k + 1, school: `${s?.teacher ?? ""}, ${s?.village ?? ""}`, quote: q.quote };
+    });
+    await db.run(
+      `INSERT INTO reviews (id, kind, ref, payload, checks, status, reviewer, created_at, decided_at) SELECT ?, ?, ?, ?, ?, 'approved', ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM reviews WHERE kind = 'practice_card' AND ref = '${e.practice}')`,
+      `demo-card-${e.practice}`, "practice_card", e.practice, JSON.stringify({ card: offlineCard(e.practice, quotes), quotes, demo: true, source: "offline" }), "[]", "Block Education Officer", day(9 - i), day(8 - i),
+    );
+  }
   for (const r of recs.filter((x) => x.wave === 1).slice(0, 3)) {
     const note = { voice_hi: r.voiceNoteHi, voice_en: r.voiceNoteEn };
     const payload = { ...note, draftHi: r.voiceNoteHi, practice: PRACTICES[r.practice].label, demo: true, source: "offline" };
@@ -48,9 +60,15 @@ reviews.get("/", async (req, res) => {
   res.json(rows.map((r) => ({ ...r, payload: json(r.payload, {}), checks: json(r.checks, []) })));
 });
 
+/** Remove a draft for good (test runs clean up after themselves). */
+reviews.delete("/:id", async (req, res) => {
+  await db.run(`DELETE FROM reviews WHERE id = ?`, String(req.params.id));
+  res.json({ ok: true });
+});
+
 reviews.post("/card", rateLimit("ai", 120, 600000), async (req, res) => {
   const body = z.object({ practice: z.enum(PRACTICE_IDS as [PracticeId, ...PracticeId[]]), quotes: z.array(z.object({ school: z.string(), quote: z.string() })).min(1).max(12) }).safeParse(req.body);
-  if (!body.success) return res.status(400).json({ error: "practice and at least one quote are required" });
+  if (!body.success) return res.status(400).json({ error: "method and at least one quote are required" });
   const quotes: CardQuote[] = body.data.quotes.map((q, i) => ({ id: i + 1, ...q }));
   const out = await draftCard(body.data.practice, quotes);
   const id = await enqueue("practice_card", body.data.practice, { card: out.value, quotes }, out.checks, out.source);
@@ -59,7 +77,7 @@ reviews.post("/card", rateLimit("ai", 120, 600000), async (req, res) => {
 
 reviews.post("/voice-note", rateLimit("ai", 120, 600000), async (req, res) => {
   const body = z.object({ draftHi: z.string().min(1), draftEn: z.string(), practice: z.string(), schoolId: z.string().optional() }).safeParse(req.body);
-  if (!body.success) return res.status(400).json({ error: "draftHi, draftEn and practice are required" });
+  if (!body.success) return res.status(400).json({ error: "draftHi, draftEn and method are required" });
   const out = await polishNote({ ...body.data, ref: body.data.schoolId });
   const id = await enqueue("voice_note", body.data.schoolId ?? null, { ...out.value, draftHi: body.data.draftHi, practice: body.data.practice }, out.checks, out.source);
   res.json({ id, ...out });

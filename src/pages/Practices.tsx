@@ -1,16 +1,17 @@
-import { ChevronDown, Eye, EyeOff, FileCheck2, Loader2, Quote, Sparkles, Stars } from "lucide-react";
-import { PairsCard } from "../components/insights";
-import { useState } from "react";
+// Methods that work: written for a teacher. What it is, what it does for children, how to start
+// tomorrow, and a colleague's own words. The numbers are plain counts from this block.
+import { ArrowRight, ChevronDown, Coins, FileCheck2, GraduationCap, Loader2, Quote, Sparkles, Stars, Users } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Dumbbell } from "../components/charts";
-import { Card, Empty, PageHeader } from "../components/kit";
+import { Card, Empty, PageHeader, Meter } from "../components/kit";
 import { cx } from "../components/ui";
-import { EFFECTIVE, PRACTICES } from "../engine/practices";
+import { PRACTICES } from "../engine/practices";
+import { schoolOverall } from "../engine/subjects";
 import type { PracticeEvidence } from "../engine/types";
 import { postJSON, usePoll } from "../lib/api";
+import { METHOD_WORDS } from "../lib/methods";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
-import { tint } from "../lib/status";
 
 interface ReviewItem {
   id: string;
@@ -22,8 +23,7 @@ interface ReviewItem {
 export default function PracticesPage() {
   const t = useT();
   const { lang } = usePrefs();
-  const { state, evaluation, live } = usePipeline();
-  const [reveal, setReveal] = useState(false);
+  const { state, live } = usePipeline();
   const [showRest, setShowRest] = useState(false);
   const [reviews, , reload] = usePoll<ReviewItem[]>("/api/reviews?status=all", 15000);
   const distinctive = state.evidence.filter((e) => e.verdict === "distinctive");
@@ -34,53 +34,28 @@ export default function PracticesPage() {
   return (
     <div>
       <PageHeader
-        title={t("What works here", "यहाँ क्या काम करता है")}
+        title={t("Methods that work", "जो तरीके काम करते हैं")}
         sub={t(
-          "Not “best practices” from elsewhere — the routines that bright-spot teachers in this block describe in concrete detail, and that similar ordinary schools don't. Each comes with the teachers' own words.",
-          "कहीं और के “सबसे अच्छे तरीके” नहीं — वे रोज़ के तरीके जो इस ब्लॉक के अच्छे स्कूलों के शिक्षक ठोस रूप से बताते हैं, और उन जैसे सामान्य स्कूल नहीं करते। हर तरीके के साथ शिक्षकों के अपने शब्द।",
+          `Simple things teachers in ${state.block.name} already do that help children learn more. We asked teachers what they do, and kept only what teachers at schools doing well do and others don't.`,
+          `${state.block.name} के शिक्षक पहले से जो सरल काम करते हैं और जिनसे बच्चे ज़्यादा सीखते हैं। हमने शिक्षकों से पूछा कि वे क्या करते हैं, और वही रखा जो अच्छा कर रहे स्कूलों के शिक्षक करते हैं और बाकी नहीं।`,
         )}
-        actions={
-          state.block.truth ? (
-            <button
-              className="btn btn-glass"
-              onClick={() => setReveal((v) => !v)}
-              title={t("Only in the simulated block: compare with the practices that truly work", "सिर्फ़ सिम्युलेटेड ब्लॉक में: असल में काम करने वाले तरीकों से तुलना")}
-            >
-              {reveal ? <Eye size={16} /> : <EyeOff size={16} />} {t("Check against hidden truth", "छिपे सच से जाँचें")}
-            </button>
-          ) : undefined
-        }
       />
 
-      {reveal && evaluation && (
-        <div className="card mb-4 border-dashed p-4 text-sm text-[var(--color-ink-2)]">
-          {t("In this simulation the practices that truly help are", "इस सिम्युलेशन में असल में मदद करने वाले तरीके")}: {EFFECTIVE.map((p) => PRACTICES[p].label).join(", ")}.{" "}
-          {t("Jugnu found", "जुगनू ने खोजे")}: <b className="text-white">{evaluation.practices.found.map((p) => PRACTICES[p].label).join(", ") || "—"}</b>
-          {evaluation.practices.missed.length ? ` · ${t("not yet found", "अभी नहीं मिले")}: ${evaluation.practices.missed.map((p) => PRACTICES[p].label).join(", ")}` : ""} ·{" "}
-          {t("decoys wrongly promoted", "गलती से चुने गए नकली तरीके")}: <b className="text-white">{evaluation.practices.falseDistinctive.length || t("none", "कोई नहीं")}</b>
-        </div>
-      )}
-
       {!state.interviews.length ? (
-        <Empty icon={Stars} title={t("No interviews yet", "अभी कोई बातचीत नहीं")}>
-          {t(
-            "Interview bright-spot teachers (and similar ordinary schools) first — open a bright spot on the Schools page and press “Invite for interview”.",
-            "पहले अच्छे स्कूलों (और उन जैसे सामान्य स्कूलों) के शिक्षकों से बात करें — 'स्कूल' पेज पर अच्छा स्कूल खोलें और “बातचीत के लिए बुलाएँ” दबाएँ।",
-          )}
+        <Empty icon={Stars} title={t("No conversations yet", "अभी कोई बातचीत नहीं")}>
+          {t("Talk to teachers at schools doing well first. Open such a school from the Schools page and invite the teacher.", "पहले अच्छा कर रहे स्कूलों के शिक्षकों से बात करें। 'स्कूल' पेज से ऐसा स्कूल खोलकर शिक्षक को आमंत्रित करें।")}
         </Empty>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-5">
           {distinctive.map((e) => (
-            <PracticeCard key={e.practice} e={e} reveal={reveal} cardStatus={reviews?.find((r) => r.kind === "practice_card" && r.ref === e.practice)?.status} onDrafted={reload} />
+            <MethodCard key={e.practice} e={e} cardStatus={reviews?.find((r) => r.kind === "practice_card" && r.ref === e.practice && r.status === "approved")?.status ?? reviews?.find((r) => r.kind === "practice_card" && r.ref === e.practice)?.status} onDrafted={reload} />
           ))}
         </div>
       )}
 
       {newOnes.length > 0 && (
-        <Card className="mt-5" title={t("New practices teachers described", "शिक्षकों के बताए नए तरीके")} icon={Sparkles}>
-          <p className={cx("mb-3 text-sm text-[var(--color-ink-2)]", hi)}>
-            {t("Not in Jugnu's list yet — from real interviews. Worth a closer look on the next visit.", "अभी जुगनू की सूची में नहीं — असली बातचीत से। अगली बार ध्यान से देखने लायक।")}
-          </p>
+        <Card className="mt-5" title={t("New ideas teachers mentioned", "शिक्षकों के बताए नए विचार")} icon={Sparkles}>
+          <p className={cx("mb-3 text-sm text-[var(--color-ink-2)]", hi)}>{t("Not yet checked against other schools. Worth a closer look on the next visit.", "अभी दूसरे स्कूलों से नहीं जाँचे। अगली बार ध्यान से देखने लायक।")}</p>
           <ul className="space-y-2">
             {newOnes.map((n, i) => (
               <li key={i} className="card-inset p-3 text-sm">
@@ -94,129 +69,156 @@ export default function PracticesPage() {
 
       {rest.length > 0 && (
         <Card className="mt-5">
-          <button className="flex w-full items-center justify-between text-left" onClick={() => setShowRest((v) => !v)} aria-expanded={showRest}>
+          <button className="flex w-full items-center justify-between gap-3 text-left" onClick={() => setShowRest((v) => !v)} aria-expanded={showRest}>
             <span>
-              <span className="block font-semibold">
-                {t(`Set aside: ${rest.length} practices that don't separate bright spots`, `अलग रखे: ${rest.length} तरीके जो अच्छे स्कूलों को अलग नहीं करते`)}
-              </span>
-              <span className="block text-sm text-[var(--color-ink-2)]">
-                {t(
-                  "Many schools say they do these (“we follow the lesson plan”) — so they can't explain the difference.",
-                  "बहुत से स्कूल ये करने की बात कहते हैं (“हम पाठ योजना से पढ़ाते हैं”) — इसलिए ये फ़र्क नहीं समझाते।",
-                )}
-              </span>
+              <span className={cx("block font-semibold", hi)}>{t(`${rest.length} things that did not make a difference`, `${rest.length} बातें जिनसे फ़र्क नहीं पड़ा`)}</span>
+              <span className={cx("block text-sm text-[var(--color-ink-2)]", hi)}>{t("Schools doing well and other schools do these about equally, or too few teachers mentioned them.", "अच्छा कर रहे और बाकी स्कूल इन्हें लगभग बराबर करते हैं, या बहुत कम शिक्षकों ने बताया।")}</span>
             </span>
             <ChevronDown size={18} className={cx("shrink-0 transition", showRest && "rotate-180")} />
           </button>
           {showRest && (
-            <div className="mt-3 grid gap-2 md:grid-cols-2">
+            <ul className="mt-3 grid gap-2 md:grid-cols-2">
               {rest.map((e) => (
-                <div key={e.practice} className="card-inset p-3 text-sm">
-                  <div className="font-semibold">{lang === "hi" ? PRACTICES[e.practice].labelHi : PRACTICES[e.practice].label}</div>
-                  <div className="text-xs text-[var(--color-ink-3)]">
-                    {t(
-                      `bright spots ${e.bright.k}/${e.bright.n} · similar schools ${e.comparison.k}/${e.comparison.n}`,
-                      `अच्छे स्कूल ${e.bright.k}/${e.bright.n} · समान स्कूल ${e.comparison.k}/${e.comparison.n}`,
-                    )}
-                    {reveal && ` · ${EFFECTIVE.includes(e.practice) ? t("truly effective", "असल में असरदार") : t("decoy", "नकली")}`}
-                  </div>
-                </div>
+                <li key={e.practice} className="card-inset p-3 text-sm">
+                  <div className={cx("font-medium", hi)}>{lang === "hi" ? PRACTICES[e.practice].labelHi : PRACTICES[e.practice].label}</div>
+                  <div className={cx("text-xs text-[var(--color-ink-2)]", hi)}>{t(`${e.bright.k} of ${e.bright.n} at schools doing well, ${e.comparison.k} of ${e.comparison.n} at similar schools`, `अच्छे स्कूलों में ${e.bright.n} में ${e.bright.k}, वैसे ही दूसरे स्कूलों में ${e.comparison.n} में ${e.comparison.k}`)}</div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </Card>
       )}
-      <div className="mt-5">
-        <PairsCard state={state} />
-      </div>
     </div>
   );
 }
 
-function PracticeCard({ e, reveal, cardStatus, onDrafted }: { e: PracticeEvidence; reveal: boolean; cardStatus?: ReviewItem["status"]; onDrafted: () => void }) {
+/** A row of people, filled for those who do it: easier to read at a glance than a percentage. */
+function People({ k, n, color }: { k: number; n: number; color: string }) {
+  return (
+    <span className="flex flex-wrap gap-1" aria-hidden>
+      {Array.from({ length: n }, (_, i) => (
+        <span key={i} className="h-3.5 w-3.5 rounded-full" style={i < k ? { background: color } : { boxShadow: "inset 0 0 0 1.5px rgb(var(--fg) / 0.25)" }} />
+      ))}
+    </span>
+  );
+}
+
+function MethodCard({ e, cardStatus, onDrafted }: { e: PracticeEvidence; cardStatus?: ReviewItem["status"]; onDrafted: () => void }) {
   const t = useT();
   const { lang } = usePrefs();
+  const hi = lang === "hi" && "font-deva";
   const { state } = usePipeline();
   const p = PRACTICES[e.practice];
+  const words = METHOD_WORDS[e.practice];
   const school = (id: string) => state.block.schools.find((s) => s.id === id);
   const [busy, setBusy] = useState(false);
+  const going = state.recs.filter((r) => r.practice === e.practice);
+  const scores = useMemo(() => {
+    const avg = (ids: string[]) => {
+      const v = ids.map((id) => schoolOverall(school(id)!)).filter((x): x is number => x != null);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    };
+    const users = state.interviews.filter((i) => i.group === "bright" && i.mentions.some((m) => m.practice === e.practice && m.specificity >= 2)).map((i) => i.schoolId);
+    return { users: avg(users), similar: avg(state.interviews.filter((i) => i.group === "comparison").map((i) => i.schoolId)) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, e.practice]);
   const draft = async () => {
     setBusy(true);
-    await postJSON("/api/reviews/card", {
-      practice: e.practice,
-      quotes: e.quotes.map((q) => ({ school: `${school(q.schoolId)?.teacher ?? ""}, ${school(q.schoolId)?.village ?? ""}`, quote: q.quote })),
-    }).catch(() => null);
+    await postJSON("/api/reviews/card", { practice: e.practice, quotes: e.quotes.map((q) => ({ school: `${school(q.schoolId)?.teacher ?? ""}, ${school(q.schoolId)?.village ?? ""}`, quote: q.quote })) }).catch(() => null);
     setBusy(false);
     onDrafted();
   };
+  const q = e.quotes[0];
+  const qs = q && school(q.schoolId);
   return (
-    <Card>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h3 className="text-lg font-semibold">{lang === "hi" ? p.labelHi : p.label}</h3>
-          <div className="text-xs text-[var(--color-ink-3)]">{lang === "hi" ? p.label : p.labelHi}</div>
-        </div>
-        <span className="chip" style={{ borderColor: tint("var(--tone-lime)", 55), color: "var(--tone-lime)" }}>
-          {t("Travels", "दूसरों तक पहुँचाने लायक")} · {t(p.cost === "zero" ? "no cost" : `${p.cost} cost`, p.cost === "zero" ? "बिना खर्च" : "कम खर्च")}
-        </span>
-      </div>
-      <p className="mt-2 text-[15px] text-[var(--color-ink-2)]">{p.what}</p>
-      <div className="mt-3">
-        <Dumbbell bright={e.bright.k / Math.max(1, e.bright.n)} comparison={e.comparison.k / Math.max(1, e.comparison.n)} />
-        <p className="mt-1 text-xs text-[var(--color-ink-2)]">
-          {t(
-            `Described in detail by ${e.bright.k} of ${e.bright.n} bright-spot teachers, but only ${e.comparison.k} of ${e.comparison.n} teachers in similar ordinary schools (${Math.round(e.pDistinctive * 100)}% sure it is more common in bright spots).`,
-            `${e.bright.n} में से ${e.bright.k} अच्छे-स्कूल शिक्षकों ने विस्तार से बताया, पर उन जैसे सामान्य स्कूलों के ${e.comparison.n} में से सिर्फ़ ${e.comparison.k} ने (${Math.round(e.pDistinctive * 100)}% भरोसा कि यह अच्छे स्कूलों में ज़्यादा है)।`,
-          )}
-        </p>
-      </div>
-      {e.quotes.length > 0 && (
-        <ul className="mt-3 space-y-2">
-          {e.quotes.slice(0, 3).map((q) => {
-            const s = school(q.schoolId);
-            return (
-              <li key={q.schoolId} className="card-inset flex gap-2 p-3 text-sm">
-                <Quote size={14} className="mt-0.5 shrink-0 text-amber-200" aria-hidden />
-                <div>
-                  <div className="font-deva">{q.quote}</div>
-                  {s && (
-                    <Link to={`/schools/${s.id}`} className="tap-link mt-1 text-xs text-[var(--color-ink-3)] hover:text-white">
-                      — {s.teacher}, {s.name}
-                    </Link>
-                  )}
-                </div>
+    <section className="card overflow-hidden" data-reveal>
+      <div className="grid lg:grid-cols-[1.1fr_1fr]">
+        <div className="p-5 md:p-7">
+          <h2 className={cx("text-[1.6rem] font-semibold leading-tight tracking-[-0.02em]", hi)}>{lang === "hi" ? p.labelHi : p.label}</h2>
+          <p className={cx("mt-2 text-[16px] leading-relaxed", hi)}>{t(...words.plain)}</p>
+          <div className={cx("mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13.5px] text-[var(--color-ink-2)]", hi)}>
+            <span className="flex items-center gap-1.5"><Coins size={14} aria-hidden /> {t(...words.needs)}</span>
+            <span className="flex items-center gap-1.5"><GraduationCap size={14} aria-hidden /> {words.classes.length === 5 ? t("Classes 1 to 5", "कक्षा 1 से 5") : t(`Classes ${words.classes.join(", ")}`, `कक्षा ${words.classes.join(", ")}`)}</span>
+          </div>
+
+          <h3 className={cx("mt-5 font-semibold", hi)}>{t("How to start tomorrow", "कल से कैसे शुरू करें")}</h3>
+          <ol className="mt-2 space-y-2.5">
+            {words.steps.map((s, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--chip)] text-xs font-bold">{i + 1}</span>
+                <span className={cx("text-[15px] leading-relaxed", hi)}>{t(...s)}</span>
               </li>
-            );
-          })}
-        </ul>
-      )}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {cardStatus === "approved" ? (
-          <span className="chip" style={{ borderColor: tint("var(--tone-good)", 55), color: "var(--tone-good)" }}>
-            <FileCheck2 size={13} /> {t("Practice card approved", "तरीके का कार्ड मंज़ूर")}
-          </span>
-        ) : cardStatus === "pending" ? (
-          <Link className="chip" to="/review">
-            {t("Practice card waiting for approval →", "कार्ड मंज़ूरी का इंतज़ार कर रहा है →")}
-          </Link>
-        ) : (
-          e.quotes.length > 0 && (
-            <button className="btn btn-glass !py-1.5 text-sm" onClick={draft} disabled={busy}>
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <FileCheck2 size={14} />} {t("Draft a one-page practice card", "एक पेज का कार्ड बनाएँ")}
-            </button>
-          )
-        )}
-        <span className="text-xs text-[var(--color-ink-3)]">
-          {t(`${state.recs.filter((r) => r.practice === e.practice).length} schools will learn it`, `${state.recs.filter((r) => r.practice === e.practice).length} स्कूल इसे सीखेंगे`)}
-        </span>
-      </div>
-      {reveal && (
-        <div className="mt-2 text-xs text-[var(--color-ink-3)]">
-          {EFFECTIVE.includes(e.practice)
-            ? t(`Hidden truth: effective (reading +${p.effect.reading}, maths +${p.effect.numeracy} logit)`, "छिपा सच: असरदार")
-            : t("Hidden truth: no effect (decoy)", "छिपा सच: कोई असर नहीं (नकली)")}
+            ))}
+          </ol>
+          <p className={cx("mt-3 text-[15px] leading-relaxed text-[var(--color-ink-2)]", hi)}>
+            <b className="font-semibold text-[var(--color-ink)]">{t("For children: ", "बच्चों के लिए: ")}</b>
+            {t(...words.children)}
+          </p>
         </div>
-      )}
-    </Card>
+
+        <div className="border-t border-[var(--line)] bg-[var(--inset-bg)] p-5 md:p-7 lg:border-l lg:border-t-0">
+          <h3 className={cx("font-semibold", hi)}>{t("What we found in this block", "इस ब्लॉक में क्या पाया")}</h3>
+          <div className="mt-3 space-y-3">
+            <div>
+              <div className={cx("mb-1.5 flex items-baseline justify-between gap-3 text-sm", hi)}>
+                <span>{t("Teachers at schools doing well who do this", "अच्छा कर रहे स्कूलों के शिक्षक जो यह करते हैं")}</span>
+                <b className="shrink-0 tabular-nums">{e.bright.k} / {e.bright.n}</b>
+              </div>
+              <People k={e.bright.k} n={e.bright.n} color="var(--st-bright)" />
+            </div>
+            <div>
+              <div className={cx("mb-1.5 flex items-baseline justify-between gap-3 text-sm", hi)}>
+                <span>{t("Teachers at similar schools who do this", "वैसे ही दूसरे स्कूलों के शिक्षक जो यह करते हैं")}</span>
+                <b className="shrink-0 tabular-nums">{e.comparison.k} / {e.comparison.n}</b>
+              </div>
+              <People k={e.comparison.k} n={e.comparison.n} color="var(--tone-muted)" />
+            </div>
+            {scores.users != null && scores.similar != null && (
+              <div className="pt-1">
+                <div className={cx("mb-1.5 text-sm", hi)}>{t("Children at their class level", "अपनी कक्षा के स्तर पर बच्चे")}</div>
+                <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-xs text-[var(--color-ink-2)]">
+                  <span className={cx(hi)}>{t("Schools that do this", "जो स्कूल यह करते हैं")}</span>
+                  <b className="tabular-nums text-[var(--color-ink)]">{Math.round(scores.users)}%</b>
+                  <Meter className="col-span-2" value={scores.users / 100} height={8} color="var(--st-bright)" />
+                  <span className={cx("mt-1", hi)}>{t("Similar schools", "वैसे ही दूसरे स्कूल")}</span>
+                  <b className="mt-1 tabular-nums text-[var(--color-ink)]">{Math.round(scores.similar)}%</b>
+                  <Meter className="col-span-2" value={scores.similar / 100} height={8} color="var(--tone-muted)" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {q && qs && (
+            <figure className="mt-5 border-t border-[var(--line)] pt-4">
+              <Quote size={15} className="text-[var(--st-bright)]" aria-hidden />
+              <blockquote className="mt-1 font-deva text-[15px] leading-relaxed">{q.quote}</blockquote>
+              <figcaption className="mt-1 text-xs text-[var(--color-ink-2)]">
+                <Link to={`/schools/${qs.id}`} className="tap-link hover:underline">
+                  {qs.teacher}, {lang === "hi" && qs.nameHi ? qs.nameHi : qs.name}
+                </Link>
+              </figcaption>
+            </figure>
+          )}
+
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-4">
+            {cardStatus === "approved" ? (
+              <Link to={`/plan?method=${e.practice}`} className={cx("btn btn-primary", hi)}>
+                <Users size={15} /> {t(`Going to ${going.length} schools`, `${going.length} स्कूलों तक जा रहा है`)} <ArrowRight size={15} />
+              </Link>
+            ) : cardStatus === "pending" ? (
+              <Link className={cx("btn btn-glass", hi)} to="/review">
+                {t("Card is waiting for approval", "कार्ड मंज़ूरी का इंतज़ार कर रहा है")} <ArrowRight size={15} />
+              </Link>
+            ) : (
+              e.quotes.length > 0 && (
+                <button className={cx("btn btn-primary", hi)} onClick={draft} disabled={busy}>
+                  {busy ? <Loader2 size={15} className="animate-spin" /> : <FileCheck2 size={15} />} {t("Make a one-page card to share", "बाँटने के लिए एक पेज का कार्ड बनाएँ")}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

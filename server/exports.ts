@@ -37,7 +37,7 @@ export async function actionsCsv(block: string, track: boolean): Promise<string>
   const st = pipelineFor({ seed: Number(block.slice(5)), track });
   const byId = new Map(st.block.schools.map((s) => [s.id, s]));
   const live = await actionState(block);
-  const head = ["School", "UDISE", "Cluster", "CRP", "Teacher", "Practice", "प्रथा", "Wave", "Step", "Owner", "Status", "Due (day)", "Demonstrator school", "Distance (km)", "Note", "Last update", "Updated by"];
+  const head = ["School", "UDISE", "Cluster", "CRP", "Teacher", "Method", "तरीका", "Group", "Step", "Owner", "Status", "Due (day)", "Teacher who can show it (school)", "Distance (km)", "Note", "Last update", "Updated by"];
   const lines = [head.map(cell).join(",")];
   for (const r of st.recs) {
     const s = byId.get(r.schoolId)!;

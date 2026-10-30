@@ -13,6 +13,8 @@ import { exportsRouter } from "./exports";
 import { agentBrief, agentPageGuide, agentTurn } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
 import { aiHealth } from "./ai/health";
+import { seedDemoInterviews } from "./demo-interviews";
+import { safety } from "./safety";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
 import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
 import { pipelineFor } from "./blocks";
@@ -49,7 +51,10 @@ const Invite = z.object({
   language: z.enum(["hi", "en"]).default("hi"),
 });
 
-app.get("/api/interviews", requireOfficer, async (_req, res) => res.json(await listInterviews()));
+app.get("/api/interviews", requireOfficer, async (_req, res) => {
+  await seedDemoInterviews().catch((e) => console.warn("sample interviews:", e));
+  res.json(await listInterviews());
+});
 
 /** Completed, school-linked interviews with grounded codings — merged into the block's evidence. */
 app.get("/api/interviews/coded", requireOfficer, async (_req, res) => res.json(await codedForBlock()));
@@ -93,7 +98,9 @@ const publicView = async (token: string) => {
 app.post("/api/talk/practice", rateLimit("practice", 12, 600000), async (req, res) => {
   const body = Invite.safeParse(req.body ?? {});
   // Public practice interviews are never linked to a school in the block.
-  const row = await createInterview({ ...(body.success ? { ...body.data, schoolId: undefined } : {}), group: "live", channel: "web", schoolName: body.success ? body.data.schoolName || "Practice school" : "Practice school" });
+  const row = await createInterview({ ...(body.success ? { ...body.data, schoolId: undefined } : {}), group: "live", channel: "web", schoolName: body.success ? body.data.schoolName || "Method school" : "Method school" });
+  // A practice run, not a record: it works in full but stays out of the interview list.
+  await db.run(`UPDATE interviews SET archived = 1 WHERE id = ?`, row.id);
   res.json({ token: row.token });
 });
 
@@ -130,7 +137,7 @@ app.post("/api/talk/:token/answer", rateLimit("talk", 40, 60000), async (req, re
 // ---------------------------------------------------------------- track: follow-up calls
 app.post("/api/followup/read", requireOfficer, rateLimit("ai", 120, 600000), async (req, res) => {
   const body = z.object({ reply: z.string().min(1).max(2000), practice: z.string(), schoolId: z.string().optional() }).safeParse(req.body);
-  if (!body.success) return res.status(400).json({ error: "reply and practice are required" });
+  if (!body.success) return res.status(400).json({ error: "reply and method are required" });
   res.json(await readFollowUp(body.data.reply, body.data.practice, body.data.schoolId));
 });
 
@@ -146,7 +153,7 @@ app.post("/api/evidence/photo", requireOfficer, rateLimit("photo", 40, 600000), 
       block: z.string().max(80).optional(),
     })
     .safeParse(req.body);
-  if (!body.success) return res.status(400).json({ error: "image, practice and schoolId are required" });
+  if (!body.success) return res.status(400).json({ error: "image, method and schoolId are required" });
   const m = /^data:(image\/[a-z]+);base64,(.*)$/s.exec(body.data.image);
   const mediaType = (m?.[1] ?? body.data.mediaType ?? "image/jpeg") as (typeof PHOTO_TYPES)[number];
   if (!PHOTO_TYPES.includes(mediaType)) return res.status(415).json({ error: "Use a JPEG, PNG or WebP photo" });
@@ -229,7 +236,7 @@ app.post("/api/voice/stt", requireOfficer, rateLimit("voice", 240, 600000), expr
   const st = Number.isFinite(seed) ? pipelineFor({ seed }) : null;
   const hints = st ? [...new Set(st.block.schools.flatMap((s) => [s.name, s.nameHi ?? "", s.clusterName, s.teacher].filter(Boolean)))] : [];
   try {
-    res.json(await transcribe(audio, String(req.get("content-type") ?? ""), String(req.query.lang ?? "en"), ["Jugnu", "spot check", "bright spot", "CRP", "BEO", ...hints]));
+    res.json(await transcribe(audio, String(req.get("content-type") ?? ""), String(req.query.lang ?? "en"), ["Jugnu", "confirmation visit", "school doing well", "CRP", "BEO", ...hints]));
   } catch (e) {
     res.status(502).json({ error: (e as Error).message });
   }
@@ -248,6 +255,8 @@ app.post("/api/voice/tts", rateLimit("voice", 400, 600000), async (req, res) => 
 
 // ---------------------------------------------------------------- AI trace + evaluation
 app.get("/api/ai/trace", requireOfficer, async (_req, res) => res.json({ summary: await traceSummary(), calls: await recentCalls(150) }));
+
+app.use("/api/safety", safety);
 
 // Whether Claude and Google speech really answer. For the team and scripts; the console does not show it.
 app.get("/api/ai/health", requireOfficer, async (_req, res) => res.json(await aiHealth()));

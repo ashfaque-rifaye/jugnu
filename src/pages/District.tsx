@@ -49,7 +49,7 @@ export default function DistrictPage() {
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label={t("Schools (all, UDISE+)", "स्कूल (सभी, UDISE+)")} value={fmt(sum((b) => b.profile.schools))} hint={t(`${num(sum((b) => b.schools))} real government schools`, `${num(sum((b) => b.schools))} असली सरकारी स्कूल`)} />
         <Stat label={t("Children enrolled", "नामांकित बच्चे")} value={fmt(sum((b) => b.profile.enrolment))} hint={t(`${num(sum((b) => b.profile.teachers))} teachers`, `${num(sum((b) => b.profile.teachers))} शिक्षक`)} />
-        <Stat label={t("Verified bright spots", "जाँचे गए अच्छे स्कूल")} value={d ? sum((b) => b.verified) : "…"} tone="var(--st-bright)" hint={t(`${d ? sum((b) => b.inflation) : "…"} flagged as possibly inflated`, `${d ? sum((b) => b.inflation) : "…"} पर बढ़ा-चढ़ाकर लिखने का शक`)} />
+        <Stat label={t("Confirmed: doing wells", "जाँचे गए अच्छे स्कूल")} value={d ? sum((b) => b.verified) : "…"} tone="var(--st-bright)" hint={t(`${d ? sum((b) => b.inflation) : "…"} flagged as possibly inflated`, `${d ? sum((b) => b.inflation) : "…"} पर बढ़ा-चढ़ाकर लिखने का शक`)} />
         <Stat label={t("Schools that need support", "जिन्हें मदद चाहिए")} value={d ? sum((b) => b.struggling) : "…"} hint={t("below what their context predicts", "हालात से अपेक्षित से नीचे")} />
       </div>
 
@@ -67,7 +67,7 @@ export default function DistrictPage() {
                 <th className="px-2 py-2 text-right font-medium">{t("ST enrolment", "ST नामांकन")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Women teachers", "महिला शिक्षक")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Std III reading", "कक्षा 3 पढ़ना")}</th>
-                <th className="px-2 py-2 text-right font-medium">{t("Bright spots", "अच्छे स्कूल")}</th>
+                <th className="px-2 py-2 text-right font-medium">{t("Schools doing well", "अच्छे स्कूल")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Data to check", "जाँचने लायक")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Need support", "मदद चाहिए")}</th>
                 <th className="px-4 py-2 md:px-5" />
@@ -113,7 +113,7 @@ export default function DistrictPage() {
         </div>
       </Card>
 
-      <Card title={t("Practices that stand out, and where", "जो तरीके अलग दिखे, और कहाँ")} icon={Stars}>
+      <Card title={t("Methods that stand out, and where", "जो तरीके अलग दिखे, और कहाँ")} icon={Stars}>
         {d ? (
           <ul className="space-y-2.5">
             {d.practices.map((p) => (
@@ -130,7 +130,7 @@ export default function DistrictPage() {
         )}
         <p className="mt-4 text-xs text-[var(--color-ink-3)]">
           {t(
-            "A practice that is distinctive in several blocks is the best candidate for a district-wide push; one found in a single block is shared within that block first.",
+            "A method that is distinctive in several blocks is the best candidate for a district-wide push; one found in a single block is shared within that block first.",
             "जो तरीका कई ब्लॉक में अलग दिखे, वह पूरे ज़िले में फैलाने का सबसे अच्छा उम्मीदवार है; जो एक ही ब्लॉक में मिले, उसे पहले उसी ब्लॉक में बाँटें।",
           )}
         </p>
@@ -207,7 +207,7 @@ function DistrictMap({ d, seed, onOpen }: { d: DistrictSummary | null; seed: num
         <div className="chrome pointer-events-none absolute left-3 top-3 rounded-2xl px-3 py-2 text-xs">
           <div className="text-sm font-semibold">{t(`${hb.profile.block} block`, `${hb.profile.block} ब्लॉक`)}</div>
           <div className="text-[var(--color-ink-2)]">
-            {t(`Std III reading ${hb.reading}% · ${hb.verified} bright spots · ${hb.struggling} need support`, `कक्षा 3 पढ़ना ${hb.reading}% · ${hb.verified} अच्छे स्कूल · ${hb.struggling} को मदद चाहिए`)}
+            {t(`Std III reading ${hb.reading}% · ${hb.verified} schools doing well · ${hb.struggling} need support`, `कक्षा 3 पढ़ना ${hb.reading}% · ${hb.verified} अच्छे स्कूल · ${hb.struggling} को मदद चाहिए`)}
           </div>
           <div className="text-[var(--color-ink-3)]">{t("Tap to open this block", "यह ब्लॉक खोलने के लिए छुएँ")}</div>
         </div>

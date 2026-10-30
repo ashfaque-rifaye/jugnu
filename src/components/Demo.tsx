@@ -218,7 +218,7 @@ function Player({ run, onPause, onSkip, onReplay, onClose, onResults }: { run: R
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-[var(--color-ink-2)]">
                   {done
-                    ? t("Results now compares wave 1 with wave 2, practice by practice.", "‘नतीजे’ अब हर तरीके के लिए पहली और दूसरी लहर की तुलना दिखाता है।")
+                    ? t("Results now compares group 1 with group 2, method by method.", "‘नतीजे’ अब हर तरीके के लिए पहली और दूसरा समूह की तुलना दिखाता है।")
                     : t(beat.sub[0], beat.sub[1])}
                 </p>
               </motion.div>

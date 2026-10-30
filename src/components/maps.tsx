@@ -1,13 +1,12 @@
 // Maps of the block, coloured by each school's status (bright spot, needs support, ...).
-// LivingMap = the real map (OpenStreetMap / satellite) for a real block, the 3D night scene as a
-// showpiece (mode "3d"), and the flat drawing in low-data mode or for blocks without positions.
+// LivingMap = the real map (OpenStreetMap / satellite) for a real block, and the flat drawing in
+// low-data mode or for blocks without positions.
 import { lazy, Suspense, useMemo, useState } from "react";
 import type { School } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
 import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
 import { cx } from "./ui";
 
-const BlockScene = lazy(() => import("./BlockScene"));
 const RealMap = lazy(() => import("./RealMap"));
 
 export interface MapProps {
@@ -24,7 +23,7 @@ export interface MapProps {
 }
 
 export interface LivingMapProps extends MapProps {
-  mode?: "auto" | "2d" | "3d";
+  mode?: "auto" | "2d";
   autoRotate?: boolean;
   block?: string;
   card?: boolean;
@@ -37,7 +36,7 @@ export interface LivingMapProps extends MapProps {
 export function LivingMap(props: LivingMapProps) {
   const { lite } = usePrefs();
   const h = props.height ?? 420;
-  const real = props.mode !== "3d" && props.mode !== "2d" && !lite && props.schools.some((s) => s.lat != null);
+  const real = props.mode !== "2d" && !lite && props.schools.some((s) => s.lat != null);
   if (real)
     return (
       <Suspense fallback={<div className="skeleton rounded-[1.4rem]" style={{ height: h }} />}>
@@ -45,22 +44,7 @@ export function LivingMap(props: LivingMapProps) {
         <RealMap {...props} onSelect={undefined} onOpen={props.onOpen ?? props.onSelect} height={h} />
       </Suspense>
     );
-  const use3d = props.mode !== "2d" && !lite;
-  if (!use3d) return <StatusMap {...props} />;
-  return (
-    <Suspense
-      fallback={
-        <div className="grid place-items-center text-sm text-[var(--color-ink-3)]" style={{ height: h }}>
-          …
-        </div>
-      }
-    >
-      {/* the 3D night map keeps its dark look in light mode too */}
-      <div className="on-dark">
-        <BlockScene {...props} height={h} autoRotate={props.autoRotate} />
-      </div>
-    </Suspense>
-  );
+  return <StatusMap {...props} />;
 }
 
 export function StatusMap({ schools, status, selected, onSelect, links = [], highlight, height = 420, className }: MapProps) {

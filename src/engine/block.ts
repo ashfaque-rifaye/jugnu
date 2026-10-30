@@ -8,7 +8,7 @@
 import { DISTRICT, govtElementary, profileFor, pupilsPerTeacher, SIM_OFFSET } from "./district";
 import { EFFECTIVE, PRACTICE_IDS, PRACTICES } from "./practices";
 import { chance, logit, mulberry32, pick, randInt, shuffle, sigmoid, type Rng } from "./rng";
-import { CYCLES, type Block, type School, type SchoolTruth } from "./types";
+import { CYCLES, type Block, type School, type SchoolTruth, type Staff } from "./types";
 import { UDISE } from "./udise";
 import { BLOCK_HQ } from "./villages";
 
@@ -27,10 +27,35 @@ export const ASER_2024 = {
 const PREFIX = ["Ram", "Sona", "Khair", "Bhan", "Pipal", "Bar", "Naya", "Sem", "Kot", "Dham", "Jamun", "Amar", "Chand", "Kesar", "Mahu", "Sirs", "Tendu", "Kanhar", "Lal", "Nim", "Gular", "Bel", "Kusum", "Palas", "Hari"];
 const SUFFIX = ["pur", "gaon", "khedi", "pura", "wada", "tola", "nagar", "ghat", "pali", "dih", "khera", "bandh"];
 const CLUSTERS = ["Rampur", "Sonagaon", "Kotra", "Dhamnod", "Jamuniya", "Semaria", "Barkheda", "Nayagaon", "Pipalia", "Tendukheda"];
-const CRPS = ["Sunil Verma", "Anita Patel", "Mohd. Irfan", "Rekha Bhuriya", "Devendra Singh", "Kavita Joshi", "Rajesh Meena", "Shabana Qureshi", "Prakash Dhurve", "Lata Yadav", "Manoj Lodhi", "Seema Ahirwar", "Ashok Thakur", "Pooja Kurmi", "Naresh Uikey", "Usha Chaurasia", "Ramkishan Patel", "Farzana Bee"];
-const F_NAMES = ["Sunita", "Farida", "Kamla", "Rekha", "Anjali", "Pushpa", "Meera", "Savita", "Radha", "Neelam", "Sarita", "Babita", "Geeta", "Lalita"];
-const M_NAMES = ["Ramesh", "Birsa", "Mahesh", "Arvind", "Imran", "Santosh", "Dinesh", "Suresh", "Mukesh", "Raju", "Vijay", "Hemant", "Anil", "Kailash"];
-const SURNAMES = ["Devi", "Meena", "Khan", "Hansda", "Patel", "Bhuriya", "Yadav", "Kushwaha", "Dhurve", "Sharma", "Rawat", "Solanki", "Ahirwar", "Uikey"];
+const CRPS = ["Sunil Verma", "Anita Patel", "Mohd. Irfan", "Rekha Lodhi", "Devendra Singh", "Kavita Joshi", "Rajesh Tiwari", "Shabana Qureshi", "Prakash Dhurve", "Lata Yadav", "Manoj Lodhi", "Seema Ahirwar", "Ashok Thakur", "Pooja Kurmi", "Naresh Uikey", "Usha Chaurasia", "Ramkishan Patel", "Farzana Bee"];
+// Simulated names, drawn as real pairs from communities of the Damoh and Bundelkhand area. UDISE+ does
+// not publish teachers' names, so these stand in for them and belong to no real person.
+const NAME_GROUPS = [
+  {
+    f: ["Sunita", "Kamla", "Rekha", "Anjali", "Pushpa", "Meera", "Savita", "Radha", "Neelam", "Sarita", "Babita", "Geeta", "Lalita", "Mamta"],
+    m: ["Ramesh", "Mahesh", "Arvind", "Santosh", "Dinesh", "Suresh", "Mukesh", "Rakesh", "Vijay", "Hemant", "Anil", "Kailash", "Rajendra", "Manoj"],
+    last: ["Sharma", "Tiwari", "Dubey", "Pandey", "Patel", "Yadav", "Ahirwar", "Lodhi", "Rajput", "Jain", "Kurmi", "Soni", "Namdev", "Vishwakarma", "Chaurasia", "Sen"],
+  },
+  {
+    f: ["Sukwati", "Kamla", "Rekha", "Phoolbai", "Sunita", "Meera", "Savitri", "Rambai", "Lalita", "Sarita"],
+    m: ["Ramsingh", "Santosh", "Mukesh", "Dharam", "Suresh", "Kamlesh", "Rajesh", "Lakhan", "Dinesh", "Anil"],
+    last: ["Uikey", "Dhurve", "Marko", "Kushram", "Maravi", "Parteti"],
+  },
+  {
+    f: ["Farida", "Shabana", "Rukhsana", "Nazma", "Saira", "Tabassum"],
+    m: ["Imran", "Salim", "Iqbal", "Rafiq", "Javed", "Aslam"],
+    last: ["Khan", "Ansari", "Qureshi", "Shaikh"],
+  },
+];
+/** Two random draws, always: the rest of the simulated block stays exactly as it was. */
+function personName(rng: Rng, female: boolean, tribal: boolean) {
+  const a = rng();
+  const b = rng();
+  const g = b < (tribal ? 0.45 : 0.08) ? 1 : b > 0.93 ? 2 : 0;
+  const group = NAME_GROUPS[g];
+  const first = female ? group.f : group.m;
+  return `${first[Math.floor(a * first.length)]} ${group.last[Math.floor(((b * 97.13) % 1) * group.last.length)]}`;
+}
 
 const FEATURE_EFFECTS = { multigrade: -0.25, small: -0.12, library: 0.18, attendance: 2.2, langMismatch: -1.0, ptr: -0.012 };
 
@@ -137,15 +162,20 @@ export function generateBlock(seed = 2024, size = 200): Block {
       library: chance(rng, ASER_2024.libraryInUse),
       attendance: Math.round(Math.min(0.95, Math.max(0.5, ASER_2024.studentAttendance + (rng() - 0.5) * 0.24 - (tribal ? 0.04 : 0))) * 100) / 100,
       langMismatch: Math.round((tribal ? 0.45 + rng() * 0.45 : rng() * 0.25) * 100) / 100,
-      teacher: `${female ? pick(rng, F_NAMES) : pick(rng, M_NAMES)} ${pick(rng, SURNAMES)}`,
+      teacher: personName(rng, female, tribal),
       teacherGender: female ? "f" : "m",
       reading: [],
       numeracy: [],
       attendanceByCycle: [],
       grades: [],
+      classTo: site?.classTo,
+      teacherCount: site ? primaryTeachers : Math.max(2, Math.round(enrolment / 30)),
+      staff: [],
+      subjectTrend: { hindi: [], maths: [], science: [], english: [], spoken: [] },
     };
-    // Government primary schools are known by their village ("GPS Sasna Kalan" in records).
-    s.name = s.village;
+    // Government schools are known by type and village in the records ("GPS Sasna Kalan").
+    s.name = site ? `${schoolPrefix(site.classTo)[0]} ${s.village}` : s.village;
+    if (site) s.nameHi = `${schoolPrefix(site.classTo)[1]} ${site.nameHi}`;
     schools.push(s);
     const practices = PRACTICE_IDS.filter((p) => chance(rng, PRACTICES[p].baseRate));
     truth[s.id] = { practices, fidelity: 0.6 + rng() * 0.4, inflated: false, schoolEffect: (rng() - 0.5) * 0.5, trueReading: [], trueNumeracy: [] };
@@ -182,6 +212,7 @@ export function generateBlock(seed = 2024, size = 200): Block {
     });
   }
   addGradesAndAttendance(seed, schools, truth);
+  addSubjectsAndStaff(seed, schools);
   if (profile) return { name: `${profile.block} Block`, district: `${DISTRICT.name} (${DISTRICT.source})`, state: DISTRICT.state, source: "simulated", schools, truth, seed };
   return { name: "Sonagaon Block", district: "Simulated district", state: "Calibrated to ASER 2024 (rural India)", source: "simulated", schools, truth, seed };
 }
@@ -229,7 +260,7 @@ function addGradesAndAttendance(seed: number, schools: School[], truth: Record<s
       const grade = (i + 1) as 1 | 2 | 3 | 4 | 5;
       const enrolled = grade === 3 ? s.grade3 : Math.max(3, Math.round(s.enrolment * share + (rng() - 0.5) * 4));
       const attendance = Math.round(Math.min(0.97, Math.max(0.45, s.attendance + GRADE_ATTEND[i] + (rng() - 0.5) * 0.06)) * 100) / 100;
-      if (grade === 3) return { grade, enrolled, attendance, reading: s.reading[last], numeracy: s.numeracy[last] };
+      if (grade === 3) return { grade, enrolled, attendance, reading: s.reading[last], numeracy: s.numeracy[last], science: 0, english: 0, spoken: 0 };
       const shift = (which: "reading" | "numeracy") => sigmoid(logit(which === "reading" ? t.trueReading[last] : t.trueNumeracy[last]) + GRADE_OFFSET[i] + (rng() - 0.5) * 0.3);
       let reading = measured(rng, shift("reading"), enrolled);
       let numeracy = measured(rng, shift("numeracy"), enrolled);
@@ -237,12 +268,51 @@ function addGradesAndAttendance(seed: number, schools: School[], truth: Record<s
         reading = Math.min(98, Math.round(reading + 25 + rng() * 15));
         numeracy = Math.min(98, Math.round(numeracy + 25 + rng() * 15));
       }
-      return { grade, enrolled, attendance, reading, numeracy };
+      return { grade, enrolled, attendance, reading, numeracy, science: 0, english: 0, spoken: 0 };
     });
     // Grades add up to the school's enrolment (any rounding goes to Grade 1, the largest class).
     const g1 = s.grades[0];
     g1.enrolled = Math.max(2, g1.enrolled + s.enrolment - s.grades.reduce((a, g) => a + g.enrolled, 0));
   }
 }
+
+const schoolPrefix = (classTo: number) => (classTo <= 5 ? ["GPS", "शा.प्रा.शा."] : classTo <= 8 ? ["GMS", "शा.मा.शा."] : ["GHS", "शा.हा.शा."]);
+
+/** Science and English for every grade, the trend per subject, and who in the school answers for what.
+ *  Its own random stream, so nothing about reading, maths or who counts as doing well moves. */
+function addSubjectsAndStaff(seed: number, schools: School[]) {
+  const rng = mulberry32((seed ^ 0x2f6e2b1) >>> 0);
+  const clampLogit = (p: number) => logit(Math.min(0.98, Math.max(0.02, p / 100)));
+  const pct = (x: number) => Math.round(sigmoid(x) * 100);
+  for (const s of schools) {
+    const schoolLean = (rng() - 0.5) * 0.5;
+    for (const g of s.grades) {
+      const r = clampLogit(g.reading);
+      const n = clampLogit(g.numeracy);
+      g.science = pct(0.5 * r + 0.5 * n + 0.15 + schoolLean + (rng() - 0.5) * 0.6);
+      g.english = pct(r - 1 + schoolLean * 0.6 + (g.grade - 3) * 0.08 + (rng() - 0.5) * 0.6);
+      g.spoken = pct(r - 1.45 + schoolLean * 0.6 + (s.multigrade ? -0.2 : 0) + (rng() - 0.5) * 0.6);
+    }
+    const n = s.grades.reduce((a, g) => a + g.enrolled, 0) || 1;
+    const avg = (k: "reading" | "numeracy" | "science" | "english" | "spoken") => s.grades.reduce((a, g) => a + g[k] * g.enrolled, 0) / n;
+    const trend = (latest: number) => [Math.max(2, latest - 3 - rng() * 7), Math.max(2, latest - rng() * 4), latest].map((x) => Math.round(x));
+    s.subjectTrend = { hindi: trend(avg("reading")), maths: trend(avg("numeracy")), science: trend(avg("science")), english: trend(avg("english")), spoken: trend(avg("spoken")) };
+
+    // Who is who. The head runs the school; the point of contact gathers and shares for it.
+    const count = Math.max(1, s.teacherCount);
+    const tribal = s.langMismatch >= 0.45;
+    const names = [s.teacher];
+    for (let i = 1; i < count && i < 8; i++) names.push(personName(rng, rng() < 0.5, tribal));
+    const teaching = names.map((name, i) => ({ id: `${s.id}-t${i + 1}`, name, role: "teacher" as Staff["role"], grades: [] as number[], leads: [] as Staff["leads"] }));
+    s.grades.forEach((g, i) => teaching[i % teaching.length].grades.push(g.grade));
+    SUBJECTS_ORDER.forEach((x, i) => teaching[i % teaching.length].leads.push(x));
+    teaching[0].role = "contact";
+    // A one- or two-teacher school: the senior teacher is also the head. Larger: a head who also teaches.
+    const headName = count <= 2 ? teaching[count - 1].name : personName(rng, rng() < 0.4, tribal);
+    if (count <= 2) teaching[count - 1].role = count === 1 ? "contact" : "head";
+    s.staff = count <= 2 ? teaching : [{ id: `${s.id}-head`, name: headName, role: "head", grades: [], leads: [] }, ...teaching];
+  }
+}
+const SUBJECTS_ORDER: Staff["leads"] = ["hindi", "maths", "science", "english", "spoken"];
 
 export const distanceKm = (a: School, b: School) => Math.round(Math.hypot(a.x - b.x, a.y - b.y) * 10) / 10;

@@ -46,7 +46,7 @@ export function StatTile({ label, value, sub, accent }: { label: string; value: 
 }
 
 const VERDICT: Record<VerifyVerdict, { label: string; color: string; Icon: typeof CircleCheck }> = {
-  verified: { label: "Verified bright spot", color: "#0ca30c", Icon: CircleCheck },
+  verified: { label: "Confirmed: doing well", color: "#0ca30c", Icon: CircleCheck },
   inflation_suspected: { label: "Data may be inflated", color: "#d03b3b", Icon: CircleAlert },
   revisit: { label: "Revisit", color: "#fab219", Icon: CircleHelp },
 };

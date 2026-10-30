@@ -407,7 +407,7 @@ export function useAgent() {
             } else if (input.kind === "spot_check") {
               const sampled = n("sampled");
               if (!(sampled >= 5 && sampled <= 40) || !(n("read") >= 0 && n("read") <= sampled) || !(n("subtract") >= 0 && n("subtract") <= sampled))
-                return fail("A spot check needs 5–40 children sampled, and how many of them read and subtracted.");
+                return fail("A confirmation visit needs 5–40 children sampled, and how many of them read and subtracted.");
               await record("spotcheck", s.id, { sampled, proficient: n("read"), numeracyProficient: n("subtract") });
             } else if (input.kind === "follow_up") {
               if (!["adopted", "trying", "barrier", "no_answer"].includes(String(input.outcome))) return fail("Say how the call went: adopted, trying, barrier or no answer.");

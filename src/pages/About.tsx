@@ -1,16 +1,14 @@
 import { motion } from "framer-motion";
 import { ArrowRight, BadgeCheck, BrainCircuit, Clapperboard, FlaskConical, Handshake, LineChart, MapPinned, Mic, Phone, Stars } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { LivingMap } from "../components/maps";
 import { FilmCard, FilmPlayer } from "../components/Film";
 import { HeroMedia } from "../components/media";
-import { Fireflies, Glass, SectionTitle, cx } from "../components/ui";
+import { Glass, SectionTitle, cx } from "../components/ui";
 import { ASER_2024 } from "../engine/block";
 import { MEDIA } from "../lib/clips";
 import { usePrefs, useT } from "../lib/prefs";
 import { usePipeline } from "../lib/store";
-import { meanZ, schoolStatuses } from "../lib/status";
 
 export default function AboutPage({ onTour }: { onTour: () => void }) {
   const t = useT();
@@ -19,31 +17,28 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
   const [clip, setClip] = useState<number | null>(null);
   const verified = state.verify.filter((v) => v.verdict === "verified").length;
   const distinctive = state.evidence.filter((e) => e.verdict === "distinctive").length;
-  const status = useMemo(() => schoolStatuses(state), [state]);
-  const z = useMemo(() => meanZ(state), [state]);
   const hi = lang === "hi" && "font-deva";
 
   const LOOP = [
     { icon: MapPinned, title: t("Find", "खोजें"), text: t("Model what each school should score given its context. Flag schools that beat it in 2 of 3 years.", "हर स्कूल के हालात से उसका अपेक्षित परिणाम निकालें। जो 3 में से 2 साल उससे आगे हों, उन्हें चिह्नित करें।") },
-    { icon: BadgeCheck, title: t("Verify", "जाँचें"), text: t("Catch inflated data: consistency checks + a 15-minute spot check of 15 children by the cluster resource person.", "बढ़ा-चढ़ा डेटा पकड़ें: निरंतरता की जाँच + CRP द्वारा 15 बच्चों की 15 मिनट की मौके पर जाँच।") },
-    { icon: Mic, title: t("Ask", "पूछें"), text: t("An AI voice interviewer talks to bright-spot teachers — and similar ordinary schools — in their language, about concrete routines.", "AI आवाज़-इंटरव्यूअर अच्छे स्कूलों के — और उन जैसे सामान्य स्कूलों के — शिक्षकों से उनकी भाषा में ठोस तरीकों पर बात करता है।") },
-    { icon: Stars, title: t("Contrast", "तुलना"), text: t("Keep only practices that are specific to bright spots, cost nothing extra, and are described in concrete detail.", "वही तरीके रखें जो सिर्फ़ अच्छे स्कूलों में हैं, मुफ़्त हैं, और ठोस रूप से बताए गए हैं।") },
-    { icon: Handshake, title: t("Spread", "फैलाएँ"), text: t("Sideways, not top-down: a voice note in the demonstrator's own words, a peer visit a few km away, owned actions.", "ऊपर से नहीं, साथी से साथी तक: उसी शिक्षक की आवाज़ में संदेश, पास के स्कूल का दौरा, और हर काम का ज़िम्मेदार।") },
-    { icon: LineChart, title: t("Track", "ट्रैक"), text: t("Follow-up calls, then wave 1 vs wave 2 at the next assessment — the block learns which practices actually transfer.", "फ़ॉलो-अप कॉल, फिर अगली परीक्षा में पहली बनाम दूसरी लहर — ब्लॉक सीखता है कि कौन-से तरीके सच में काम आते हैं।") },
+    { icon: BadgeCheck, title: t("Confirm", "पुष्टि करें"), text: t("Catch inflated data: consistency checks + a 15-minute confirmation visit of 15 children by the cluster resource person.", "बढ़ा-चढ़ा डेटा पकड़ें: निरंतरता की जाँच + CRP द्वारा 15 बच्चों की 15 मिनट की मौके पर जाँच।") },
+    { icon: Mic, title: t("Ask", "पूछें"), text: t("An AI voice interviewer talks to teachers at schools doing well — and similar ordinary schools — in their language, about concrete routines.", "AI आवाज़-इंटरव्यूअर अच्छे स्कूलों के — और उन जैसे सामान्य स्कूलों के — शिक्षकों से उनकी भाषा में ठोस तरीकों पर बात करता है।") },
+    { icon: Stars, title: t("Compare", "तुलना"), text: t("Keep only methods that are specific to schools doing well, cost nothing extra, and are described in concrete detail.", "वही तरीके रखें जो सिर्फ़ अच्छे स्कूलों में हैं, मुफ़्त हैं, और ठोस रूप से बताए गए हैं।") },
+    { icon: Handshake, title: t("Share", "पहुँचाएँ"), text: t("Sideways, not top-down: a voice note in the teacher who can show it's own words, a classroom visit a few km away, owned actions.", "ऊपर से नहीं, साथी से साथी तक: उसी शिक्षक की आवाज़ में संदेश, पास के स्कूल का दौरा, और हर काम का ज़िम्मेदार।") },
+    { icon: LineChart, title: t("Check", "देखें"), text: t("Follow-up calls, then group 1 vs group 2 at the next assessment — the block learns which methods actually transfer.", "फ़ॉलो-अप कॉल, फिर अगली परीक्षा में पहली बनाम दूसरा समूह — ब्लॉक सीखता है कि कौन-से तरीके सच में काम आते हैं।") },
   ];
 
   const TRY = [
     { to: "/talk", icon: Mic, title: t("Be the teacher", "शिक्षक बनकर देखें"), text: t("A 12-minute Hindi voice interview with Jugnu on your phone — no app, no login.", "अपने फ़ोन पर जुगनू से 12 मिनट की हिंदी आवाज़-बातचीत — न ऐप, न लॉगिन।"), ext: true },
-    { to: "/interviews", icon: Phone, title: t("Phone line", "फ़ोन लाइन"), text: t("The same interview on a basic phone call, with the exact TwiML at each step.", "वही बातचीत साधारण फ़ोन कॉल पर — हर कदम का TwiML भी।"), ext: false },
-    { to: "/ai", icon: BrainCircuit, title: t("AI & guardrails", "AI व जाँच"), text: t("Ten AI tasks in five layers, the live trace of every call, and the evaluation.", "दस AI काम पाँच परतों में, हर कॉल का लाइव ट्रेस, और मूल्यांकन।"), ext: false },
-    { to: "/testing", icon: FlaskConical, title: t("User testing", "उपयोगकर्ता परीक्षण"), text: t("Sessions with teachers, CRPs and BEOs — tasks, usability survey, what we changed.", "शिक्षकों, CRP और BEO के साथ सत्र — काम, सर्वे, और जो बदला गया।"), ext: false },
+    { to: "/interviews", icon: Phone, title: t("Phone line", "फ़ोन लाइन"), text: t("The same conversation on a basic phone call.", "वही बातचीत साधारण फ़ोन कॉल पर।"), ext: false },
+    { to: "/ai", icon: BrainCircuit, title: t("Safety", "सुरक्षा"), text: t("What Jugnu removes by itself, and a box to try it.", "जुगनू अपने-आप क्या हटाता है, और आज़माने का बॉक्स।"), ext: false },
+    { to: "/testing", icon: FlaskConical, title: t("Test lab", "टेस्ट लैब"), text: t("Try every feature for real, calls included, and record what happened.", "हर सुविधा असल में आज़माएँ, कॉल समेत, और जो हुआ वह दर्ज करें।"), ext: false },
   ];
 
   return (
     <div className="space-y-10">
-      <HeroMedia video={MEDIA.hero} className="min-h-[660px]">
-        <Fireflies count={24} />
-        <div className="grid min-h-[660px] items-center gap-6 p-6 md:p-12 lg:grid-cols-[1.05fr_1fr]">
+      <HeroMedia video={MEDIA.doorClassroom} className="min-h-[660px]">
+        <div className="grid min-h-[660px] items-end gap-6 p-6 md:p-12">
           <div>
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="chip mb-5 w-fit">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" /> AI for Foundational Learning · {t("Challenge 4 · Data to action", "चुनौती 4 · डेटा से कार्य")}
@@ -72,7 +67,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
             <div className="mt-8 grid max-w-xl grid-cols-4 gap-2">
               {[
                 [state.block.schools.length, t("schools", "स्कूल")],
-                [verified, t("bright spots", "अच्छे स्कूल")],
+                [verified, t("schools doing well", "अच्छे स्कूल")],
                 [state.interviews.length, t("interviews", "बातचीत")],
                 [distinctive, t("practices", "तरीके")],
               ].map(([n, label]) => (
@@ -81,12 +76,6 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
                   <div className={cx("text-xs text-[var(--color-ink-2)]", hi)}>{label}</div>
                 </div>
               ))}
-            </div>
-          </div>
-          <div className="relative h-[440px] md:h-[560px]">
-            <LivingMap mode="3d" schools={state.block.schools} status={status} z={z} links={state.recs.filter((r) => r.wave === 1).map((r) => ({ from: r.demonstratorId, to: r.schoolId }))} height={540} autoRotate className="h-full overflow-hidden rounded-3xl" />
-            <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-center text-xs text-white/60">
-              {t("Live map of the demo block · fireflies = bright spots · arcs = who learns from whom", "डेमो ब्लॉक का लाइव नक्शा · जुगनू = अच्छे स्कूल · रेखाएँ = कौन किससे सीखता है")}
             </div>
           </div>
         </div>
@@ -119,15 +108,15 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
       <section>
         <SectionTitle
           eyebrow={t("See it in action", "काम करते हुए देखें")}
-          title={t("One loop, every term", "एक चक्र, हर सत्र")}
-          sub={t("The whole loop as a short film: shot with Veo 3.1, scored with Lyria, narrated with Chirp 3. Jump to any chapter.", "पूरा चक्र एक छोटी फ़िल्म में: Veo 3.1 से फ़िल्माई, Lyria का संगीत, Chirp 3 की आवाज़। किसी भी अध्याय पर जाएँ।")}
+          title={t("Two minutes, start to finish", "दो मिनट, शुरू से अंत तक")}
+          sub={t("The whole idea as a short film. Jump to any chapter. The footage is AI-generated.", "पूरा विचार एक छोटी फ़िल्म में। किसी भी अध्याय पर जाएँ। दृश्य AI से बने हैं।")}
         />
         <FilmCard onPlay={(at) => setClip(at ?? 0)} />
         <FilmPlayer open={clip !== null} start={clip ?? 0} onClose={() => setClip(null)} />
       </section>
 
       <section>
-        <SectionTitle eyebrow={t("The loop", "चक्र")} title={t("Find → Verify → Ask → Contrast → Spread → Track", "खोजें → जाँचें → पूछें → तुलना → फैलाएँ → ट्रैक")} />
+        <SectionTitle eyebrow={t("How it works", "कैसे काम करता है")} title={t("Six steps, every term", "हर सत्र, छह कदम")} />
         <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           {LOOP.map(({ icon: Icon, title, text }, i) => (
             <Glass key={title} className="glass-hover p-5" delay={0.04 * i}>
@@ -158,7 +147,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
                 {[
                   [t("State command centres (VSK, EMIS)", "राज्य कमांड सेंटर (VSK, EMIS)"), t("where learning is low", "सीखना कहाँ कम है"), t("what to do about it", "इसके लिए क्या करें")],
                   [t("Cascade training", "कैस्केड प्रशिक्षण"), t("the same module for everyone", "सबके लिए एक ही मॉड्यूल"), t("dilutes at every level; not local", "हर स्तर पर कमज़ोर होता है; स्थानीय नहीं")],
-                  [t("NCERT innovative practices", "NCERT नवाचार"), t("~60 write-ups a year", "साल में ~60 लेख"), t("not outcome-verified, not spread", "नतीजों से जाँचे नहीं, फैलाए नहीं जाते")],
+                  [t("NCERT innovative methods", "NCERT नवाचार"), t("~60 write-ups a year", "साल में ~60 लेख"), t("not outcome-verified, not spread", "नतीजों से जाँचे नहीं, फैलाए नहीं जाते")],
                   [t("UNICEF Data Must Speak", "UNICEF Data Must Speak"), t("positive deviance research, 15 countries", "सकारात्मक विचलन शोध, 15 देश"), t("months of fieldwork, not in India, ends in a report", "महीनों का फ़ील्डवर्क, भारत में नहीं, रिपोर्ट पर खत्म")],
                 ].map(([a, b, c]) => (
                   <tr key={a} className="border-t border-white/8">

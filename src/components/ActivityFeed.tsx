@@ -16,6 +16,7 @@ const STATUS: Record<string, [string, string]> = {
   scheduled: ["scheduled", "तय"],
   done: ["done", "पूरा"],
   stuck: ["stuck", "अटका"],
+  submitted: ["ready for sign-off", "पुष्टि के लिए"],
 };
 const OUTCOME: Record<string, [string, string]> = {
   adopted: ["adopted it", "अपना लिया"],
@@ -80,6 +81,10 @@ export function describeEvent(e: BlockEvent, t: T, allActions: Action[], schools
       tone: p.status === "stuck" ? "var(--tone-bad)" : visit ? "var(--tone-visit)" : note ? "var(--tone-lime)" : "var(--tone-info)",
     };
   }
+  if (e.kind === "weekly") {
+    const text = t(`${actor} sent the weekly report: ${p.teachersUsing} teachers, ${p.childrenReached} children`, `${actor} ने साप्ताहिक रिपोर्ट भेजी: ${p.teachersUsing} शिक्षक, ${p.childrenReached} बच्चे`);
+    return { text, title: t(`Weekly report: ${p.teachersUsing} teachers, ${p.childrenReached} children`, `साप्ताहिक रिपोर्ट: ${p.teachersUsing} शिक्षक, ${p.childrenReached} बच्चे`), insight: p.note ? `“${p.note}”` : undefined, chip: actor, schoolId: e.ref, icon: MessageSquareText, tone: "var(--tone-info)" };
+  }
   if (e.kind === "spotcheck") {
     const n = Number(p.sampled) || 1;
     const read = Math.round((Number(p.proficient) / n) * 100);
@@ -89,15 +94,15 @@ export function describeEvent(e: BlockEvent, t: T, allActions: Action[], schools
     const gap = reported == null ? 0 : reported - read;
     return {
       text: t(
-        `${actor} recorded a spot check: ${p.proficient}/${p.sampled} read, ${p.numeracyProficient}/${p.sampled} did subtraction`,
+        `${actor} recorded a confirmation visit: ${p.proficient}/${p.sampled} read, ${p.numeracyProficient}/${p.sampled} did subtraction`,
         `${actor} ने जाँच दर्ज की: ${p.proficient}/${p.sampled} ने पढ़ा, ${p.numeracyProficient}/${p.sampled} ने घटाव किया`,
       ),
-      title: t(`Spot check: ${read}% read a story, ${maths}% subtract`, `जाँच: ${read}% ने कहानी पढ़ी, ${maths}% ने घटाव किया`),
+      title: t(`Confirmation visit: ${read}% read a story, ${maths}% subtract`, `जाँच: ${read}% ने कहानी पढ़ी, ${maths}% ने घटाव किया`),
       insight:
         reported == null
           ? undefined
           : gap > 20
-            ? t(`${gap} points below the ${reported}% reported — hold off calling it a bright spot.`, `बताए गए ${reported}% से ${gap} अंक कम — अभी अच्छा स्कूल न मानें।`)
+            ? t(`${gap} points below the ${reported}% reported — hold off calling it a school doing well.`, `बताए गए ${reported}% से ${gap} अंक कम — अभी अच्छा स्कूल न मानें।`)
             : t(`Close to the ${reported}% reported — the school's numbers hold up.`, `बताए गए ${reported}% के क़रीब — स्कूल के आँकड़े सही लगते हैं।`),
       chip: actor,
       schoolId: e.ref,
@@ -149,7 +154,7 @@ export function ActivityFeed({ events, schoolId, limit = 8 }: { events: BlockEve
     return (
       <p className="text-sm text-[var(--color-ink-2)]">
         {t(
-          "Nothing recorded yet. When someone moves an action, records a spot check or a follow-up call, it shows here for everyone.",
+          "Nothing recorded yet. When someone moves an action, records a confirmation visit or a follow-up call, it shows here for everyone.",
           "अभी कुछ दर्ज नहीं। जब कोई काम आगे बढ़ाता है, जाँच या फ़ॉलो-अप दर्ज करता है, वह यहाँ सबको दिखता है।",
         )}
       </p>

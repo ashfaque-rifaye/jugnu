@@ -31,7 +31,7 @@ export function PairsCard({ state, limit = 4 }: { state: PipelineState; limit?: 
   const name = (id: string) => state.block.schools.find((s) => s.id === id)?.name ?? id;
   const p = pairs[Math.min(open, pairs.length - 1)];
   return (
-    <Card title={t("A bright spot beside its closest match", "अच्छा स्कूल और उसके जैसा सामान्य स्कूल")} icon={GitCompare}>
+    <Card title={t("A school doing well beside its closest match", "अच्छा स्कूल और उसके जैसा सामान्य स्कूल")} icon={GitCompare}>
       <div className="mb-4 flex flex-wrap gap-2" role="tablist">
         {pairs.slice(0, limit).map((x, i) => (
           <button key={x.bright.schoolId} role="tab" aria-selected={i === open} onClick={() => setOpen(i)} className={cx("chip", i === open && "!border-[var(--st-bright)] !text-[var(--st-bright)]")}>
@@ -62,7 +62,7 @@ export function PairsCard({ state, limit = 4 }: { state: PipelineState; limit?: 
   );
 }
 
-/** "If we send N CRPs to spread this practice…" — the estimate with every assumption shown. */
+/** "If we send N CRPs to spread this method…" — the estimate with every assumption shown. */
 export function WhatIfCard({ state }: { state: PipelineState }) {
   const t = useT();
   const label = usePracticeLabel();
@@ -75,7 +75,7 @@ export function WhatIfCard({ state }: { state: PipelineState }) {
   return (
     <Card title={t("What if we spread it this fortnight?", "अगर इस पखवाड़े फैलाएँ तो?")} icon={Sparkles}>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label={t("Practice", "तरीका")}>
+        <Field label={t("Method", "तरीका")}>
           <select className={fieldClass} value={practice} onChange={(e) => setPractice(e.target.value as PracticeId)}>
             {proven.map((p) => (
               <option key={p} value={p}>
@@ -92,7 +92,7 @@ export function WhatIfCard({ state }: { state: PipelineState }) {
         </Field>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-4">
-        <Stat label={t("Peer visits that fit", "संभव साथी-यात्राएँ")} value={`${r.visited}/${r.schools}`} />
+        <Stat label={t("Classroom visits that fit", "संभव साथी-यात्राएँ")} value={`${r.visited}/${r.schools}`} />
         <Stat label={t("Teachers likely to adopt", "अपनाने वाले शिक्षक")} value={r.adopters.mean} hint={`${r.adopters.lo}–${r.adopters.hi}`} />
         <Stat label={t("Change in Grade 3 (pts)", "कक्षा 3 में बदलाव (अंक)")} value={pct(r.upliftPts.mean)} hint={t(`90% range ${r.upliftPts.lo} to ${r.upliftPts.hi}`, `90% दायरा ${r.upliftPts.lo} से ${r.upliftPts.hi}`)} tone="var(--st-bright)" />
         <Stat label={t("Children reached", "बच्चों तक पहुँच")} value={r.childrenReached.mean} hint={`${r.childrenReached.lo}–${r.childrenReached.hi}`} />
@@ -142,9 +142,9 @@ export function PhotoCheck({ schoolId, blockKey, practices }: { schoolId: string
   };
   const verdict = res && { yes: t("Visible", "दिख रहा है"), partly: t("Partly visible", "कुछ हद तक दिख रहा है"), no: t("Not visible", "नहीं दिख रहा"), cannot_tell: t("Can't tell", "कह नहीं सकते") }[res.value.visible];
   return (
-    <Card title={t("Check a practice from a photo", "फ़ोटो से अभ्यास की जाँच")} icon={Camera}>
+    <Card title={t("Check a method from a photo", "फ़ोटो से अभ्यास की जाँच")} icon={Camera}>
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <Field label={t("Practice to look for", "कौन-सा तरीका देखें")}>
+        <Field label={t("Method to look for", "कौन-सा तरीका देखें")}>
           <select className={fieldClass} value={practice} onChange={(e) => setPractice(e.target.value as PracticeId)}>
             {(Object.keys(PRACTICES) as PracticeId[]).map((p) => (
               <option key={p} value={p}>

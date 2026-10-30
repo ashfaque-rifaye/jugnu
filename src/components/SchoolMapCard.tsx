@@ -178,7 +178,7 @@ export function SchoolMapCard({
         )}
 
         {mentorSchool && <TripRow to={mentorSchool} label={t("Learns from", "इनसे सीखता है")} icon={Users} />}
-        {bright && status !== "bright" && bright.school.id !== mentorSchool?.id && <TripRow to={bright.school} label={t("Nearest bright spot", "सबसे पास का अच्छा स्कूल")} icon={Sparkles} />}
+        {bright && status !== "bright" && bright.school.id !== mentorSchool?.id && <TripRow to={bright.school} label={t("Nearest school doing well", "सबसे पास का अच्छा स्कूल")} icon={Sparkles} />}
         {status === "bright" && learners.length > 0 && (
           <div className="card-inset p-2.5 text-sm">
             <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-3)]">{t("Teaches nearby schools", "पास के स्कूलों को सिखाता है")}</div>

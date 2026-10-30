@@ -43,9 +43,9 @@ export function useJourneySteps(): Step[] {
       const wave1 = state.recs.filter((r) => r.wave === 1 && inPatch(r.schoolId));
       return [
         tour,
-        { key: "spotcheck", label: ["Record a spot check", "मौके की जाँच दर्ज करें"], sub: ["15 children, 15 minutes — the school updates at once", "15 बच्चे, 15 मिनट — स्कूल तुरंत अपडेट"], done: mine("spotcheck"), to: first("check_due") ? `/schools/${first("check_due")}` : "/schools" },
-        { key: "invite", label: ["Invite a bright-spot teacher", "अच्छे स्कूल के शिक्षक को बुलाएँ"], sub: ["Send the 12-minute voice interview link", "12 मिनट की बातचीत का लिंक भेजें"], done: seen.has("invite"), to: toInvite ? `/schools/${toInvite}` : "/schools?status=bright" },
-        { key: "visit", label: ["Mark a peer visit done", "साथी-दौरा पूरा करें"], sub: ["Move one action on the support plan", "योजना में एक काम आगे बढ़ाएँ"], done: mine("action", (p, ref) => p.status === "done" && ref.endsWith("-visit")), to: "/plan" },
+        { key: "spotcheck", label: ["Record a confirmation visit", "पुष्टि दौरा दर्ज करें"], sub: ["15 children, 15 minutes — the school updates at once", "15 बच्चे, 15 मिनट — स्कूल तुरंत अपडेट"], done: mine("spotcheck"), to: first("check_due") ? `/schools/${first("check_due")}` : "/schools" },
+        { key: "invite", label: ["Invite a teacher at a school doing well", "अच्छे स्कूल के शिक्षक को बुलाएँ"], sub: ["Send the 12-minute voice interview link", "12 मिनट की बातचीत का लिंक भेजें"], done: seen.has("invite"), to: toInvite ? `/schools/${toInvite}` : "/schools?status=bright" },
+        { key: "visit", label: ["Mark a classroom visit done", "कक्षा-दौरा पूरा करें"], sub: ["Move one action on the sharing plan", "योजना में एक काम आगे बढ़ाएँ"], done: mine("action", (p, ref) => p.status === "done" && ref.endsWith("-visit")), to: "/plan" },
         { key: "followup", label: ["Log a day-14 call", "14वें दिन की कॉल दर्ज करें"], sub: ["“Did you try it? What happened?”", "“क्या आज़माया? क्या हुआ?”"], done: mine("followup"), to: wave1[0] ? `/schools/${wave1[0].schoolId}` : "/results" },
       ];
     }
@@ -55,14 +55,14 @@ export function useJourneySteps(): Step[] {
         { key: "review", label: ["Approve an AI draft", "AI ड्राफ़्ट मंज़ूर करें"], sub: ["Nothing reaches a teacher without you", "आपकी मंज़ूरी के बिना कुछ नहीं जाता"], done: seen.has("review"), to: "/review" },
         { key: "plan", label: ["See who owns what", "किसके ज़िम्मे क्या है, देखें"], sub: ["Every action has an owner and a date", "हर काम का मालिक और तारीख"], done: seen.has("seen:/plan"), to: "/plan" },
         { key: "ask", label: ["Ask Jugnu a question", "जुगनू से एक सवाल पूछें"], sub: ["“Which schools need a visit this week?”", "“इस हफ़्ते किन स्कूलों में जाना है?”"], done: seen.has("ask"), to: "/today?ask=1" },
-        { key: "results", label: ["See if it worked", "देखें, असर हुआ या नहीं"], sub: ["Day-14 calls and wave 1 vs wave 2", "14वें दिन की कॉल, लहर 1 बनाम 2"], done: seen.has("seen:/results"), to: "/results" },
+        { key: "results", label: ["See if it worked", "देखें, असर हुआ या नहीं"], sub: ["Day-14 calls and group 1 vs group 2", "14वें दिन की कॉल, समूह 1 बनाम 2"], done: seen.has("seen:/results"), to: "/results" },
       ];
     return [
       tour,
       { key: "bright", label: ["Open a bright-spot school", "एक अच्छा स्कूल खोलें"], sub: [story ? `${story.bright.teacher}, ${story.bright.name}` : "A school beating its context", story ? `${story.bright.teacher}, ${story.bright.name}` : "हालात से आगे स्कूल"], done: seen.has("seen:bright"), to: story ? `/schools/${story.bright.id}` : "/schools?status=bright" },
-      { key: "practices", label: ["See what works here", "देखें यहाँ क्या काम करता है"], sub: ["Practices only bright spots use", "सिर्फ़ अच्छे स्कूलों के तरीके"], done: seen.has("seen:/practices"), to: "/practices" },
+      { key: "practices", label: ["See what works here", "देखें यहाँ जो तरीके काम करते हैं"], sub: ["Methods only schools doing well use", "सिर्फ़ अच्छे स्कूलों के तरीके"], done: seen.has("seen:/practices"), to: "/practices" },
       { key: "demo", label: ["Play the term", "सत्र चलाकर देखें"], sub: ["14 days of field work in 40 seconds", "14 दिन का काम 40 सेकंड में"], done: seen.has("demo"), run: "demo" },
-      { key: "results", label: ["See if it worked", "देखें, असर हुआ या नहीं"], sub: ["Wave 1 against wave 2", "लहर 1 बनाम लहर 2"], done: seen.has("seen:/results"), to: "/results" },
+      { key: "results", label: ["See if it worked", "देखें, असर हुआ या नहीं"], sub: ["Group 1 against group 2", "समूह 1 बनाम समूह 2"], done: seen.has("seen:/results"), to: "/results" },
     ];
   }, [role, state, events, followUps, seen]);
 }

@@ -6,12 +6,12 @@ export type SchoolStatus = "bright" | "check_due" | "check_data" | "revisit" | "
 
 // Colours are CSS variables so they follow light / dark mode (see styles.css, --st-*).
 export const STATUS_INFO: Record<SchoolStatus, { en: string; hi: string; color: string; next: [string, string] }> = {
-  bright: { en: "Bright spot", hi: "अच्छा स्कूल", color: "var(--st-bright)", next: ["Learn what this teacher does — interview", "यह शिक्षक क्या करते हैं, जानें — बातचीत करें"] },
-  check_due: { en: "Spot check due", hi: "मौके की जाँच बाकी", color: "var(--st-check-due)", next: ["Visit and check 15 children (15 minutes)", "जाकर 15 बच्चों की जाँच करें (15 मिनट)"] },
-  check_data: { en: "Check the data", hi: "डेटा जाँचें", color: "var(--st-check-data)", next: ["Revisit respectfully — results may be over-reported", "सम्मान से दोबारा देखें — परिणाम ज़्यादा दर्ज हो सकते हैं"] },
-  revisit: { en: "Revisit", hi: "दोबारा देखें", color: "var(--st-revisit)", next: ["Results changed a lot between years — talk to the teacher on the next visit", "सालों के बीच परिणाम बहुत बदले — अगली बार शिक्षक से बात करें"] },
-  support: { en: "Needs support", hi: "मदद चाहिए", color: "var(--st-support)", next: ["Share one practice from a nearby teacher", "पास के शिक्षक का एक तरीका पहुँचाएँ"] },
-  ok: { en: "As expected", hi: "अपेक्षा के अनुसार", color: "var(--st-ok)", next: ["No action needed now", "अभी कुछ करने की ज़रूरत नहीं"] },
+  bright: { en: "Doing well", hi: "अच्छा कर रहा", color: "var(--st-bright)", next: ["Ask this teacher what they do: a 12-minute conversation", "इस शिक्षक से पूछें कि वे क्या करते हैं: 12 मिनट की बातचीत"] },
+  check_due: { en: "Needs a visit", hi: "दौरा बाकी", color: "var(--st-check-due)", next: ["Visit and test 15 children, to confirm the results are real", "जाकर 15 बच्चों को परखें, ताकि पता चले नतीजे सच्चे हैं"] },
+  check_data: { en: "Results don't match", hi: "नतीजे मेल नहीं खाते", color: "var(--st-check-data)", next: ["Visit again, respectfully: the reported results look too high", "सम्मान से फिर जाएँ: दर्ज नतीजे ज़्यादा लगते हैं"] },
+  revisit: { en: "Look again", hi: "फिर देखें", color: "var(--st-revisit)", next: ["Results changed a lot between years — talk to the teacher on the next visit", "सालों के बीच परिणाम बहुत बदले — अगली बार शिक्षक से बात करें"] },
+  support: { en: "Needs help", hi: "मदद चाहिए", color: "var(--st-support)", next: ["Share one method from a nearby teacher", "पास के शिक्षक का एक तरीका पहुँचाएँ"] },
+  ok: { en: "On track", hi: "ठीक चल रहा", color: "var(--st-ok)", next: ["No action needed now", "अभी कुछ करने की ज़रूरत नहीं"] },
 };
 
 /** A see-through version of any colour (hex or CSS variable), for chip backgrounds and borders. */

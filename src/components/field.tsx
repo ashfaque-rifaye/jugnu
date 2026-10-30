@@ -1,14 +1,15 @@
 // The things people do in the field, recorded in the block's shared activity log:
 // a 15-child spot check, moving an action along, a follow-up call, and the peer voice note.
-import { Check, CircleDashed, Loader2, Minus, Pause, Plus, Send, Sparkles, TriangleAlert, Volume2 } from "lucide-react";
+import { Check, CircleDashed, Loader2, Minus, Plus, Send, Sparkles, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { PRACTICES } from "../engine/practices";
 import type { Action, Recommendation, School } from "../engine/types";
 import { postJSON, usePoll } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
-import { speak, stopSpeaking } from "../lib/speech";
+import { useMoveAction } from "../lib/actions";
 import { usePipeline } from "../lib/store";
 import { VoiceText } from "./Feedback";
+import { VoicePlayer } from "./VoicePlayer";
 import { WhatsAppSend } from "./insights";
 import { fieldClass } from "./kit";
 import { cx } from "./ui";
@@ -86,13 +87,13 @@ export function SpotCheckForm({ school, onSaved }: { school: School; onSaved?: (
         <p className="text-sm font-medium text-[var(--color-ink)]">{t("You haven't counted any child as passing. Saving this will flag the school's data for a revisit.", "आपने किसी बच्चे को सफल नहीं गिना है। इसे सहेजने पर स्कूल का डेटा दोबारा जाँच के लिए चिह्नित होगा।")}</p>
       )}
       <button className="btn btn-primary w-full justify-center" onClick={save} disabled={busy}>
-        {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} {sure && read === 0 && maths === 0 ? t("Yes, no child passed. Save", "हाँ, कोई सफल नहीं। सहेजें") : t("Save spot check", "जाँच सहेजें")}
+        {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} {sure && read === 0 && maths === 0 ? t("Yes, no child passed. Save", "हाँ, कोई सफल नहीं। सहेजें") : t("Save confirmation visit", "जाँच सहेजें")}
       </button>
       {error && <p className="text-sm text-red-300">{error}</p>}
       <p className="text-xs text-[var(--color-ink-3)]">
         {t(
           "Jugnu compares this with the results the school reported. If they clearly disagree, the school is marked for a respectful revisit — never a penalty.",
-          "जुगनू इसकी तुलना स्कूल के दर्ज परिणामों से करता है। साफ़ अंतर हो तो सम्मान से दोबारा देखने को कहा जाता है — कभी सज़ा नहीं।",
+          "जुगनू इसकी समान स्कूल के दर्ज परिणामों से करता है। साफ़ अंतर हो तो सम्मान से दोबारा देखने को कहा जाता है — कभी सज़ा नहीं।",
         )}
       </p>
     </div>
@@ -102,6 +103,7 @@ export function SpotCheckForm({ school, onSaved }: { school: School; onSaved?: (
 const STATUS_STYLE: Record<Action["status"], { en: string; hi: string; color: string }> = {
   todo: { en: "To do", hi: "करना है", color: "var(--tone-muted)" },
   scheduled: { en: "Scheduled", hi: "तय है", color: "var(--tone-info)" },
+  submitted: { en: "Waiting for sign-off", hi: "पुष्टि का इंतज़ार", color: "var(--tone-warn)" },
   done: { en: "Done", hi: "पूरा", color: "var(--tone-good)" },
   stuck: { en: "Stuck", hi: "अटका", color: "var(--tone-bad)" },
 };
@@ -116,17 +118,18 @@ export function ActionStatus({ status }: { status: Action["status"] }) {
   );
 }
 
-/** One owned action with its controls: anyone can move it along; "stuck" needs a reason. */
+/** One task with its controls. A school or owner marks it done; someone else signs it off. */
 export function ActionRow({ action, school, compact }: { action: Action; school?: School; compact?: boolean }) {
   const t = useT();
-  const { record } = usePipeline();
+  const { move, approver } = useMoveAction();
   const [stuck, setStuck] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const can = approver(action);
   const set = async (status: Action["status"], n?: string) => {
     setBusy(true);
     try {
-      await record("action", action.id, n ? { status, note: n } : { status });
+      await move(action, status, n);
       setStuck(false);
       setNote("");
     } finally {
@@ -134,7 +137,7 @@ export function ActionRow({ action, school, compact }: { action: Action; school?
     }
   };
   return (
-    <div className={cx("card-inset p-3", action.status === "stuck" && "border-red-400/40")}>
+    <div className={cx("card-inset p-3", action.status === "stuck" && "border-[color-mix(in_srgb,var(--tone-bad)_50%,transparent)]")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           {school && !compact && <div className="text-xs font-semibold text-[var(--color-ink-2)]">{school.name}</div>}
@@ -147,27 +150,42 @@ export function ActionRow({ action, school, compact }: { action: Action; school?
         <ActionStatus status={action.status} />
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {action.status !== "done" && (
-          <button className="btn btn-glass !px-3 !py-1 text-xs" onClick={() => set("done")} disabled={busy}>
-            <Check size={13} /> {t("Mark done", "पूरा करें")}
-          </button>
+        {action.status === "submitted" ? (
+          can ? (
+            <>
+              <button className="btn btn-glass !px-3 !py-1 text-xs" onClick={() => set("done")} disabled={busy}>
+                <Check size={13} /> {t("Sign off", "पुष्टि करें")}
+              </button>
+              <button className="btn btn-glass !px-3 !py-1 text-xs" onClick={() => set("scheduled")} disabled={busy}>
+                {t("Send back", "वापस भेजें")}
+              </button>
+            </>
+          ) : (
+            <span className="text-xs text-[var(--color-ink-3)]">{t("A coordinator or the BEO will confirm this.", "समन्वयक या BEO इसकी पुष्टि करेंगे।")}</span>
+          )
+        ) : (
+          action.status !== "done" && (
+            <button className="btn btn-glass !px-3 !py-1 text-xs" onClick={() => set("done")} disabled={busy}>
+              <Check size={13} /> {t("Mark done", "पूरा करें")}
+            </button>
+          )
         )}
         {action.status === "todo" && (
           <button className="btn btn-glass !px-3 !py-1 text-xs" onClick={() => set("scheduled")} disabled={busy}>
             {t("Scheduled", "तय किया")}
           </button>
         )}
-        {action.status !== "stuck" && (
+        {action.status !== "stuck" && action.status !== "done" && action.status !== "submitted" && (
           <button className="btn btn-glass !px-3 !py-1 text-xs" onClick={() => setStuck((v) => !v)} disabled={busy}>
             <TriangleAlert size={13} /> {t("It's stuck", "अटका है")}
           </button>
         )}
-        {(action.status === "done" || action.status === "stuck") && (
+        {(action.status === "stuck" || (action.status === "done" && can)) && (
           <button className="btn btn-glass !px-3 !py-1 text-xs" onClick={() => set("todo")} disabled={busy}>
             {t("Reopen", "फिर खोलें")}
           </button>
         )}
-        {busy && <Loader2 size={14} className="animate-spin text-amber-200" />}
+        {busy && <Loader2 size={14} className="animate-spin" />}
       </div>
       {stuck && (
         <div className="mt-2 flex gap-2">
@@ -232,7 +250,7 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
     setBusy(false);
     setDone(true);
   };
-  if (done) return <p className="text-sm text-emerald-300">{t("Saved. The support plan and Results are updated for everyone.", "सहेज लिया। योजना और नतीजे सबके लिए अपडेट हो गए।")}</p>;
+  if (done) return <p className="text-sm text-emerald-300">{t("Saved. The sharing plan and Results are updated for everyone.", "सहेज लिया। योजना और नतीजे सबके लिए अपडेट हो गए।")}</p>;
   const OPTIONS: [Outcome, string, string][] = [
     ["adopted", t("Doing it regularly", "नियमित कर रहे हैं"), "#4ade80"],
     ["trying", t("Trying it", "आज़मा रहे हैं"), "#facc15"],
@@ -290,15 +308,8 @@ export function VoiceNote({ rec, school, demo }: { rec: Recommendation; school: 
   const approved = mine.find((r) => r.status === "approved");
   const pending = mine.find((r) => r.status === "pending");
   const [busy, setBusy] = useState(false);
-  const [playing, setPlaying] = useState(false);
   const hi = approved?.payload.voice_hi ?? pending?.payload.voice_hi ?? rec.voiceNoteHi;
   const en = approved?.payload.voice_en ?? pending?.payload.voice_en ?? rec.voiceNoteEn;
-  const play = async () => {
-    if (playing) return (stopSpeaking(), setPlaying(false));
-    setPlaying(true);
-    await speak(hi, "hi-IN");
-    setPlaying(false);
-  };
   const send = async () => {
     setBusy(true);
     await postJSON("/api/reviews/voice-note", { draftHi: rec.voiceNoteHi, draftEn: rec.voiceNoteEn, practice: PRACTICES[rec.practice].label, schoolId: school.id }).catch(() => null);
@@ -306,14 +317,11 @@ export function VoiceNote({ rec, school, demo }: { rec: Recommendation; school: 
     reload();
   };
   return (
-    <div className="rounded-2xl border border-amber-200/25 bg-amber-200/[0.06] p-4">
-      <div className="label mb-1 text-amber-100/80">{t(`60-second voice note in ${demo.teacher.split(" ")[0]}'s words`, `${demo.teacher.split(" ")[0]} के शब्दों में 60 सेकंड का वॉइस नोट`)}</div>
-      <p className="font-deva text-[15px] leading-relaxed">{hi}</p>
+    <div className="card-inset p-4">
+      <div className="label mb-2">{t(`60-second voice note in ${demo.teacher.split(" ")[0]}'s words`, `${demo.teacher.split(" ")[0]} के शब्दों में 60 सेकंड का वॉइस नोट`)}</div>
+      <VoicePlayer text={hi} />
       {lang === "en" && <p className="mt-1.5 text-xs text-[var(--color-ink-3)]">{en}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn btn-glass !py-1.5" onClick={play}>
-          {playing ? <Pause size={15} /> : <Volume2 size={15} />} {playing ? t("Stop", "रोकें") : t("Listen", "सुनें")}
-        </button>
         {approved ? (
           <a className="btn btn-primary !py-1.5" href={`https://wa.me/?text=${encodeURIComponent(hi)}`} target="_blank" rel="noreferrer">
             <Send size={15} /> {t(`Send to ${school.teacher.split(" ")[0]} on WhatsApp`, `${school.teacher.split(" ")[0]} को WhatsApp पर भेजें`)}
