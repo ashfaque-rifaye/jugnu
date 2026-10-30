@@ -79,8 +79,9 @@ export function watchAI() {
   const check = () =>
     aiHealth(0)
       .then((h) => {
-        const now = line(h);
-        if (now !== said) console.log(`AI check: ${now}`);
+        // Compare up or down only: an error's text changes on every call (it carries a request id).
+        const now = [h.claude.ok, h.speaking.ok, h.listening.ok].join();
+        if (now !== said) console.log(`AI check: ${line(h)}`);
         said = now;
       })
       .catch((e) => console.error("AI check failed", e));
