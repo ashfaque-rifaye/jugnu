@@ -3,6 +3,7 @@
 @theme {
   --font-sans: "Inter", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-serif: "Fraunces", Georgia, serif;
   --font-hand: "Kalam", "Noto Sans Devanagari", cursive;
   --font-deva: "Noto Sans Devanagari", "Inter", sans-serif;
 
@@ -800,7 +801,6 @@ select { color: var(--color-ink); }
 select option, select optgroup { background-color: var(--chrome-solid); color: var(--color-ink); }
 
 /* The home page's hero: strong at the foot and left, clear over the teacher and children. */
-.hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(4 6 10 / 0.5) 0%, rgb(4 6 10 / 0) 22%, rgb(4 6 10 / 0) 40%, rgb(4 6 10 / 0.72) 72%, rgb(4 6 10 / 0.92) 100%), linear-gradient(90deg, rgb(4 6 10 / 0.5) 0%, rgb(4 6 10 / 0) 55%); }
 
 /* The doors: the filmstrip you come in through. */
 .door { border-radius: 1.5rem; background: #0b0f17; outline: none; }
@@ -823,3 +823,63 @@ select option, select optgroup { background-color: var(--chrome-solid); color: v
 
 /* The voice note's position */
 .voice-range { accent-color: var(--st-bright); height: 4px; cursor: pointer; }
+
+/* The hero: a poster. The name in huge Devanagari, one teacher in front of it, on marigold. */
+.hero-poster { --ink: #1b1206; --field: #f6ae2d; position: relative; isolation: isolate; overflow: hidden; color: var(--ink); background: linear-gradient(160deg, #f9bb3c 0%, #f6ae2d 45%, #ec8f17 100%); border-radius: 0 0 2.4rem 2.4rem; }
+.hero-sun { position: absolute; z-index: -1; right: -6%; top: -16%; width: 74%; aspect-ratio: 1; border-radius: 9999px; background: radial-gradient(circle, rgb(255 233 158 / 0.95) 0%, rgb(255 216 104 / 0.55) 42%, rgb(255 216 104 / 0) 70%); }
+.hero-poster::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0.16; mix-blend-mode: multiply; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.hero-word { position: absolute; z-index: 0; left: 1.2vw; top: 3.4rem; font-family: var(--font-deva); font-weight: 800; font-size: min(31vw, 45svh); line-height: 1.02; letter-spacing: -0.012em; white-space: nowrap; color: #fff5d4; user-select: none; pointer-events: none; }
+.hero-body { position: relative; z-index: 1; min-height: min(calc(100svh - 3.4rem), 900px); display: flex; flex-direction: column; justify-content: flex-end; }
+.hero-figure { position: absolute; z-index: 1; right: -2vw; bottom: 0; height: min(90%, 58vw); width: auto; max-width: none; pointer-events: none; filter: drop-shadow(0 18px 40px rgb(70 30 0 / 0.28)); }
+.hero-copy { position: relative; z-index: 2; width: min(47%, 700px); padding: calc(3.4rem + min(31vw, 45svh) * 1.07) 0 2rem clamp(1.25rem, 3vw, 3rem); }
+.hero-title { font-family: var(--font-sans); font-weight: 400; letter-spacing: -0.035em; font-size: clamp(2.3rem, 3.9vw, 4.1rem); line-height: 1.04; }
+.hero-title.font-deva { font-family: var(--font-deva); font-weight: 600; letter-spacing: 0; line-height: 1.26; font-size: clamp(2.1rem, 3.4vw, 3.5rem); }
+.hero-accent { position: relative; display: inline-block; font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -0.02em; color: #7c2a00; }
+.hero-accent-hi { font-family: var(--font-deva); font-style: normal; font-weight: 800; letter-spacing: 0; }
+.hero-accent svg { position: absolute; left: 0; right: 0; bottom: -0.1em; width: 100%; height: 0.2em; color: #fff5d4; overflow: visible; }
+.hero-lede { margin-top: 1.15rem; max-width: 36rem; font-size: 16px; line-height: 1.5; color: rgb(27 18 6 / 0.84); }
+.hero-actions { margin-top: 1.3rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.35rem; }
+.hero-cta { display: inline-flex; align-items: center; gap: 0.55rem; height: 3.35rem; padding: 0 1.6rem; border-radius: 9999px; background: var(--ink); color: #ffe9a8; font-size: 16px; font-weight: 600; transition: transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s; box-shadow: 0 10px 24px rgb(70 30 0 / 0.3); }
+.hero-cta:hover { transform: translateY(-2px); box-shadow: 0 16px 30px rgb(70 30 0 / 0.38); }
+.hero-link { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.75rem; font-size: 15px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; text-decoration-color: rgb(27 18 6 / 0.4); }
+.hero-link:hover { text-decoration-color: var(--ink); }
+.hero-strip { position: relative; z-index: 2; overflow: hidden; background: var(--ink); color: #ffe9a8; padding: 0.8rem 0; font-size: 13.5px; font-weight: 500; }
+.hero-strip-run { display: flex; width: max-content; animation: hero-run 90s linear infinite; }
+.hero-strip:hover .hero-strip-run { animation-play-state: paused; }
+.hero-strip-still { animation: none; }
+.hero-strip-set { display: flex; }
+.hero-strip-item { white-space: nowrap; padding: 0 1.6rem; position: relative; }
+.hero-strip-item::after { content: ""; position: absolute; right: -3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 9999px; background: #f6ae2d; }
+@keyframes hero-run { to { transform: translateX(-50%); } }
+@media (min-width: 768px) { .hero-poster { border-radius: 2.4rem; } }
+@media (max-width: 899px) {
+  .hero-word { top: 4.2rem; font-size: 36vw; left: 2vw; }
+  .hero-body { min-height: 0; display: block; padding-top: calc(4.2rem + 27vw); }
+  .hero-figure { position: relative; display: block; right: auto; bottom: auto; margin: 0 -3vw -2px auto; width: min(92vw, 560px); height: auto; }
+  .hero-copy { width: auto; padding: 1.5rem 1.25rem 1.6rem; background: #17100a; color: #fff5dc; }
+  .hero-title { font-size: clamp(2.3rem, 9.6vw, 3.4rem); }
+  .hero-accent { color: #ffc94f; }
+  .hero-lede { color: rgb(255 245 220 / 0.82); }
+  .hero-cta { background: #f6ae2d; color: #1b1206; }
+  .hero-link { color: #fff5dc; text-decoration-color: rgb(255 245 220 / 0.4); }
+  .hero-strip { border-top: 1px solid rgb(255 255 255 / 0.1); }
+}
+@media (prefers-reduced-motion: reduce) { .hero-strip-run { animation: none; } }
+html[data-lite="1"] .hero-strip-run { animation: none; }
+html[data-lite="1"] .hero-figure { filter: none; }
+
+/* How the light travels: real ground, at dusk. Sits wider than the page on purpose. */
+.spread { position: relative; isolation: isolate; overflow: hidden; width: calc(100vw - 24px); margin-left: calc(50% - 50vw + 12px); border-radius: 2.4rem; background: #070b10; }
+.spread-tone { pointer-events: none; background: linear-gradient(180deg, rgb(5 7 11 / 0.55) 0%, rgb(5 7 11 / 0) 22%), radial-gradient(90% 90% at 50% 45%, rgb(8 20 26 / 0) 40%, rgb(4 8 14 / 0.55) 100%); }
+.spread-side { position: absolute; top: 0; bottom: 0; width: 32%; pointer-events: none; }
+.spread-foot { position: absolute; left: 0; right: 0; bottom: 0; height: 150px; pointer-events: none; background: linear-gradient(0deg, #05070b 12%, rgb(5 7 11 / 0)); }
+.spread-seg { position: relative; flex: 1 1 0; min-width: 0; padding: 0.7rem 0; cursor: pointer; }
+.spread-seg > span { display: block; position: relative; overflow: hidden; height: 3px; border-radius: 3px; background: rgb(255 255 255 / 0.24); transition: height 0.15s; }
+.spread-seg:hover > span { height: 5px; }
+.spread-seg i { position: absolute; inset: 0; transform-origin: left; background: #ffcd5c; }
+.spread-row { display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0.45rem 0.6rem; margin: 0 -0.6rem; border-radius: 0.6rem; text-align: left; font-size: 13.5px; color: rgb(255 255 255 / 0.9); transition: background 0.15s; }
+.spread-row:hover, .spread-row:focus-visible { background: rgb(255 255 255 / 0.12); color: #fff; }
+@media (max-width: 1023px) {
+  .spread { border-radius: 1.8rem; }
+  .spread-stage { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 8%, #000 92%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 8%, #000 92%, transparent 100%); }
+}

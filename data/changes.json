@@ -268,5 +268,14 @@
     "heardHi": "Google के कुंजी न मानने पर नक्शे की जगह गड़बड़ी का संदेश दिखता था।",
     "changed": "The app now switches to its own map instead of showing the error.",
     "changedHi": "अब गड़बड़ी दिखाने के बजाय ऐप अपना नक्शा दिखाता है।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Owner review",
+    "fromHi": "मालिक की समीक्षा",
+    "heard": "The front page and the map of schools looked shabby.",
+    "heardHi": "पहला पेज और स्कूलों का नक्शा साधारण लग रहे थे।",
+    "changed": "The front page is now a bold poster with one teacher, and the map shows real satellite ground with light rising between real schools.",
+    "changedHi": "पहला पेज अब एक शिक्षिका के साथ बड़ा पोस्टर है, और नक्शे में असली सैटेलाइट ज़मीन पर असली स्कूलों के बीच रोशनी उठती दिखती है।"
   }
 ]

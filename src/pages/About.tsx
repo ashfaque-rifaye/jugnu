@@ -109,7 +109,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
         <SectionTitle
           eyebrow={t("See it in action", "काम करते हुए देखें")}
           title={t("Two minutes, start to finish", "दो मिनट, शुरू से अंत तक")}
-          sub={t("The whole idea as a short film. Jump to any chapter. The footage is AI-generated.", "पूरा विचार एक छोटी फ़िल्म में। किसी भी अध्याय पर जाएँ। दृश्य AI से बने हैं।")}
+          sub={t("The whole idea as a short film. Jump to any chapter.", "पूरा विचार एक छोटी फ़िल्म में। किसी भी अध्याय पर जाएँ।")}
         />
         <FilmCard onPlay={(at) => setClip(at ?? 0)} />
         <FilmPlayer open={clip !== null} start={clip ?? 0} onClose={() => setClip(null)} />

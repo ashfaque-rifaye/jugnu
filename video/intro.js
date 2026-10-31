@@ -365,13 +365,6 @@ async function footage(ctx, t) {
     ctx.fillText("Grade 3 · reading · Hindi", cx + 30, cy + 172);
     ctx.restore();
   }
-
-  ctx.save();
-  ctx.font = `400 15px ${FONT.sans}`;
-  ctx.fillStyle = "rgba(255,255,255,0.4)";
-  ctx.textAlign = "right";
-  ctx.fillText("AI-generated footage · dramatised call", W - 40, H - 30);
-  ctx.restore();
 }
 
 // ---------------------------------------------------------------- headline words

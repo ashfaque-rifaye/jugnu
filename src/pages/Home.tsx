@@ -5,12 +5,10 @@ import { motion, useScroll, useSpring } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
-  Clapperboard,
   Languages,
   LineChart,
   MapPinned,
   Mic,
-  Play,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -23,6 +21,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDemo } from "../components/Demo";
 import { AppBackground } from "../components/kit";
 import { LogoMark, Wordmark } from "../components/Logo";
+import { HeroPoster } from "../components/HeroPoster";
 import { LoopFlow } from "../components/LoopFlow";
 import { SpreadMap } from "../components/SpreadMap";
 import { Threshold } from "../components/Threshold";
@@ -35,7 +34,7 @@ import { useRole, type Role } from "../lib/role";
 import { usePipeline } from "../lib/store";
 import { pickStory, type Story } from "../lib/story";
 import { ThemeToggle } from "../lib/theme";
-import { EASE, useReveal, usePointerSheen, WordReveal } from "../lib/motion";
+import { useReveal, usePointerSheen } from "../lib/motion";
 
 export default function HomePage({ onTour }: { onTour: () => void }) {
   const t = useT();
@@ -65,7 +64,6 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
   const mainRef = useRef<HTMLElement>(null);
   useReveal(mainRef);
   usePointerSheen();
-  const hero = useRef<HTMLElement>(null);
 
   return (
     <div className="min-h-dvh">
@@ -104,53 +102,9 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
         </div>
       </header>
 
-      {/* hero: one sharp picture of what this is about, the words low on the left */}
+      {/* hero: the name, huge, with one teacher in front of it */}
       <div className="-mt-[66px] px-2 md:px-3">
-        <section ref={hero} className="on-dark relative isolate overflow-hidden rounded-b-[2.4rem] md:rounded-[2.4rem]">
-          {lite ? (
-            <img className="welcome-video" src={MEDIA.doorClassroomPoster} alt="" aria-hidden />
-          ) : (
-            <video className="welcome-video" src={MEDIA.doorClassroom} poster={MEDIA.doorClassroomPoster} autoPlay muted loop playsInline aria-hidden />
-          )}
-          <div className="hero-scrim" aria-hidden />
-          <div className="relative mx-auto flex min-h-[min(94svh,860px)] max-w-[1240px] flex-col justify-end px-5 pb-8 pt-28 text-white md:px-8 md:pb-10">
-            <h1 className={cx("display-xl max-w-[17ch] text-[2.9rem] md:text-[4.4rem] lg:text-[5.2rem]", hi && "!max-w-[20ch] !leading-[1.2]")}>
-              <WordReveal text={t("Somewhere in your block, a teacher has", "आपके ब्लॉक में कहीं, कोई शिक्षक")} delay={0.1} stagger={0.06} />{" "}
-              <WordReveal text={t("already cracked it.", "यह कर दिखा चुका है।")} delay={0.5} stagger={0.07} className="font-semibold" />
-            </h1>
-            <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.7, ease: EASE }} className={cx("mt-5 max-w-2xl text-[17px] leading-relaxed text-white/90 md:text-lg", hi)}>
-              {t(
-                "Jugnu finds the teachers whose children learn better than anyone expected, asks them exactly what they do, and helps the school next door do it too. Then it checks that it worked.",
-                "जुगनू उन शिक्षकों को ढूँढता है जिनके बच्चे उम्मीद से बेहतर सीखते हैं, उनसे पूछता है कि वे ठीक-ठीक क्या करते हैं, और पास के स्कूल को भी वही करने में मदद करता है। फिर जाँचता है कि असर हुआ।",
-              )}
-            </motion.p>
-            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.85, ease: EASE }} className="mt-7 flex flex-wrap gap-3">
-              <button className="btn btn-primary !px-5 !py-3 text-base" onClick={openDoors}>
-                {t("Open Jugnu", "जुगनू खोलें")} <ArrowRight size={17} />
-              </button>
-              {demo.available && (
-                <button className="btn btn-glass !px-5 !py-3 text-base" onClick={play}>
-                  <Play size={17} /> {t("Watch a whole term · 40 s", "पूरा सत्र देखें · 40 से.")}
-                </button>
-              )}
-              <button className="btn btn-glass !px-4 !py-3 text-base" onClick={onTour}>
-                <Clapperboard size={17} /> {t("2-minute film", "2 मिनट की फ़िल्म")}
-              </button>
-            </motion.div>
-            <motion.dl initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1.1 }} className={cx("mt-9 grid gap-x-8 gap-y-3 border-t border-white/25 pt-4 sm:grid-cols-3", hi)}>
-              {[
-                [t("1,365 real schools", "1,365 असली स्कूल"), t("Every government school in Damoh's 7 blocks", "दमोह के 7 ब्लॉक का हर सरकारी स्कूल")],
-                [t("Any phone, even 2G", "कोई भी फ़ोन, 2G पर भी"), t("A link or an ordinary call, in Hindi first", "एक लिंक या साधारण कॉल, पहले हिंदी में")],
-                [t("No data about children", "बच्चों का कोई डेटा नहीं"), t("A person approves everything before it is sent", "भेजने से पहले हर चीज़ इंसान मंज़ूर करता है")],
-              ].map(([a1, b1]) => (
-                <div key={a1}>
-                  <dt className="text-[15px] font-semibold">{a1}</dt>
-                  <dd className="text-[13.5px] text-white/75">{b1}</dd>
-                </div>
-              ))}
-            </motion.dl>
-          </div>
-        </section>
+        <HeroPoster onOpen={openDoors} onPlay={play} onFilm={onTour} canPlay={demo.available} />
       </div>
 
       <main ref={mainRef} className="mx-auto max-w-[1240px] space-y-24 px-4 pb-16 pt-16 md:px-6">
@@ -183,10 +137,10 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             sub={t("From data the state already collects to a named teacher, a visit and a follow-up call. Tap a step to open it.", "राज्य के पास पहले से मौजूद डेटा से — नाम वाले शिक्षक, दौरे और फ़ॉलो-अप कॉल तक। कोई भी कदम छूकर खोलें।")}
           />
           <LoopFlow onEnter={() => !role && setRole({ kind: "guest" })} />
-          <div className="mt-5">
-            <SpreadMap onOpen={(id) => enter(`/schools/${id}`)} />
-          </div>
         </section>
+
+        {/* how a method travels, on the real map */}
+        <SpreadMap onOpen={(id) => enter(`/schools/${id}`)} />
 
         {/* meet the assistant */}
         <section className="card on-dark relative isolate overflow-hidden">
@@ -270,8 +224,8 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
             <Wordmark size={26} />
             <p className={cx("mt-3 text-xs leading-relaxed", hi)}>
               {t(
-                "AI for Foundational Learning Hackathon · Challenge 4. Schools are real: Damoh's 7 blocks and their 1,365 government schools from UDISE+ (names, locations, clusters, enrolment, teachers). Learning results, attendance and teachers' names are simulated, calibrated to ASER 2024; live interviews are real. Background videos are AI-generated.",
-                "AI for Foundational Learning हैकाथॉन · चुनौती 4। स्कूल असली हैं: दमोह के 7 ब्लॉक और उनके 1,365 सरकारी स्कूल UDISE+ से (नाम, जगह, संकुल, नामांकन, शिक्षक)। सीखने के नतीजे, उपस्थिति और शिक्षकों के नाम सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है। पृष्ठभूमि वीडियो AI से बने हैं।",
+                "AI for Foundational Learning Hackathon · Challenge 4. Schools are real: Damoh's 7 blocks and their 1,365 government schools from UDISE+ (names, locations, clusters, enrolment, teachers). Learning results, attendance and teachers' names are simulated, calibrated to ASER 2024; live interviews are real.",
+                "AI for Foundational Learning हैकाथॉन · चुनौती 4। स्कूल असली हैं: दमोह के 7 ब्लॉक और उनके 1,365 सरकारी स्कूल UDISE+ से (नाम, जगह, संकुल, नामांकन, शिक्षक)। सीखने के नतीजे, उपस्थिति और शिक्षकों के नाम सिम्युलेटेड हैं (ASER 2024 के अनुसार); लाइव बातचीत असली है।",
               )}
             </p>
           </div>

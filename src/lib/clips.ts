@@ -1,5 +1,6 @@
 // Cinematic clips made for this project — see public/media. The door-* loops are cut from the film.
 export const MEDIA = {
+  heroTeacher: "/media/hero-teacher.webp",
   doorClassroom: "/media/door-classroom.mp4",
   doorClassroomPoster: "/media/door-classroom.jpg",
   doorOfficer: "/media/door-officer.mp4",
