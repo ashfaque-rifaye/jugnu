@@ -59,7 +59,13 @@ export function SpreadMap({ onOpen }: { onOpen: (id: string) => void }) {
   const openRef = useRef(onOpen);
   openRef.current = onOpen;
 
+  // The store hands over new objects every time it syncs. Rebuild the map only if the schools or the pairs change.
+  const sig = `${schools.length}#${teachers.map((x) => `${x.id}:${x.recs.map((r) => r.schoolId).join()}`).join("|")}`;
+  const data = useRef({ sig, teachers, schools, byId });
+  if (data.current.sig !== sig) data.current = { sig, teachers, schools, byId };
+
   useEffect(() => {
+    const { teachers, schools, byId } = data.current;
     const box = stage.current;
     const hold = ground.current;
     const cv = canvas.current;
@@ -484,7 +490,7 @@ export function SpreadMap({ onOpen }: { onOpen: (id: string) => void }) {
       document.removeEventListener("visibilitychange", wake);
       map?.remove();
     };
-  }, [teachers, schools, byId, plain, lang]);
+  }, [sig, plain, lang]);
 
   // With reduced motion nothing runs on its own, so a change has to ask for a repaint.
   useEffect(() => {

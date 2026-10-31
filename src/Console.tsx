@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useReveal, usePointerSheen, useScrollingDown } from "./lib/motion";
-import { Navigate, NavLink, Route, Routes, useLocation, useMatch, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigationType, useMatch, useNavigate, useSearchParams } from "react-router-dom";
 import { AgentDock } from "./components/Agent";
 import { describeEvent } from "./components/ActivityFeed";
 import { DemoProvider, useDemo } from "./components/Demo";
@@ -81,6 +81,11 @@ const Loading = () => (
 /** The officer / CRP console. The block is computed only here, never for teachers. */
 export default function ConsoleRoot() {
   const { pathname } = useLocation();
+  const how = useNavigationType();
+  // A new page opens at its top. Going back keeps your place.
+  useEffect(() => {
+    if (how !== "POP") window.scrollTo(0, 0);
+  }, [pathname, how]);
   return (
     <ToastProvider>
       <PipelineProvider>
