@@ -11,8 +11,8 @@ Work the owner has decided to hold. Nothing here starts until the owner asks.
 **What's out of date in `video/out/jugnu-outro.mp4`:**
 
 1. **Third shot:** it says "Tells each officer what to do next", but shows the Schools list. Support plan was empty when the film was made. It works now, so it can show the real plan.
-2. **Labels:** the small words above the shots are LISTEN, WHAT WORKS, SHARE and FOLLOW UP. The app now says Interviews, What works, Support plan and Results.
-3. **All four screens:** they were captured before the 30 Oct design changes, such as the new header, the larger text and the background.
+2. **Labels:** the small words above the shots are LISTEN, WHAT WORKS, SHARE and FOLLOW UP. The app now says Talk to teachers, Methods that work, Share with schools and Check progress.
+3. **All four screens:** they show the old console. Since then the home page, menu, school pages, approvals and plan have all changed.
 
 **Steps:**
 

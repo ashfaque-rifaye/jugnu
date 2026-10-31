@@ -44,7 +44,7 @@ export function SchoolPeople({ school: s, group }: { school: School; group: "bri
   const rowFor = (p: Staff) => mine.find((r) => r.teacher_name === p.name);
   const talked = reps.filter((p) => rowFor(p)?.status === "completed").length;
   const head = staff.find((p) => p.role === "head");
-  const contact = staff.find((p) => p.role === "contact");
+  const contact = staff.find((p) => p.role === "contact") ?? head;
   const linkFor = (p: Staff) => {
     const r = rowFor(p);
     return links[p.id] ?? (r ? `${location.origin}/talk/${r.token}` : null);
@@ -84,7 +84,7 @@ export function SchoolPeople({ school: s, group }: { school: School; group: "bri
             </div>
             <div className="card-inset p-3">
               <dt className={cx("text-xs text-[var(--color-ink-3)]", hi)}>{t("Point of contact", "संपर्क व्यक्ति")}</dt>
-              <dd className="mt-0.5 font-semibold">{contact?.name ?? head?.name ?? "—"}</dd>
+              <dd className="mt-0.5 font-semibold">{contact?.name ?? "—"}</dd>
               <dd className={cx("mt-1 text-xs text-[var(--color-ink-2)]", hi)}>{t("Passes on links, gathers answers, reports once a week", "लिंक पहुँचाते हैं, जवाब जुटाते हैं, हफ़्ते में एक बार रिपोर्ट देते हैं")}</dd>
             </div>
           </dl>

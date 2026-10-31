@@ -24,7 +24,7 @@ export function useTasks(state: PipelineState, role: Role | null, pendingReviews
     const interviewed = new Set(state.interviews.map((i) => i.schoolId));
     const out: Task[] = [];
     for (const [id, st] of status) {
-      if (!mine(id)) continue;
+      if (!mine(id) || role?.kind === "head") continue;
       const s = school(id);
       if (st === "check_due") out.push({ id: `sc-${id}`, kind: "spotcheck", schoolId: id, priority: 1, title: [`Visit ${s.name} to confirm its results`, `${s.name} जाकर नतीजों की पुष्टि करें`] });
       if (st === "bright" && !interviewed.has(id))

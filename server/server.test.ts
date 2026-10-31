@@ -421,6 +421,90 @@ describe("backup coder", () => {
   });
 });
 
+describe("safety filter", () => {
+  it("removes personal numbers and bad language, flags sensitive topics, and keeps the rest", () => {
+    const out = g.inspectText("Call 98765 43210 or a@b.co. यह हरामी नियम, bastard rule, मेरी जाति को लेकर है।");
+    expect(out.text).not.toMatch(/98765|a@b\.co|हरामी|bastard/);
+    expect(out.text).toContain("नियम");
+    expect(out.findings.map((f) => f.kind).sort()).toEqual(["email", "phone", "profanity", "topic"]);
+    expect(g.inspectText("रोज़ 40 मिनट समूह में पढ़ते हैं").findings).toEqual([]);
+    // A fine word that merely contains a bad one stays.
+    expect(g.inspectText("the class assessment").findings).toEqual([]);
+  });
+
+  it("is applied to everything written to the shared log", async () => {
+    const { writeEvent, EventError } = await import("./eventlog");
+    const r = await writeEvent("seed:test-safety", "weekly", "s001", { teachersUsing: 1, childrenReached: 9, classes: [1], going: "hard", note: "मेरा नंबर 9876543210" }, "Contact");
+    expect(String(r.payload.note)).not.toContain("9876543210");
+    await expect(writeEvent("seed:test-safety", "weekly", "s001", { teachersUsing: -1, childrenReached: 9, classes: [], going: "well" }, "Contact")).rejects.toBeInstanceOf(EventError);
+    const moved = await writeEvent("seed:test-safety", "action", "s001-visit", { status: "submitted", from: "todo" }, "Head");
+    expect(moved.payload.from).toBe("todo");
+  });
+});
+
+describe("who signs off", () => {
+  it("lets a school report work, and only someone outside it confirm", async () => {
+    const { canSignOff } = await import("../src/lib/role");
+    expect(canSignOff({ kind: "head", schoolId: "s001", cluster: 0 }, { ownerRole: "Teacher" })).toBe(false);
+    expect(canSignOff({ kind: "head", schoolId: "s001", cluster: 0 }, { ownerRole: "CRP" })).toBe(false);
+    expect(canSignOff({ kind: "crp", cluster: 0 }, { ownerRole: "Teacher" })).toBe(true);
+    expect(canSignOff({ kind: "crp", cluster: 0 }, { ownerRole: "CRP" })).toBe(false); // nobody approves their own work
+    expect(canSignOff({ kind: "beo" }, { ownerRole: "CRP" })).toBe(true);
+  });
+});
+
+describe("rollout tracking", () => {
+  it("follows a method from approval to schools, and counts what people record", async () => {
+    const { buildRollouts } = await import("../src/lib/rollout");
+    const { runPipeline } = await import("../src/engine/pipeline");
+    const { generateBlock } = await import("../src/engine/block");
+    const { DEFAULT_SEED } = await import("../src/engine/district");
+    const st = runPipeline(generateBlock(DEFAULT_SEED));
+    const first = buildRollouts(st, [], []);
+    expect(first.reduce((a, r) => a + r.schools.length, 0)).toBe(st.recs.length);
+    expect(first[0].progress).toBe(0);
+    expect(first[0].children).toBeGreaterThan(0);
+    const school = first[0].now[0].school.id;
+    const events = [{ id: 1, kind: "weekly" as const, ref: school, payload: { teachersUsing: 2, childrenReached: 30, classes: [1], going: "well" }, actor: "Contact", created_at: "2026-10-30T00:00:00Z" }];
+    const next = buildRollouts(st, [], events);
+    expect(next[0].counts.reported).toBe(1);
+    expect(next[0].reach.childrenReached).toBe(30);
+    expect(next[0].progress).toBeGreaterThan(0);
+  });
+});
+
+describe("classes, subjects and people", () => {
+  it("gives every school all five subjects in all five classes, and people who cover them", async () => {
+    const { generateBlock } = await import("../src/engine/block");
+    const { DEFAULT_SEED } = await import("../src/engine/district");
+    const { representatives, schoolOverall, SUBJECTS, scoreOf } = await import("../src/engine/subjects");
+    for (const s of generateBlock(DEFAULT_SEED).schools) {
+      expect(s.grades.map((g) => g.grade)).toEqual([1, 2, 3, 4, 5]);
+      for (const g of s.grades) for (const x of SUBJECTS) expect(scoreOf(g, x)).toBeGreaterThanOrEqual(0);
+      expect(schoolOverall(s)).not.toBeNull();
+      expect(s.staff.some((p) => p.role === "head")).toBe(true);
+      expect(s.staff.some((p) => p.role === "contact") || s.staff.length === 1).toBe(true);
+      expect(new Set(representatives(s.staff.filter((p) => p.grades.length)).flatMap((p) => p.grades)).size).toBe(5);
+      expect(new Set(s.staff.flatMap((p) => p.leads)).size).toBe(5);
+      expect(s.name).toMatch(/^G[PMH]S /);
+    }
+  });
+});
+
+describe("the interview list", () => {
+  it("hides practice runs and keeps samples out of the block's evidence", async () => {
+    const { db } = await import("./db");
+    const { seedDemoInterviews } = await import("./demo-interviews");
+    await seedDemoInterviews();
+    const row = await svc.createInterview({ teacherName: "Practice", schoolName: "Practice school", group: "live", channel: "web", language: "hi" });
+    await db.run(`UPDATE interviews SET archived = 1 WHERE id = ?`, row.id);
+    const list = await svc.listInterviews();
+    expect(list.some((r) => r.id === row.id)).toBe(false);
+    expect(list.filter((r) => r.id.startsWith("demo-iv-")).length).toBeGreaterThan(0);
+    expect((await svc.codedForBlock()).some((r) => r.id.startsWith("demo-iv-"))).toBe(false);
+  });
+});
+
 describe("follow-up reader without Claude", () => {
   it("does not mistake trying, or a lack of time, for regular use", async () => {
     const { offlineFollowUp } = await import("./ai/followup");

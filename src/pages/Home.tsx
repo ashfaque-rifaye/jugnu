@@ -224,7 +224,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {(
               [
-                [Smartphone, t("Works where they are", "जहाँ वे हैं, वहीं चले"), t("A teacher needs only a link or a phone call. Low-data mode turns off video and 3D on slow networks.", "शिक्षक को सिर्फ़ एक लिंक या फ़ोन कॉल चाहिए। धीमे नेटवर्क पर कम-डेटा मोड वीडियो और 3D बंद कर देता है।"), "/testing"],
+                [Smartphone, t("Works where they are", "जहाँ वे हैं, वहीं चले"), t("A teacher needs only a link or a phone call. Low-data mode turns off video on slow networks.", "शिक्षक को सिर्फ़ एक लिंक या फ़ोन कॉल चाहिए। धीमे नेटवर्क पर कम-डेटा मोड वीडियो बंद कर देता है।"), "/testing"],
                 [Languages, t("Hindi first", "पहले हिंदी"), t("Interviews, voice notes and the whole app in Hindi or English — one tap to switch.", "बातचीत, आवाज़-संदेश और पूरा ऐप हिंदी या अंग्रेज़ी में — एक टैप में बदलें।"), "/interviews"],
                 [UserCheck, t("A person approves every AI draft", "हर AI ड्राफ़्ट को इंसान मंज़ूर करे"), t("Method cards and voice notes wait in Approvals until a coordinator or the BEO says yes.", "तरीकों के कार्ड और आवाज़-संदेश तब तक 'मंज़ूरी' में रुकते हैं जब तक समन्वयक या BEO हाँ न कहें।"), "/review"],
                 [ShieldCheck, t("Adults only, with consent", "सिर्फ़ वयस्क, सहमति से"), t("No child-level data is stored. Names and numbers are removed from notes; any interview can be deleted.", "बच्चों का कोई व्यक्तिगत डेटा नहीं। नोट्स से नाम और नंबर हटाए जाते हैं; कोई भी बातचीत मिटाई जा सकती है।"), "/ai"],
@@ -587,7 +587,7 @@ function VoiceNote({ story }: { story: Story }) {
         <span className="h-px flex-1 border-t border-dashed border-[rgb(var(--fg)/0.3)]" />
         <span className="truncate font-semibold text-[var(--color-ink)]">{story.recipient.name}</span>
       </div>
-      <div className="text-xs text-[var(--color-ink-3)]">{t("Sent only after a CRP or the BEO approves it", "CRP या BEO की मंज़ूरी के बाद ही भेजा जाता है")}</div>
+      <div className="text-xs text-[var(--color-ink-3)]">{t("Sent only after a coordinator or the BEO approves it", "CRP या BEO की मंज़ूरी के बाद ही भेजा जाता है")}</div>
     </div>
   );
 }

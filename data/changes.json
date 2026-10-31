@@ -1,5 +1,77 @@
 [
   {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "I don't know what \"spot check\" means, and it is everywhere.",
+    "heardHi": "मुझे नहीं पता 'स्पॉट चेक' का क्या मतलब है, और यह हर जगह है।",
+    "changed": "It is now a confirmation visit, explained where it appears, and a school shows \"Needs a visit\".",
+    "changedHi": "अब यह पुष्टि दौरा है, जहाँ दिखता है वहीं समझाया गया है, और स्कूल पर 'दौरा बाकी' लिखा आता है।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "Approval is not enough. How does it reach schools and children, and how do we track it?",
+    "heardHi": "सिर्फ़ मंज़ूरी काफ़ी नहीं। यह स्कूलों और बच्चों तक कैसे पहुँचेगा, और इसे कैसे ट्रैक करें?",
+    "changed": "Each approved method now has a rollout: who does what, week by week, and how far it has got in every cluster and school.",
+    "changedHi": "अब हर मंज़ूर तरीके का रोलआउट है: कौन क्या करेगा, हफ़्ते-दर-हफ़्ते, और हर क्लस्टर व स्कूल में कितना हुआ।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "Only class 3 is shown. I want classes 1 to 5, with science and English too.",
+    "heardHi": "सिर्फ़ कक्षा 3 दिखती है। मुझे कक्षा 1 से 5 चाहिए, विज्ञान और अंग्रेज़ी के साथ।",
+    "changed": "Every school now shows classes 1 to 5 across Hindi, maths, science, English and spoken English.",
+    "changedHi": "अब हर स्कूल में कक्षा 1 से 5 दिखती हैं: हिंदी, गणित, विज्ञान, अंग्रेज़ी और बोलचाल की अंग्रेज़ी।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "We can't interview every teacher. Each school needs points of contact, with no phone numbers shown.",
+    "heardHi": "हर शिक्षक से बात नहीं हो सकती। हर स्कूल में संपर्क व्यक्ति चाहिए, बिना फ़ोन नंबर दिखाए।",
+    "changed": "Each school has a head, a contact and teachers responsible for each subject. A few teachers are chosen to cover all classes, and the contact sends a weekly report.",
+    "changedHi": "हर स्कूल में प्रधानाध्यापक, संपर्क व्यक्ति और हर विषय के शिक्षक हैं। कुछ शिक्षक सभी कक्षाओं की ओर से बात करते हैं, और संपर्क व्यक्ति साप्ताहिक रिपोर्ट भेजते हैं।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "The officer shouldn't be the only one marking tasks done. A school marks it, and someone else approves.",
+    "heardHi": "काम पूरा सिर्फ़ अधिकारी न बताएँ। स्कूल बताए, और कोई और मंज़ूर करे।",
+    "changed": "A school reports a task as done and it waits for sign-off. Tasks can be dragged, and every change is in a history.",
+    "changedHi": "स्कूल काम पूरा बताता है और वह पुष्टि का इंतज़ार करता है। काम खींचे जा सकते हैं, और हर बदलाव इतिहास में दर्ज है।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "\"What works here\" is unreadable, and I don't understand the loop in the menu.",
+    "heardHi": "'क्या काम करता है' समझ नहीं आता, और मेनू का चक्र भी नहीं।",
+    "changed": "Methods are rewritten for teachers, with how to start tomorrow. The menu is five plainly named steps.",
+    "changedHi": "तरीके शिक्षकों के लिए दोबारा लिखे गए, कल से कैसे शुरू करें के साथ। मेनू अब पाँच सीधे नाम वाले कदम है।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "Listening to a voice note had no progress and no way to stop it.",
+    "heardHi": "वॉइस नोट सुनते समय न प्रगति दिखती थी, न रोकने का तरीका था।",
+    "changed": "The words now light up as they are read, with pause, stop and a progress bar.",
+    "changedHi": "अब पढ़ते समय शब्द चमकते हैं, और रोकने, बंद करने व प्रगति का विकल्प है।"
+  },
+  {
+    "date": "2026-10-31",
+    "from": "Project owner's review",
+    "fromHi": "प्रोजेक्ट मालिक की समीक्षा",
+    "heard": "Pressing Skip still asked what kind of user I was, and the welcome looked cropped.",
+    "heardHi": "'छोड़ें' दबाने पर भी पूछा कि मैं कौन हूँ, और स्वागत की तस्वीर कटी लगती थी।",
+    "changed": "You now come in through five doors, and Skip goes straight in as a guest.",
+    "changedHi": "अब पाँच दरवाज़ों से प्रवेश होता है, और 'छोड़ें' सीधे मेहमान के रूप में अंदर ले जाता है।"
+  },
+  {
     "date": "2026-10-30",
     "from": "AI-run walkthrough, as a CRP, on a phone",
     "fromHi": "AI से कराया परीक्षण, CRP की भूमिका में",

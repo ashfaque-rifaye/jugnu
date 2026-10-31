@@ -307,9 +307,9 @@ function addSubjectsAndStaff(seed: number, schools: School[]) {
     s.grades.forEach((g, i) => teaching[i % teaching.length].grades.push(g.grade));
     SUBJECTS_ORDER.forEach((x, i) => teaching[i % teaching.length].leads.push(x));
     teaching[0].role = "contact";
-    // A one- or two-teacher school: the senior teacher is also the head. Larger: a head who also teaches.
+    // A one- or two-teacher school: the senior teacher is also the head (and, alone, the contact too).
     const headName = count <= 2 ? teaching[count - 1].name : personName(rng, rng() < 0.4, tribal);
-    if (count <= 2) teaching[count - 1].role = count === 1 ? "contact" : "head";
+    if (count <= 2) teaching[count - 1].role = "head";
     s.staff = count <= 2 ? teaching : [{ id: `${s.id}-head`, name: headName, role: "head", grades: [], leads: [] }, ...teaching];
   }
 }

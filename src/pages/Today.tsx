@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, CheckCheck, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, Newspaper, PartyPopper, Play, Search, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, CheckCheck, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, Newspaper, PartyPopper, Play, School as SchoolIcon, Search, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ActivityFeed } from "../components/ActivityFeed";
@@ -10,6 +10,9 @@ import { LoopFlow } from "../components/LoopFlow";
 import { LivingMap, MapLegend } from "../components/maps";
 import { cx } from "../components/ui";
 import { DAMOH, profileFor } from "../engine/district";
+import { PRACTICES } from "../engine/practices";
+import { schoolOverall } from "../engine/subjects";
+import type { School } from "../engine/types";
 import { CountUp, EASE, Tilt, WordReveal } from "../lib/motion";
 import { usePoll } from "../lib/api";
 import { MEDIA } from "../lib/clips";
@@ -102,7 +105,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
     <div className="space-y-5">
       {/* the day: a calm hero with the one next step floating on it */}
       <section className="card on-dark relative overflow-hidden !rounded-[2rem]">
-        {!lite && <video key={hero.video} className="welcome-video" src={hero.video} poster={hero.poster} autoPlay muted loop playsInline aria-hidden />}
+        {!lite && <video key={hero.video} className="welcome-video" style={{ objectPosition: "center 22%" }} src={hero.video} poster={hero.poster} autoPlay muted loop playsInline aria-hidden />}
         {lite && <img className="welcome-video" src={hero.poster} alt="" aria-hidden />}
         <div className="welcome-shade" />
         <div className="pointer-events-none absolute inset-3 rounded-[1.6rem] border border-white/10" aria-hidden />
@@ -116,7 +119,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               {summary}
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.42, ease: EASE }} className="mt-5 flex flex-wrap gap-2">
-              {demo.available && (
+              {demo.available && !headSchool && (
                 <button className="btn btn-primary" onClick={demo.start} data-tour="play">
                   <Play size={16} /> {t("Play the term", "सत्र चलाकर देखें")}
                 </button>
@@ -149,14 +152,16 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-[1.1fr_1fr_1fr]">
-        <TermRings onPlay={demo.available ? demo.start : undefined} />
+      {headSchool && <MySchool school={headSchool} />}
+
+      <div className={cx("grid gap-5 lg:grid-cols-2", !headSchool && "2xl:grid-cols-[1.1fr_1fr_1fr]")}>
+        {!headSchool && <TermRings onPlay={demo.available ? demo.start : undefined} />}
         <JourneyCard onTour={onTour} onDemo={demo.start} />
         <Card
           title={t("Live activity", "लाइव गतिविधि")}
           icon={Activity}
           tone="var(--tone-teal)"
-          className="lg:col-span-2 2xl:col-span-1"
+          className={headSchool ? undefined : "lg:col-span-2 2xl:col-span-1"}
           right={
             <span className="chip !text-xs" style={{ color: "var(--tone-good)" }}>
               <span className="live-dot !h-1.5 !w-1.5" /> {t("all devices", "सभी डिवाइस")}
@@ -164,18 +169,20 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
           }
         >
           <div className="scroll-thin lg:max-h-[330px] lg:overflow-y-auto lg:pr-1">
-            <ActivityFeed events={events} limit={10} />
+            <ActivityFeed events={events} limit={10} schoolId={headSchool?.id} />
           </div>
         </Card>
       </div>
 
-      <Card title={t("From data to action, this term", "डेटा से काम तक, इस सत्र")} icon={Workflow} tone="var(--tone-lime)" accent>
-        <LoopFlow compact />
-      </Card>
+      {!headSchool && (
+        <Card title={t("From data to action, this term", "डेटा से काम तक, इस सत्र")} icon={Workflow} tone="var(--tone-lime)" accent>
+          <LoopFlow compact />
+        </Card>
+      )}
 
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+      <div className={cx("grid gap-5", !headSchool && "xl:grid-cols-[1.1fr_1fr]")}>
         <NeedsYou tasks={tasks} />
-        <Card
+        {!headSchool && <Card
           tour="map"
           title={role?.kind === "crp" && crp ? t(`${crp.clusterName} cluster on the map`, `नक्शे पर ${crp.clusterName} क्लस्टर`) : t("Your block on the map", "नक्शे पर आपका ब्लॉक")}
           icon={MapIcon}
@@ -214,10 +221,10 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
                   "हर बिंदु एक असली स्कूल है, अपनी असली जगह पर। कार्ड के लिए छुएँ — उपस्थिति, कक्षा 1–5 और सबसे पास के अच्छे स्कूल की दूरी। पैमाना किन्हीं दो स्कूलों की दूरी नापता है; लिंक बटन बताता है कौन किससे सीखता है।",
                 )}
           </p>
-        </Card>
+        </Card>}
       </div>
 
-      <Card
+      {!headSchool && <Card
         title={t("Teacher conversations", "शिक्षकों से बातचीत")}
         icon={Mic}
         tone="var(--tone-teal)"
@@ -252,8 +259,44 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
             ))}
           </ul>
         )}
-      </Card>
+      </Card>}
     </div>
+  );
+}
+
+/** A school head's own numbers, with the way into the school's page. */
+function MySchool({ school: s }: { school: School }) {
+  const t = useT();
+  const { lang } = usePrefs();
+  const hi = lang === "hi" && "font-deva";
+  const { state } = usePipeline();
+  const rec = state.recs.find((r) => r.schoolId === s.id);
+  const overall = schoolOverall(s);
+  const att = s.attendanceByCycle.at(-1) ?? s.attendance;
+  const done = rec ? rec.actions.filter((a) => a.status === "done").length : 0;
+  const items: [string, string | number][] = [
+    [t("Children in classes 1 to 5", "कक्षा 1 से 5 के बच्चे"), s.enrolment],
+    [t("Coming to school", "स्कूल आ रहे"), `${Math.round(att * 100)}%`],
+    [t("At their class level", "अपनी कक्षा के स्तर पर"), overall == null ? "—" : `${Math.round(overall)}%`],
+    [t("Tasks done", "पूरे काम"), rec ? `${done}/${rec.actions.length}` : "—"],
+  ];
+  return (
+    <Card title={lang === "hi" && s.nameHi ? s.nameHi : s.name} icon={SchoolIcon} tone="var(--st-bright)" right={<Link to={`/schools/${s.id}`} className={cx("tap-link text-sm font-semibold text-[var(--st-bright)]", hi)}>{t("Open my school", "मेरा स्कूल खोलें")} →</Link>}>
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {items.map(([k, v]) => (
+          <div key={k} className="card-inset p-3">
+            <dt className={cx("text-[13px] text-[var(--color-ink-2)]", hi)}>{k}</dt>
+            <dd className="mt-1 font-display text-2xl font-bold tabular-nums">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {rec && (
+        <p className={cx("mt-3 text-sm text-[var(--color-ink-2)]", hi)}>
+          {t(`This term's method: ${PRACTICES[rec.practice].label}.`, `इस सत्र का तरीका: ${PRACTICES[rec.practice].labelHi}।`)}{" "}
+          <Link to="/practices" className="font-semibold text-[var(--st-bright)] hover:underline">{t("How it works", "कैसे करें")}</Link>
+        </p>
+      )}
+    </Card>
   );
 }
 

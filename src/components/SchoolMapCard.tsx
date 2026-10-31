@@ -154,7 +154,7 @@ export function SchoolMapCard({
             </div>
           </div>
           <div className="card-inset p-2.5">
-            <div className="text-xs text-[var(--color-ink-3)]">{t("Grade 3 reading · maths", "कक्षा 3 पढ़ना · गणित")}</div>
+            <div className="text-xs text-[var(--color-ink-3)]">{t("Class 3 reading · maths", "कक्षा 3 पढ़ना · गणित")}</div>
             <div className="text-lg font-semibold tabular-nums">
               {Math.round(s.reading[s.reading.length - 1])}% · {Math.round(s.numeracy[s.numeracy.length - 1])}%
             </div>
@@ -167,7 +167,7 @@ export function SchoolMapCard({
             <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-3)]">{t("Grades 1–5 · reading at grade level", "कक्षा 1–5 · स्तर पर पढ़ना")}</div>
             <div className="flex h-16 items-end gap-1.5">
               {s.grades.map((g) => (
-                <div key={g.grade} className="flex flex-1 flex-col items-center gap-1" title={`${t("Grade", "कक्षा")} ${g.grade}: ${g.enrolled} ${t("children", "बच्चे")}, ${pct(g.attendance)} ${t("attend", "उपस्थित")}, ${Math.round(g.reading)}% ${t("read", "पढ़ते")}, ${Math.round(g.numeracy)}% ${t("maths", "गणित")}`}>
+                <div key={g.grade} className="flex flex-1 flex-col items-center gap-1" title={`${t("Class", "कक्षा")} ${g.grade}: ${g.enrolled} ${t("children", "बच्चे")}, ${pct(g.attendance)} ${t("attend", "उपस्थित")}, ${Math.round(g.reading)}% ${t("read", "पढ़ते")}, ${Math.round(g.numeracy)}% ${t("maths", "गणित")}`}>
                   <span className="text-xs tabular-nums text-[var(--color-ink-2)]">{Math.round(g.reading)}</span>
                   <span className="w-full rounded-t-[4px]" style={{ height: Math.max(3, g.reading * 0.4), background: STATUS_INFO[status].color, opacity: 0.35 + g.attendance * 0.6 }} />
                   <span className="text-xs text-[var(--color-ink-3)]">{g.grade}</span>

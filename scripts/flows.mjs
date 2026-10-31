@@ -1,8 +1,8 @@
 // Flow check — every user flow, end to end, against a running server.
 // Usage: node scripts/flows.mjs [baseUrl]   (default http://localhost:8080)
 // Officer routes send JUGNU_PASS as the passcode header when the server has one.
-// Everything it creates is labelled "Flow check" and removed afterwards where the API allows it
-// (interviews and the test block's activity log); review decisions stay, marked "Flow check".
+// Everything it creates is labelled "Flow check" and removed afterwards: interviews, the test block's
+// activity log and the drafts it approved, so nothing shows up in a demo.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -210,10 +210,11 @@ await flow("AI drafts → human approval", "Jugnu AI · CRP/BEO", async (step) =
   step("Voice note polished, numbers kept", note.status === 200 && (note.data.checks ?? []).every((c) => c.passed), note.data.source);
   const pending = await call("GET", "/api/reviews?status=pending");
   step("Both wait in the Review queue", [card.data.id, note.data.id].every((id) => pending.data.some((x) => x.id === id)), `${pending.data.length} pending`);
-  let r = await call("POST", `/api/reviews/${card.data.id}/decide`, { decision: "approved", reviewer: "Flow check", note: "automated flow check" });
+  let r = await call("POST", `/api/reviews/${card.data.id}/decide`, { decision: "approved", reviewer: "Flow check" });
   step("Officer approves the card", r.status === 200);
-  r = await call("POST", `/api/reviews/${note.data.id}/decide`, { decision: "rejected", reviewer: "Flow check", note: "automated flow check" });
+  r = await call("POST", `/api/reviews/${note.data.id}/decide`, { decision: "rejected", reviewer: "Flow check" });
   step("Officer can send a draft back", r.status === 200);
+  for (const id of [card.data.id, note.data.id]) await call("DELETE", `/api/reviews/${id}`);
 });
 
 await flow("Ask Jugnu (officer agent)", "BEO", async (step) => {
@@ -231,6 +232,29 @@ await flow("Testing page and AI transparency", "Judges · testers", async (step)
   }
   const t = await call("GET", "/api/ai/trace");
   step("Every AI call in this run is traced", t.data.calls?.length > 0, `${t.data.calls.length} recent calls`);
+});
+
+await flow("Sign-off, weekly reports and the audit trail", "School head · CRP · BEO", async (step) => {
+  const block = `flowcheck:${Date.now()}`;
+  const ref = "s001-visit";
+  let r = await call("POST", "/api/events", { block, kind: "action", ref, actor: "Head, Flow check", payload: { status: "submitted", from: "todo" } });
+  step("A school reports a task as done", r.status === 200);
+  r = await call("POST", "/api/events", { block, kind: "action", ref, actor: "BEO", payload: { status: "done", from: "submitted", note: "Seen it myself" } });
+  step("Someone else signs it off", r.status === 200);
+  r = await call("POST", "/api/events", { block, kind: "weekly", ref: "s001", actor: "Contact, Flow check", payload: { teachersUsing: 2, childrenReached: 40, classes: [1, 2], going: "well", note: "मेरा नंबर 9876543210 है" } });
+  step("A weekly report is saved", r.status === 200);
+  step("Its note loses the phone number", !String(r.data.payload?.note).includes("9876543210"), r.data.payload?.note);
+  const log = await call("GET", `/api/events?block=${encodeURIComponent(block)}`);
+  step("All three are in the audit trail, in order", log.data.length === 3 && log.data[1].payload.from === "submitted");
+  await call("DELETE", `/api/events?block=${encodeURIComponent(block)}`);
+});
+
+await flow("Safety filter", "Everyone", async (step) => {
+  const r = await call("POST", "/api/safety/check", { text: "Call 98765 43210, this is a bastard rule about my caste" });
+  step("Removes the number and the bad word", r.status === 200 && !r.data.text.includes("98765") && !r.data.text.includes("bastard"), r.data.text);
+  step("Flags the sensitive topic", r.data.findings.some((f) => f.kind === "topic"));
+  const s = await call("GET", "/api/safety/summary");
+  step("The summary responds", s.status === 200);
 });
 
 await flow("Clean up", "—", async (step) => {

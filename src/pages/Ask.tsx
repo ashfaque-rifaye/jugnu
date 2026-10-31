@@ -104,7 +104,7 @@ function PilotPanel() {
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-[var(--color-ink-3)]">
-                    {r.grp === "bright" ? t("school doing well", "अच्छा कर रहा स्कूल") : r.grp === "comparison" ? t("similar school", "वैसा ही स्कूल") : t("other school", "अन्य स्कूल")} · {r.turns} {t("answers", "जवाब")} · {new Date(r.created_at).toLocaleDateString()}
+                    {r.grp === "bright" ? t("school doing well", "अच्छा कर रहा स्कूल") : r.grp === "comparison" ? t("similar school", "वैसा ही स्कूल") : t("other school", "अन्य स्कूल")} · {r.turns} {t("answers", "जवाब")} · {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                   </div>
                   {r.practices.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">

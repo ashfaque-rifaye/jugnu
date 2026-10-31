@@ -208,11 +208,11 @@ const PAGE_WORDS: [RegExp, string][] = [
   [/\b(today|home ?screen|dashboard)\b|आज/, "today"],
   [/\bmap\b|नक्श/, "map"],
   [/\bschools?\b|स्कूलों|स्कूल सूची/, "schools"],
-  [/\bplan\b|who learns|योजना/, "plan"],
+  [/\bplan\b|who learns|share with|rollout|योजना|पहुँचाएँ/, "plan"],
   [/approv|review|मंज़ूरी|मंजूरी/, "approvals"],
-  [/result|did it work|नतीज/, "results"],
-  [/practice|what works|तरीक/, "practices"],
-  [/interview|बातचीत/, "interviews"],
+  [/result|progress|did it work|नतीज|प्रगति/, "results"],
+  [/practice|method|what works|तरीक/, "practices"],
+  [/interview|talk to teachers|बातचीत/, "interviews"],
   [/district|ज़िला|जिला/, "district"],
 ];
 

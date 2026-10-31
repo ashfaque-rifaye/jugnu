@@ -147,11 +147,11 @@ function Console() {
 
   const wave1 = state.recs.filter((r) => r.wave === 1).length;
   const LOOP: NavItem[] = [
-    { to: "/schools", n: "1", label: t("Find schools", "स्कूल देखें"), sub: t("Who is doing well, who needs help", "कौन अच्छा कर रहा, किसे मदद चाहिए"), icon: SchoolIcon, meta: c.checksDue ? t(`${c.checksDue} to visit`, `${c.checksDue} दौरे`) : undefined },
-    { to: "/interviews", n: "2", label: t("Talk to teachers", "शिक्षकों से बात"), sub: t("Ask what they actually do", "पूछें वे क्या करते हैं"), icon: Mic, meta: String(c.heard) },
-    { to: "/practices", n: "3", label: t("Methods that work", "जो तरीके काम करते हैं"), sub: t("Keep what makes the difference", "जिससे फ़र्क पड़े, वही रखें"), icon: Stars, meta: String(c.practices) },
+    { to: "/schools", n: "1", label: t("Find schools", "स्कूल देखें"), sub: t("Who needs help", "किसे मदद चाहिए"), icon: SchoolIcon, meta: c.checksDue ? t(`${c.checksDue} to visit`, `${c.checksDue} दौरे`) : undefined },
+    { to: "/interviews", n: "2", label: t("Talk to teachers", "शिक्षकों से बात"), sub: t("Ask what they do", "पूछें क्या करते हैं"), icon: Mic, meta: String(c.heard) },
+    { to: "/practices", n: "3", label: t("Methods that work", "जो तरीके काम करते हैं"), sub: t("What helps children", "बच्चों को क्या मदद करे"), icon: Stars, meta: String(c.practices) },
     { to: "/plan", n: "4", label: t("Share with schools", "स्कूलों तक पहुँचाएँ"), sub: t("Help others do it too", "दूसरों को भी सिखाएँ"), icon: Handshake, meta: `${c.reached}/${wave1}` },
-    { to: "/results", n: "5", label: t("Check progress", "प्रगति देखें"), sub: t("Did children learn more?", "क्या बच्चों ने ज़्यादा सीखा?"), icon: LineChart, meta: `${c.calls}/${wave1}` },
+    { to: "/results", n: "5", label: t("Check progress", "प्रगति देखें"), sub: t("Did it help?", "क्या असर हुआ?"), icon: LineChart, meta: `${c.calls}/${wave1}` },
   ];
   const mySchool = role?.kind === "head" ? role.schoolId : null;
   const TOP: NavItem[] = mySchool
@@ -702,7 +702,7 @@ function PrefsRow() {
       <button
         className={cx("btn !px-3 !py-1.5", lite ? "btn-primary" : "btn-glass")}
         onClick={() => setLite(!lite)}
-        title={lite ? t(`Low-data mode on${liteReason ? ` — ${liteReason}` : ""}`, "कम-डेटा मोड चालू") : t("Low-data mode: no video, no 3D, no blur", "कम-डेटा मोड: न वीडियो, न 3D")}
+        title={lite ? t(`Low-data mode on${liteReason ? ` — ${liteReason}` : ""}`, "कम-डेटा मोड चालू") : t("Low-data mode: no video, no blur", "कम-डेटा मोड: न वीडियो, न धुंधलापन")}
         aria-pressed={lite}
         aria-label={t("Low-data mode", "कम-डेटा मोड")}
       >

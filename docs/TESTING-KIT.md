@@ -35,7 +35,7 @@ Everything is recorded inside the app (**User testing** in the left menu). No na
 
 ## 3. During the session (15 minutes)
 
-- Give each task from the Testing page, one at a time. **Do not help** for the first minute.
+- Give each task from the Test lab, one at a time. **Do not help** for the first minute.
 - Ask them to think aloud: *"जो सोच रहे हैं, बोलते जाइए।"*
 - Type or dictate what they say in the task's comment box, then press
   **Done easily / Done with help / Couldn't do it**.
@@ -49,15 +49,15 @@ Everything is recorded inside the app (**User testing** in the left menu). No na
 
 ## 4. After the tasks (3 minutes)
 
-- The 10-question usability survey (SUS) on the Testing page, in Hindi or English.
+- The 10-question usability survey (SUS) on the Test lab, in Hindi or English.
 - One open question: *"अगर आप एक चीज़ बदल सकें, तो क्या?"* — record it with the **Feedback** button.
 
 ## 5. After all sessions — turn feedback into changes
 
-1. Testing page → **CSV** downloads every comment.
+1. Test lab → **CSV** downloads every comment.
 2. Group comments by theme; pick the 3–5 that matter most.
 3. Tell Claude (in this project) what you heard; we make the change together.
-4. Add one entry per change to `data/changes.json`. It appears on the Testing page as *"You said, we changed"*. Say who it came from truthfully: sessions run by the team are "Internal role-play", not teachers. `fromHi`, `heardHi` and `changedHi` are the Hindi versions:
+4. Add one entry per change to `data/changes.json`. It appears on the Test lab as *"You said, we changed"*. Say who it came from truthfully: sessions run by the team are "Internal role-play", not teachers. `fromHi`, `heardHi` and `changedHi` are the Hindi versions:
 
 ```json
 [
@@ -69,7 +69,7 @@ Everything is recorded inside the app (**User testing** in the left menu). No na
 
 ## 6. What goes into the deck
 
-- Number of sessions by role, mean SUS score, task success rates (Testing page).
+- Number of sessions by role, mean SUS score, task success rates (Test lab).
 - 3–5 quotes, each paired with the change it caused (the change log).
 - One before/after screenshot.
 

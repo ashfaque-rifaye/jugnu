@@ -69,7 +69,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
                 [state.block.schools.length, t("schools", "स्कूल")],
                 [verified, t("schools doing well", "अच्छे स्कूल")],
                 [state.interviews.length, t("interviews", "बातचीत")],
-                [distinctive, t("practices", "तरीके")],
+                [distinctive, t("methods", "तरीके")],
               ].map(([n, label]) => (
                 <div key={String(label)} className="glass-inset px-3 py-2">
                   <div className="font-display text-2xl font-bold gradient-text tabular-nums">{n}</div>
@@ -169,9 +169,9 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
           <SectionTitle eyebrow={t("Real numbers (ASER 2024, rural India)", "असली आँकड़े (ASER 2024, ग्रामीण भारत)")} title={t("The system Jugnu works in", "वह व्यवस्था जिसमें जुगनू काम करता है")} />
           <ul className={cx("space-y-3 text-sm", hi)}>
             {[
-              [`${(ASER_2024.std3ReadingGovt * 100).toFixed(1)}%`, t("of Std III children in government schools read a Std II text", "सरकारी स्कूलों में कक्षा 3 के बच्चे कक्षा 2 का पाठ पढ़ पाते हैं")],
+              [`${(ASER_2024.std3ReadingGovt * 100).toFixed(1)}%`, t("of class 3 children in government schools read a class 2 text", "सरकारी स्कूलों में कक्षा 3 के बच्चे कक्षा 2 का पाठ पढ़ पाते हैं")],
               [`${(ASER_2024.smallSchoolShare * 100).toFixed(1)}%`, t("of government primary schools have fewer than 60 students", "सरकारी प्राथमिक स्कूलों में 60 से कम बच्चे हैं")],
-              ["2 / 3", t("Std I–II classrooms are multigrade", "कक्षा 1–2 की कक्षाएँ बहु-कक्षा हैं")],
+              ["2 / 3", t("Class 1 and 2 classrooms share a room with other classes", "कक्षा 1–2 की कक्षाएँ बहु-कक्षा हैं")],
               [`${(ASER_2024.flnDirective * 100).toFixed(1)}%`, t("of schools received a government FLN directive — directives are not the gap", "स्कूलों को FLN निर्देश मिला — निर्देशों की कमी नहीं है")],
               [`${(ASER_2024.teacherAttendance * 100).toFixed(1)}%`, t("average teacher attendance — the teachers are there to learn from", "औसत शिक्षक उपस्थिति — सीखने के लिए शिक्षक मौजूद हैं")],
             ].map(([n, label]) => (

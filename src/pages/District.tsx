@@ -66,7 +66,7 @@ export default function DistrictPage() {
                 <th className="px-2 py-2 text-right font-medium">{t("Govt primary", "सरकारी प्राथमिक")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("ST enrolment", "ST नामांकन")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Women teachers", "महिला शिक्षक")}</th>
-                <th className="px-2 py-2 text-right font-medium">{t("Std III reading", "कक्षा 3 पढ़ना")}</th>
+                <th className="px-2 py-2 text-right font-medium">{t("Class 3 reading", "कक्षा 3 पढ़ना")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Schools doing well", "अच्छे स्कूल")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Data to check", "जाँचने लायक")}</th>
                 <th className="px-2 py-2 text-right font-medium">{t("Need support", "मदद चाहिए")}</th>
@@ -213,7 +213,7 @@ function DistrictMap({ d, seed, onOpen }: { d: DistrictSummary | null; seed: num
         </div>
       )}
       <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-ink-3)]">
-        <span>{t("Std III reading", "कक्षा 3 पढ़ना")}</span>
+        <span>{t("Class 3 reading", "कक्षा 3 पढ़ना")}</span>
         <span className="h-2 w-28 rounded-full" style={{ background: `linear-gradient(90deg, ${shade(lo)}, ${shade(hi)})` }} />
         <span className="tabular-nums">
           {d ? `${lo}% – ${hi}%` : "…"}

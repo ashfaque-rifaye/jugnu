@@ -817,3 +817,9 @@ select option, select optgroup { background-color: var(--chrome-solid); color: v
 .door-select { width: 100%; height: 2.75rem; padding: 0 0.9rem; border-radius: 0.9rem; border: 1px solid rgb(255 255 255 / 0.28); background: rgb(11 15 23 / 0.75); color: #fff; font-size: 15px; outline: none; backdrop-filter: blur(10px); }
 .door-select:focus { border-color: var(--st-bright); }
 .door-select option { background: #0b0f17; color: #fff; }
+@media (max-width: 1023px) {
+  .door-shade-open { background: linear-gradient(180deg, rgb(4 6 10 / 0.55) 0%, rgb(4 6 10 / 0.7) 45%, rgb(4 6 10 / 0.94) 100%); }
+}
+
+/* The voice note's position */
+.voice-range { accent-color: var(--st-bright); height: 4px; cursor: pointer; }

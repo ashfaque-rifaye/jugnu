@@ -483,7 +483,7 @@ export function useAgent() {
             page: loc.pathname + loc.search,
             school: loc.pathname.startsWith("/schools/") ? (st.block.schools.find((s) => loc.pathname.endsWith(s.id))?.name ?? null) : null,
             lang: l,
-            role: r?.kind === "crp" ? "cluster coordinator" : r?.kind === "beo" ? "block officer" : "guest",
+            role: r?.kind === "crp" ? "cluster coordinator" : r?.kind === "beo" ? "block officer" : r?.kind === "head" ? "school head" : "guest",
             // Same key the store polls with, so what the agent writes shows up on screen within seconds.
             block: st.block.source === "simulated" ? `seed:${st.block.seed}` : `import:${st.block.name}:${st.block.schools.length}`,
           };

@@ -548,7 +548,7 @@ function Results() {
                 <li key={i} className="glass-inset p-3 text-sm">
                   <div className="font-deva">{c.text}</div>
                   <div className="mt-1 text-xs text-[var(--color-ink-3)]">
-                    {c.role ?? t("visitor", "आगंतुक")} · {c.page} · {new Date(c.created_at).toLocaleDateString()}
+                    {c.role ?? t("visitor", "आगंतुक")} · {c.page} · {new Date(c.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                   </div>
                 </li>
               ))}

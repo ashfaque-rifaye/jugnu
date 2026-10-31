@@ -74,9 +74,9 @@ export function SpotCheckForm({ school, onSaved }: { school: School; onSaved?: (
   return (
     <div className="space-y-3">
       <ol className="list-decimal space-y-1 pl-5 text-sm text-[var(--color-ink-2)]">
-        <li>{t("Pick Grade 3 children at random from the register (not the teacher's choice).", "रजिस्टर से कक्षा 3 के बच्चे बिना चुने लें (शिक्षक की पसंद से नहीं)।")}</li>
+        <li>{t("Pick class 3 children at random from the register (not the teacher's choice).", "रजिस्टर से कक्षा 3 के बच्चे बिना चुने लें (शिक्षक की पसंद से नहीं)।")}</li>
         <li>
-          {t("Each child reads a short Std II paragraph aloud, then does one 2-digit subtraction with borrowing.", "हर बच्चा कक्षा 2 का छोटा अनुच्छेद पढ़े, फिर हासिल वाला 2 अंकों का एक घटाव करे।")}
+          {t("Each child reads a short class 2 paragraph aloud, then does one 2-digit subtraction with borrowing.", "हर बच्चा कक्षा 2 का छोटा अनुच्छेद पढ़े, फिर हासिल वाला 2 अंकों का एक घटाव करे।")}
         </li>
         <li>{t("Count how many could do each. No names are recorded.", "गिनें कि कितने बच्चे कर पाए। कोई नाम दर्ज नहीं होता।")}</li>
       </ol>
@@ -342,7 +342,7 @@ export function VoiceNote({ rec, school, demo }: { rec: Recommendation; school: 
           <WhatsAppSend blockKey={blockKey} schoolId={school.id} teacher={school.teacher} practice={rec.practice} voiceNote={{ hi, en }} />
         </div>
       )}
-      <p className="mt-2 text-xs text-[var(--color-ink-3)]">{t("Nothing reaches a teacher until a CRP or the BEO approves it.", "CRP या BEO की मंज़ूरी के बिना कुछ भी शिक्षक तक नहीं जाता।")}</p>
+      <p className="mt-2 text-xs text-[var(--color-ink-3)]">{t("Nothing reaches a teacher until a coordinator or the BEO approves it.", "CRP या BEO की मंज़ूरी के बिना कुछ भी शिक्षक तक नहीं जाता।")}</p>
     </div>
   );
 }

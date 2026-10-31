@@ -49,6 +49,14 @@ export function useJourneySteps(): Step[] {
         { key: "followup", label: ["Log a day-14 call", "14वें दिन की कॉल दर्ज करें"], sub: ["“Did you try it? What happened?”", "“क्या आज़माया? क्या हुआ?”"], done: mine("followup"), to: wave1[0] ? `/schools/${wave1[0].schoolId}` : "/results" },
       ];
     }
+    if (role?.kind === "head")
+      return [
+        tour,
+        { key: "people", label: ["See who answers for what", "देखें किसके ज़िम्मे क्या है"], sub: ["Your head, contact and teachers", "प्रधानाध्यापक, संपर्क व शिक्षक"], done: seen.has(`seen:/schools/${role.schoolId}`), to: `/schools/${role.schoolId}?tab=people` },
+        { key: "weekly", label: ["Send this week's report", "इस हफ़्ते की रिपोर्ट भेजें"], sub: ["Two minutes, once a week", "हफ़्ते में एक बार, दो मिनट"], done: mine("weekly"), to: `/schools/${role.schoolId}?tab=people` },
+        { key: "task", label: ["Mark a task as done", "कोई काम पूरा करें"], sub: ["A coordinator then signs it off", "फिर समन्वयक पुष्टि करते हैं"], done: mine("action", (p) => p.status === "submitted"), to: "/plan" },
+        { key: "methods", label: ["Read a method to try", "आज़माने का तरीका पढ़ें"], sub: ["Written for teachers", "शिक्षकों के लिए लिखा"], done: seen.has("seen:/practices"), to: "/practices" },
+      ];
     if (role?.kind === "beo")
       return [
         tour,
@@ -59,7 +67,7 @@ export function useJourneySteps(): Step[] {
       ];
     return [
       tour,
-      { key: "bright", label: ["Open a bright-spot school", "एक अच्छा स्कूल खोलें"], sub: [story ? `${story.bright.teacher}, ${story.bright.name}` : "A school beating its context", story ? `${story.bright.teacher}, ${story.bright.name}` : "हालात से आगे स्कूल"], done: seen.has("seen:bright"), to: story ? `/schools/${story.bright.id}` : "/schools?status=bright" },
+      { key: "bright", label: ["Open a school doing well", "अच्छा कर रहा स्कूल खोलें"], sub: [story ? `${story.bright.teacher}, ${story.bright.name}` : "A school beating its context", story ? `${story.bright.teacher}, ${story.bright.name}` : "हालात से आगे स्कूल"], done: seen.has("seen:bright"), to: story ? `/schools/${story.bright.id}` : "/schools?status=bright" },
       { key: "practices", label: ["See what works here", "देखें यहाँ जो तरीके काम करते हैं"], sub: ["Methods only schools doing well use", "सिर्फ़ अच्छे स्कूलों के तरीके"], done: seen.has("seen:/practices"), to: "/practices" },
       { key: "demo", label: ["Play the term", "सत्र चलाकर देखें"], sub: ["14 days of field work in 40 seconds", "14 दिन का काम 40 सेकंड में"], done: seen.has("demo"), run: "demo" },
       { key: "results", label: ["See if it worked", "देखें, असर हुआ या नहीं"], sub: ["Group 1 against group 2", "समूह 1 बनाम समूह 2"], done: seen.has("seen:/results"), to: "/results" },
