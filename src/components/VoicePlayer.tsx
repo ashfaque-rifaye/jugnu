@@ -2,7 +2,6 @@
 // pause and stop. Only one note plays at a time, and it stops if you leave the page.
 import { Loader2, Pause, Play, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getPasscode } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { speak, stopSpeaking } from "../lib/speech";
 import { cx } from "./ui";
@@ -55,8 +54,7 @@ export function VoicePlayer({ text, lang = "hi", className }: { text: string; la
     current = me.current;
     setState("loading");
     try {
-      const p = getPasscode();
-      const res = await fetch("/api/voice/tts", { method: "POST", headers: { "Content-Type": "application/json", ...(p ? { "x-jugnu-pass": p } : {}) }, body: JSON.stringify({ text, lang }) });
+      const res = await fetch("/api/voice/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, lang }) });
       if (!res.ok) throw new Error(String(res.status));
       if (url.current) URL.revokeObjectURL(url.current);
       url.current = URL.createObjectURL(await res.blob());

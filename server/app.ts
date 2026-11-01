@@ -16,7 +16,7 @@ import { aiHealth } from "./ai/health";
 import { seedDemoInterviews } from "./demo-interviews";
 import { safety } from "./safety";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
-import { passcodeRequired, rateLimit, requireOfficer } from "./auth";
+import { rateLimit, requireOfficer } from "./auth";
 import { pipelineFor } from "./blocks";
 import { PRACTICE_IDS, PRACTICES, type PracticeId } from "../src/engine/practices";
 import { claudeAvailable, MODEL } from "./claude";
@@ -37,10 +37,8 @@ app.set("trust proxy", true);
 app.use(express.json({ limit: "6mb", verify: (req, _res, buf) => void ((req as { rawBody?: Buffer }).rawBody = buf) }));
 
 app.get("/api/status", (_req, res) =>
-  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: telephonyStatus(), whatsapp: whatsappStatus(), passcode: passcodeRequired(), storage: storage() }),
+  res.json({ claude: claudeAvailable(), model: claudeAvailable() ? MODEL : null, voice: voiceConfigured(), ivr: telephonyStatus(), whatsapp: whatsappStatus(), storage: storage() }),
 );
-
-app.post("/api/auth/check", (req, res) => res.json({ ok: !process.env.DEMO_PASSCODE || req.body?.passcode === process.env.DEMO_PASSCODE }));
 
 // ---------------------------------------------------------------- interviews: officer side
 const Invite = z.object({
@@ -179,7 +177,7 @@ app.post("/api/import/map", requireOfficer, rateLimit("ai", 120, 600000), async 
 });
 
 // ---------------------------------------------------------------- teacher coach
-// Open to teachers (no passcode), so it is rate-limited per address and answers only from the block's evidence.
+// Open to teachers, so it is rate-limited per address and answers only from the block's evidence.
 app.post("/api/coach", rateLimit("coach", 20, 600000), async (req, res) => {
   const body = z.object({ question: z.string().min(4).max(500), lang: z.enum(["hi", "en"]).default("hi"), seed: z.number().int().optional(), schoolId: z.string().max(40).optional() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "question is required" });

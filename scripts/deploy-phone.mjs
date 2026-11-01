@@ -22,13 +22,13 @@ const env = Object.fromEntries(
       return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, "")];
     }),
 );
-// A fixed public address must not let strangers place calls: officer routes need this passcode.
-const passcode = env.PHONE_SERVER_PASSCODE || crypto.randomBytes(24).toString("base64url");
-if (!env.PHONE_SERVER_PASSCODE) fs.appendFileSync(".env", `\nPHONE_SERVER_PASSCODE=${passcode}\n`);
+// A fixed public address must not let strangers place calls: its officer routes need this private key.
+const phoneKey = env.PHONE_SERVER_KEY || env.PHONE_SERVER_PASSCODE || crypto.randomBytes(24).toString("base64url");
+if (!env.PHONE_SERVER_KEY) fs.appendFileSync(".env", `\nPHONE_SERVER_KEY=${phoneKey}\n`);
 
 const file = path.join(os.tmpdir(), `jugnu-phone-${crypto.randomUUID()}.yaml`);
 const lines = KEEP.filter((k) => env[k]).map((k) => `${k}: ${JSON.stringify(env[k])}`);
-lines.push(`DEMO_PASSCODE: ${JSON.stringify(passcode)}`);
+lines.push(`PHONE_SERVER_KEY: ${JSON.stringify(phoneKey)}`);
 const run = (cmd, capture = false) => execSync(cmd, { stdio: capture ? ["ignore", "pipe", "inherit"] : "inherit", encoding: "utf-8" });
 const where = `--region ${REGION} --project ${PROJECT}`;
 

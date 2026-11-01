@@ -445,7 +445,7 @@ interface Change {
   changedHi?: string;
 }
 
-/** The refinement log, from data/changes.json. Open to everyone, including visitors without the passcode. */
+/** The refinement log, from data/changes.json. Open to everyone. */
 function Changes() {
   const t = useT();
   const { lang } = usePrefs();

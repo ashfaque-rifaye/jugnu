@@ -143,8 +143,6 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   );
 
   // Live: every 4 s while someone is using this screen, every 15 s when idle, paused when hidden.
-  // (No reload on a passcode request: that request fails again and would loop. The passcode
-  // prompt reloads the page once the right passcode is entered.)
   useEffect(() => {
     let timer = 0;
     let stopped = false;

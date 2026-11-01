@@ -3,8 +3,8 @@
 **The answer to a block's learning gap is often already in the block.**
 AI for Foundational Learning Hackathon · Challenge 4 (Data to Action) · Build stage · Team ShikshaSaathi AI.
 
-**Live demo:** https://jugnu-nine.vercel.app · test credentials for each role and sample inputs are in
-the submitted presentation. Nothing to install to test it. To run it yourself, see [Run it](#run-it).
+**Live demo:** https://jugnu-nine.vercel.app · no login or passcode: press **Open Jugnu** and choose a role.
+Sample inputs are in the submitted presentation. To run it yourself, see [Run it](#run-it).
 
 Dashboards tell a Block Education Officer (BEO) *where* learning is low. Jugnu finds the few
 government schools where children read and count far better than their circumstances predict,
@@ -243,8 +243,8 @@ cp .env.example .env      # optional keys are explained in the file; leave it as
 npm run dev               # web http://localhost:5190, API :8788
 ```
 
-Open http://localhost:5190, press **Open Jugnu** and choose a role. Locally there is no passcode unless
-you set `DEMO_PASSCODE`. The database is created at `data/runtime/jugnu.db` and the demo block is ready.
+Open http://localhost:5190, press **Open Jugnu** and choose a role. There is no login or passcode.
+The database is created at `data/runtime/jugnu.db` and the demo block is ready.
 
 ```bash
 npm run build && npm start   # production: one server on $PORT serving the app and the API
@@ -255,7 +255,6 @@ npm run ai:check             # says whether Claude and speech are reachable with
 
 Nothing is required. These change behaviour, and all are described in `.env.example`:
 
-- `DEMO_PASSCODE`: asks for a passcode on the console and its API, for a public link. Teachers never need it.
 - `TELEPHONY_PROVIDER`, provider keys, `PUBLIC_URL`, `PHONE_SALT`: the real phone line. The provider needs a
   public WebSocket, so run the API on a long-lived host or a tunnel. There is no phone simulator.
 - `DEMO_TEACHER_PHONE`: the only number the assistant may dial without being told one.
@@ -281,7 +280,6 @@ data/eval/         hand-labelled coding set and the latest evaluation results
 docs/TESTING-KIT.md   how to run field sessions and record "you said → we changed"
 docs/INTERNAL-TESTS.md   what the AI-run walkthroughs found (these are not user testing)
 docs/DATA-AND-METHOD.md  the data and the statistics
-demo/, video/      how the demo film is captured and put together
 ```
 
 Built with Claude (Anthropic) by Team ShikshaSaathi AI: Ashfaque Rifaye, Patel Mishal, Umesh Kumar, Aryan Patel.

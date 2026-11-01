@@ -1,20 +1,16 @@
 // Flow check — every user flow, end to end, against a running server.
 // Usage: node scripts/flows.mjs [baseUrl]   (default http://localhost:8080)
-// Officer routes send JUGNU_PASS as the passcode header when the server has one.
 // Everything it creates is labelled "Flow check" and removed afterwards: interviews, the test block's
 // activity log and the drafts it approved, so nothing shows up in a demo.
 import fs from "node:fs";
 import path from "node:path";
 
 const base = (process.argv[2] ?? "http://localhost:8080").replace(/\/$/, "");
-const headers = { "content-type": "application/json", ...(process.env.JUGNU_PASS ? { "x-jugnu-pass": process.env.JUGNU_PASS } : {}) };
+const headers = { "content-type": "application/json" };
 const BLOCK = `flowcheck:${Date.now()}`;
 
-// Officer routes on a passcode-protected server without JUGNU_PASS: the flow is skipped, not failed.
-class NeedsPasscode extends Error {}
 async function call(method, url, body) {
   const r = await fetch(base + url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if (r.status === 401) throw new NeedsPasscode("needs the officer passcode");
   const text = await r.text();
   let data;
   try {
@@ -37,16 +33,14 @@ async function flow(name, who, fn) {
     if (!ok) throw new Error(`${label}${detail ? ` — ${detail}` : ""}`);
   };
   let error = null;
-  let skipped = false;
   try {
     await fn(step);
   } catch (e) {
-    skipped = e instanceof NeedsPasscode;
     error = e.message;
   }
   const ms = Date.now() - started;
-  results.push({ name, who, ok: !error || skipped, skipped, ms, steps, error });
-  console.log(`${skipped ? "SKIP" : error ? "FAIL" : "PASS"}  ${name.padEnd(34)} ${(ms / 1000).toFixed(1).padStart(5)} s  ${error ?? `${steps.length} steps`}`);
+  results.push({ name, who, ok: !error, ms, steps, error });
+  console.log(`${error ? "FAIL" : "PASS"}  ${name.padEnd(34)} ${(ms / 1000).toFixed(1).padStart(5)} s  ${error ?? `${steps.length} steps`}`);
 }
 
 const ANSWERS = {
@@ -265,9 +259,8 @@ await flow("Clean up", "—", async (step) => {
 });
 
 // ------------------------------------------------------------------------------------------ report
-const passed = results.filter((r) => r.ok && !r.skipped).length;
-const skippedN = results.filter((r) => r.skipped).length;
-console.log(`\n${passed}/${results.length - skippedN} flows passed against ${base}${skippedN ? ` · ${skippedN} skipped (need the officer passcode: JUGNU_PASS=…)` : ""}`);
+const passed = results.filter((r) => r.ok).length;
+console.log(`\n${passed}/${results.length} flows passed against ${base}`);
 for (const n of aiNotes) console.log(n);
 fs.mkdirSync(path.resolve("data/runtime"), { recursive: true });
 fs.writeFileSync(path.resolve("data/runtime/flowcheck.json"), JSON.stringify({ base, ranAt: new Date().toISOString(), results }, null, 2));

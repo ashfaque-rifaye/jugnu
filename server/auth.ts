@@ -1,14 +1,13 @@
-// Access control for a public demo: the officer console needs a passcode (DEMO_PASSCODE) when one
-// is set; teachers join an interview with an unguessable link token; AI routes are rate-limited
-// so a public link cannot burn the Claude credits.
+// Access control. The app is open to everyone, with no login; teachers join an interview with an
+// unguessable link token; AI routes are rate-limited so a public link cannot burn the Claude credits.
+// Only the separate phone server, a fixed public address that can place real calls, sets
+// PHONE_SERVER_KEY, so strangers can't use its officer routes.
 import type { NextFunction, Request, Response } from "express";
 
-export const passcodeRequired = () => Boolean(process.env.DEMO_PASSCODE);
-
 export function requireOfficer(req: Request, res: Response, next: NextFunction) {
-  const pass = process.env.DEMO_PASSCODE;
-  if (!pass || req.get("x-jugnu-pass") === pass) return next();
-  res.status(401).json({ error: "Passcode required", passcode: true });
+  const key = process.env.PHONE_SERVER_KEY;
+  if (!key || req.get("x-jugnu-key") === key) return next();
+  res.status(401).json({ error: "Not allowed" });
 }
 
 const hits = new Map<string, number[]>();

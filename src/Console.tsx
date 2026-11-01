@@ -37,7 +37,6 @@ import { AppBackground, SPRING } from "./components/kit";
 import { Locator } from "./components/Locator";
 import { LogoMark, Wordmark } from "./components/Logo";
 import { FilmPlayer } from "./components/Film";
-import { PasscodeGate } from "./components/Passcode";
 import { cx } from "./components/ui";
 import { Threshold } from "./components/Threshold";
 import { DAMOH, profileFor } from "./engine/district";
@@ -433,7 +432,6 @@ function Console() {
       <LiveToasts />
       <FeedbackButton />
       <Threshold open={!role || roleSheet} closable={!!role} onClose={() => setRoleSheet(false)} />
-      <PasscodeGate />
     </>
   );
 }

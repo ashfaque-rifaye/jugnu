@@ -2,7 +2,6 @@
 // turn is recorded until the speaker pauses, then sent to /api/voice/stt (Google Chirp 3 — Hindi,
 // English, Tamil and more, even mixed). Speaking: /api/voice/tts (Chirp 3 HD voices), played
 // through an analyser so the firefly swarm moves with the voice.
-import { getPasscode, PASSCODE_EVENT } from "./api";
 
 let ctx: AudioContext | null = null;
 let outAnalyser: AnalyserNode | null = null;
@@ -33,11 +32,6 @@ export function levelOf(a: AnalyserNode | null): number {
 }
 export const outLevel = () => levelOf(outAnalyser);
 
-const headers = (): Record<string, string> => {
-  const p = getPasscode();
-  return p ? { "x-jugnu-pass": p } : {};
-};
-
 /** Which language a line is written in, from its script (for picking the voice). */
 export function scriptLang(text: string): string {
   if (/[஀-௿]/.test(text)) return "ta";
@@ -52,7 +46,7 @@ export function scriptLang(text: string): string {
 
 /** Fetch and decode one spoken line (Chirp 3 HD). */
 export async function fetchSpeech(text: string, voice: string): Promise<AudioBuffer> {
-  const res = await fetch("/api/voice/tts", { method: "POST", headers: { "Content-Type": "application/json", ...headers() }, body: JSON.stringify({ text, lang: scriptLang(text), voice }) });
+  const res = await fetch("/api/voice/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, lang: scriptLang(text), voice }) });
   if (!res.ok) throw new Error((await res.json().catch(() => ({ error: "Voice unavailable" }))).error);
   const { ctx } = audio();
   return ctx.decodeAudioData(await res.arrayBuffer());
@@ -149,9 +143,8 @@ export async function openMic(): Promise<Mic> {
 
 /** Send one recorded turn to speech-to-text. */
 export async function transcribe(blob: Blob, lang: string, seed: number): Promise<{ text: string; language: string | null; engine: string | null }> {
-  const res = await fetch(`/api/voice/stt?lang=${lang}&seed=${seed}`, { method: "POST", headers: { "Content-Type": blob.type || "audio/webm", ...headers() }, body: blob });
+  const res = await fetch(`/api/voice/stt?lang=${lang}&seed=${seed}`, { method: "POST", headers: { "Content-Type": blob.type || "audio/webm" }, body: blob });
   const d = await res.json().catch(() => ({}));
-  if (res.status === 401 && d.passcode) window.dispatchEvent(new Event(PASSCODE_EVENT));
   if (!res.ok) throw new Error(d.error ?? "Could not hear that");
   return d;
 }

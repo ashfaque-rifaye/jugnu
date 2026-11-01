@@ -1,9 +1,8 @@
 // End-to-end smoke test against a running server: invite → consent → full interview → coding.
 // Usage: node scripts/smoke.mjs [baseUrl]   (default http://localhost:8788)
 const base = process.argv[2] ?? "http://localhost:8788";
-const pass = process.env.DEMO_PASSCODE ?? "";
 const j = async (method, path, body) => {
-  const r = await fetch(base + path, { method, headers: { "Content-Type": "application/json", "x-jugnu-pass": pass }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(base + path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const data = await r.json();
   if (!r.ok) throw new Error(`${path}: ${r.status} ${JSON.stringify(data)}`);
   return data;

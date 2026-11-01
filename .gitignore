@@ -23,8 +23,12 @@ tsconfig.tsbuildinfo
 # Local logo concept sheets (generated one-offs)
 demo/logo-concepts/
 
-# rendered films
-video/out/
+# demo film and presentation tooling: kept locally, not part of the product
+/demo/
+/video/
+docs/DEMO-SCRIPT.md
+docs/ACTION-PLAN.md
+docs/guide/jugnu-guide.html
 
 # private records of the conversation: local only, never in git
 CONVERSATION-HISTORY.md

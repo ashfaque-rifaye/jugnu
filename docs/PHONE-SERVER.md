@@ -7,7 +7,7 @@ Exotel streams each call's audio to one web address. A quick tunnel changes that
 - Jugnu's API on Google Cloud Run, as the service `jugnu-phone` in the project `ai-pro-developer`, region `asia-south1` (Mumbai).
 - API only. The web app is not in it, and the live site doesn't change.
 - It uses the same Turso database, so a call placed from the console is recognised when its audio arrives.
-- Officer routes need a passcode, kept in `.env` as `PHONE_SERVER_PASSCODE`, so strangers can't place calls through it.
+- Its officer routes need a private key, kept in `.env` as `PHONE_SERVER_KEY`, so strangers can't place calls through it. The app and the live site have no passcode.
 - It sleeps when idle. Jugnu wakes it just before dialling, so the teacher shouldn't wait in silence.
 - It leaves the scheduler and the AI check to the main server, so follow-up calls aren't dialled twice.
 
