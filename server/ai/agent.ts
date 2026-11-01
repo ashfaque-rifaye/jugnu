@@ -15,6 +15,7 @@ import { enqueue, enqueueForAction, listJobs } from "../scheduler";
 import { CallError, placeCall } from "../telephony";
 import { rememberContact, sendCheckin, sendText, sendVoiceNote, whatsappConfigured } from "../whatsapp";
 import { PRACTICES } from "../../src/engine/practices";
+import { GEMINI_MODEL, geminiStep, geminiText, startedByGemini, type Block } from "./gemini";
 import { SAFETY } from "./interviewer";
 import { officerTools } from "./officer";
 
@@ -273,7 +274,7 @@ export interface AgentTurn {
   looked: string[];
   /** Final words for this turn, when there are no calls left. */
   say: string | null;
-  source: "claude" | "offline";
+  source: "claude" | "gemini" | "offline";
   error?: string;
 }
 
@@ -314,15 +315,46 @@ Last and most important: every reply is heard, not read. Under 25 words, at most
 async function trace(ref: string, usage: { i: number; o: number }, ok: boolean, error: string | null, started: number, tools: string[], model = AGENT_MODEL) {
   await db
     .run(
-      `INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at) VALUES ('agent.turn', ?, 'claude', ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ref.slice(0, 80), model, Date.now() - started, usage.i, usage.o, JSON.stringify([{ name: "tools", passed: true, detail: tools.join(", ") || "none" }]), ok ? 1 : 0, error, now(),
+      `INSERT INTO ai_calls (task, ref, source, model, latency_ms, input_tokens, output_tokens, checks, ok, error, created_at) VALUES ('agent.turn', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ref.slice(0, 80), model.startsWith("gemini") ? "gemini" : "claude", model, Date.now() - started, usage.i, usage.o, JSON.stringify([{ name: "tools", passed: true, detail: tools.join(", ") || "none" }]), ok ? 1 : 0, error, now(),
     )
     .catch((e) => console.error("ai_calls trace failed:", e));
 }
 
+/** The same turn with Gemini, when Claude did not answer: the same tools, the same rules, the same reply. */
+async function geminiTurn(messages: BetaMessageParam[], st: PipelineState, ctx: AgentContext, server: unknown[], tools: BetaToolUnion[], started: number, why?: string): Promise<AgentTurn> {
+  const names: string[] = [];
+  const firstUser = messages.find((m) => m.role === "user" && typeof m.content === "string")?.content as string | undefined;
+  const convo = [...messages];
+  try {
+    for (let step = 0; step < 6; step++) {
+      const blocks = await geminiStep(system(st, ctx), convo as never, tools as never);
+      convo.push({ role: "assistant", content: blocks as BetaMessageParam["content"] });
+      const uses = blocks.filter((b) => b.type === "tool_use") as unknown as Anthropic.Beta.BetaToolUseBlock[];
+      names.push(...uses.map((u) => u.name));
+      if (!uses.length) {
+        const say = spoken(blocks.map((b: Block) => b.text ?? "").join(" "));
+        await trace(firstUser ?? "turn", { i: 0, o: 0 }, true, why ?? null, started, names, GEMINI_MODEL);
+        return { messages: convo, calls: [], results: [], looked: names.filter((n) => !UI_NAMES.has(n)), say: say || null, source: "gemini" };
+      }
+      const ui = uses.filter((u) => UI_NAMES.has(u.name));
+      if (ui.length) {
+        const done = await Promise.all(uses.filter((u) => !UI_NAMES.has(u.name)).map((u) => runServer(server, u)));
+        await trace(firstUser ?? "turn", { i: 0, o: 0 }, true, why ?? null, started, names, GEMINI_MODEL);
+        return { messages: convo, calls: ui.map((u) => ({ id: u.id, name: u.name, input: u.input as Record<string, unknown> })), results: done, looked: names.filter((n) => !UI_NAMES.has(n)), say: null, source: "gemini" };
+      }
+      convo.push({ role: "user", content: await Promise.all(uses.map((u) => runServer(server, u))) });
+    }
+    throw new Error("too many steps");
+  } catch (error) {
+    const msg = describeError(error);
+    await trace(firstUser ?? "turn", { i: 0, o: 0 }, false, msg, started, names, GEMINI_MODEL);
+    return { messages, calls: [], results: [], looked: [], say: null, source: "offline", error: why ?? msg };
+  }
+}
+
 /** One agent turn: run Claude, executing block tools here, until it either answers or needs the browser. */
 export async function agentTurn(messages: BetaMessageParam[], st: PipelineState, ctx: AgentContext): Promise<AgentTurn> {
-  if (!claudeAvailable()) return { messages, calls: [], results: [], looked: [], say: null, source: "offline" };
   const started = Date.now();
   const server = [...officerTools(st), ...writeTools(st, ctx)];
   const tools: BetaToolUnion[] = [...server.map((t) => {
@@ -331,6 +363,7 @@ export async function agentTurn(messages: BetaMessageParam[], st: PipelineState,
     }), ...UI_TOOLS];
   // Tools and system prompt are the same on every step of a conversation: cache them.
   tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: { type: "ephemeral" } } as BetaToolUnion;
+  if (!claudeAvailable() || startedByGemini(messages as never)) return geminiTurn(messages, st, ctx, server, tools, started);
   const used = { i: 0, o: 0 };
   const names: string[] = [];
   const firstUser = messages.find((m) => m.role === "user" && typeof m.content === "string")?.content as string | undefined;
@@ -373,7 +406,7 @@ export async function agentTurn(messages: BetaMessageParam[], st: PipelineState,
   } catch (error) {
     const msg = describeError(error);
     await trace(firstUser ?? "turn", used, false, msg, started, names);
-    return { messages, calls: [], results: [], looked: [], say: null, source: "offline", error: msg };
+    return geminiTurn(messages, st, ctx, server, tools, Date.now(), `Claude: ${msg}`.slice(0, 300));
   }
 }
 
@@ -390,9 +423,19 @@ async function runServer(server: unknown[], u: Anthropic.Beta.BetaToolUseBlock):
   }
 }
 
+const briefSystem = (lang: "en" | "hi", name?: string) => `${SAFETY}
+You are Jugnu, briefing a Block Education Officer${name ? ` (${name})` : ""} out loud at the start of their day. Use only the facts given; never invent numbers or names.
+Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian colleague talks — English words like confirmation visit or CRP are fine" : "in plain spoken Indian English"}.
+5 to 7 short sentences, one per line, no lists or markdown, numbers as digits. Open with a one-line greeting and the headline, put the most urgent thing second, end by offering one concrete next step as a question.`;
+
 /** The spoken morning briefing: Claude turns the block's facts into a few natural sentences in the officer's language. */
-export async function agentBrief(facts: string[], lang: "en" | "hi", name?: string): Promise<{ lines: string[]; source: "claude" | "offline" }> {
-  if (!claudeAvailable()) return { lines: [], source: "offline" };
+export async function agentBrief(facts: string[], lang: "en" | "hi", name?: string): Promise<{ lines: string[]; source: "claude" | "gemini" | "offline" }> {
+  const geminiLines = async (): Promise<{ lines: string[]; source: "gemini" | "offline" }> => {
+    const text = await geminiText(briefSystem(lang, name), facts.map((f) => `- ${f}`).join("\n")).catch(() => "");
+    const lines = text.split(/\n+/).map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim()).filter(Boolean).slice(0, 8);
+    return { lines, source: lines.length ? "gemini" : "offline" };
+  };
+  if (!claudeAvailable()) return geminiLines();
   const started = Date.now();
   try {
     const res = await getClient().messages.create(
@@ -401,10 +444,7 @@ export async function agentBrief(facts: string[], lang: "en" | "hi", name?: stri
         max_tokens: 1500,
         // On Sonnet 5.5 this is how thinking is turned off.
         thinking: { type: "between_tools" } as unknown as { type: "disabled" },
-        system: `${SAFETY}
-You are Jugnu, briefing a Block Education Officer${name ? ` (${name})` : ""} out loud at the start of their day. Use only the facts given; never invent numbers or names.
-Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian colleague talks — English words like confirmation visit or CRP are fine" : "in plain spoken Indian English"}.
-5 to 7 short sentences, one per line, no lists or markdown, numbers as digits. Open with a one-line greeting and the headline, put the most urgent thing second, end by offering one concrete next step as a question.`,
+        system: briefSystem(lang, name),
         messages: [{ role: "user", content: facts.map((f) => `- ${f}`).join("\n") }],
       },
       { signal: AbortSignal.timeout(25000) },
@@ -415,7 +455,7 @@ Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian 
     return { lines, source: "claude" };
   } catch (e) {
     await trace("brief", { i: 0, o: 0 }, false, describeError(e), started, []);
-    return { lines: [], source: "offline" };
+    return geminiLines();
   }
 }
 
@@ -439,9 +479,17 @@ const PAGE_HELP: Record<string, [string, string]> = {
 };
 const pageHelp = (page: string, lang: "en" | "hi") => PAGE_HELP[page]?.[lang === "hi" ? 1 : 0] ?? "";
 
+const guideSystem = (page: string, lang: "en" | "hi") => `${SAFETY}
+You are Jugnu, the voice guide inside a console for a Block Education Officer in India. The officer has just opened the "${page}" page. Say, out loud, in 2 short sentences: what this page helps them do, and the single most useful thing to do on it right now, naming a real school or number from the screen or the facts. Never invent names or numbers.
+${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like confirmation visit or CRP are fine." : "Speak plain Indian English."} No greeting, no lists, no markdown, numbers as digits, under 40 words. End with a short offer such as "Want me to open it?"`;
+
 /** A spoken word of help when the officer opens a page: what it is for, and the one thing worth doing here now. */
-export async function agentPageGuide(page: string, screen: string, facts: string[], lang: "en" | "hi"): Promise<{ text: string; source: "claude" | "offline" }> {
-  if (!claudeAvailable()) return { text: pageHelp(page, lang), source: "offline" };
+export async function agentPageGuide(page: string, screen: string, facts: string[], lang: "en" | "hi"): Promise<{ text: string; source: "claude" | "gemini" | "offline" }> {
+  const backup = async (): Promise<{ text: string; source: "gemini" | "offline" }> => {
+    const said = await geminiText(guideSystem(page, lang), `On screen now:\n${screen.slice(0, 2500)}\n\nBlock facts:\n${facts.map((f) => `- ${f}`).join("\n")}`, 1500).catch(() => "");
+    return said ? { text: wholeSentences(said, "max_tokens").replace(/\s+/g, " "), source: "gemini" } : { text: pageHelp(page, lang), source: "offline" };
+  };
+  if (!claudeAvailable()) return backup();
   const started = Date.now();
   try {
     const res = await getClient().messages.create(
@@ -449,9 +497,7 @@ export async function agentPageGuide(page: string, screen: string, facts: string
         model: GUIDE_MODEL,
         max_tokens: 500,
         thinking: { type: "disabled" },
-        system: `${SAFETY}
-You are Jugnu, the voice guide inside a console for a Block Education Officer in India. The officer has just opened the "${page}" page. Say, out loud, in 2 short sentences: what this page helps them do, and the single most useful thing to do on it right now, naming a real school or number from the screen or the facts. Never invent names or numbers.
-${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like confirmation visit or CRP are fine." : "Speak plain Indian English."} No greeting, no lists, no markdown, numbers as digits, under 40 words. End with a short offer such as "Want me to open it?"`,
+        system: guideSystem(page, lang),
         messages: [{ role: "user", content: `On screen now:\n${screen.slice(0, 2500)}\n\nBlock facts:\n${facts.map((f) => `- ${f}`).join("\n")}` }],
       },
       { signal: AbortSignal.timeout(12000) },
@@ -461,6 +507,6 @@ ${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like co
     return { text, source: "claude" };
   } catch (e) {
     await trace("guide", { i: 0, o: 0 }, false, describeError(e), started, [], GUIDE_MODEL);
-    return { text: pageHelp(page, lang), source: "offline" };
+    return backup();
   }
 }

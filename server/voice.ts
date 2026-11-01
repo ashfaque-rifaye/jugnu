@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 
 const KEY = () => process.env.GOOGLE_CLOUD_API_KEY;
 const PROJECT = () => process.env.GOOGLE_CLOUD_PROJECT || "ai-pro-developer";
+export const googleProject = PROJECT;
 
 export const voiceConfigured = () => Boolean(KEY());
 
@@ -23,7 +24,7 @@ let auth: GoogleAuth | null = null;
 let adcOk: boolean | null = null;
 
 /** Google credentials for Chirp 3: a service-account JSON in GOOGLE_SERVICE_ACCOUNT_JSON, or the machine's own gcloud login. */
-async function googleClient() {
+export async function googleClient() {
   if (adcOk === false) return null;
   // On a hosted server only an explicit service account counts (no gcloud login there).
   if (process.env.VERCEL && !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) return null;

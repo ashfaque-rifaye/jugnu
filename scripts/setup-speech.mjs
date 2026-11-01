@@ -1,6 +1,6 @@
-// Turn on Google Chirp 3 listening for the live site. Google's Chirp 3 listening does not accept an API
-// key, so the site needs a service account. Usage: npm run speech:setup — run it yourself, signed in to
-// gcloud and vercel. It creates the account if needed, gives it speech access only, copies its key and the
+// Turn on Chirp 3 listening and the Gemini backup for the live site. Neither accepts an API key, so the
+// site needs a service account. Usage: npm run speech:setup — run it yourself, signed in to gcloud and
+// vercel. It creates the account if needed, gives it speech and Vertex AI access only, copies its key and the
 // speech API key from .env straight to Vercel without printing them, removes the local key file, and redeploys.
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
@@ -36,8 +36,10 @@ try {
     run(gcloud, ["iam", "service-accounts", "create", NAME, "--project", PROJECT, "--display-name", "Jugnu speech"]);
     console.log(`made  ${EMAIL}`);
   }
-  run(gcloud, ["projects", "add-iam-policy-binding", PROJECT, "--member", `serviceAccount:${EMAIL}`, "--role", "roles/speech.client", "--condition", "None", "--quiet"]);
-  console.log("gave  it speech access only");
+  for (const role of ["roles/speech.client", "roles/aiplatform.user"]) {
+    run(gcloud, ["projects", "add-iam-policy-binding", PROJECT, "--member", `serviceAccount:${EMAIL}`, "--role", role, "--condition", "None", "--quiet"]);
+  }
+  console.log("gave  it speech and Vertex AI access only");
   run(gcloud, ["iam", "service-accounts", "keys", "create", keyFile, "--iam-account", EMAIL, "--project", PROJECT]);
   addEnv("GOOGLE_SERVICE_ACCOUNT_JSON", JSON.stringify(JSON.parse(fs.readFileSync(keyFile, "utf8"))));
   addEnv("GOOGLE_CLOUD_API_KEY", process.env.GOOGLE_CLOUD_API_KEY);

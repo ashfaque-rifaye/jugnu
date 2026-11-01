@@ -228,6 +228,10 @@ Not AI, and also optional:
 | Google Maps | The 3D district map (its own map is used otherwise) | `VITE_GOOGLE_MAPS_KEY`, read at build time |
 | Turso | Hosted storage (local SQLite otherwise) | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` |
 
+Gemini through Vertex AI (`gemini-3-flash-preview`, or `GEMINI_MODEL`) is the backup for the voice and chat
+assistant, the briefing and the page guide when Claude does not answer. It uses the same Google credentials as
+Chirp 3; `npm run speech:setup` sets them up on Vercel.
+
 Nothing else is called while the app runs. The demo film and artwork were prepared beforehand with
 Google Veo 3.1, Lyria and Chirp 3 HD; the app does not use those at run time and needs no key for them.
 

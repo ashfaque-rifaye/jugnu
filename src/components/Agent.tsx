@@ -207,7 +207,7 @@ interface Turn {
   results: unknown[];
   looked: string[];
   say: string | null;
-  source: "claude" | "offline";
+  source: "claude" | "gemini" | "offline";
   error?: string;
 }
 
