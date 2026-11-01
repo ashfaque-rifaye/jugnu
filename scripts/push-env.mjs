@@ -5,7 +5,7 @@ import "dotenv/config";
 import { execFileSync } from "node:child_process";
 
 // Turso is not copied: .env points at the jugnu-dev database, and the live site keeps its own (jugnu).
-const NAMES = ["ANTHROPIC_API_KEY", "CLAUDE_MODEL", "CREDIT_BUDGET_USD"];
+const NAMES = ["ANTHROPIC_API_KEY", "CLAUDE_MODEL", "CREDIT_BUDGET_USD", "GOOGLE_CLOUD_API_KEY"];
 const vercel = process.platform === "win32" ? "vercel.cmd" : "vercel";
 
 for (const name of NAMES) {

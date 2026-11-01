@@ -149,38 +149,38 @@ function wrap(text, font, maxW) {
 function drawCaption(c, t) {
   const a = Math.min(easeOut(prog(t, c.t0, c.t0 + 0.2)), 1 - prog(t, c.t1 - 0.05, c.t1 + 0.2));
   if (a <= 0) return;
-  const font = `500 30px ${FONT.sans}`;
+  const font = `500 23px ${FONT.sans}`;
   // Long narration shows a phrase at a time, paced through its length.
   // One long line reads better than a last line of one word.
-  const one = wrap(c.text, font, 1560);
-  const all = one.length === 1 ? one : wrap(c.text, font, 1180);
+  const one = wrap(c.text, font, 1300);
+  const all = one.length === 1 ? one : wrap(c.text, font, 980);
   const per = (c.t1 - c.t0) / all.length;
   let idx = Math.floor(clamp((t - c.t0) / per, 0, all.length - 0.001) / 2) * 2;
   if (idx && all.length % 2 && idx === all.length - 1 && all[idx].length < 24) idx -= 2;
   const rows = all.slice(idx, idx + (idx + 3 === all.length && all[idx + 2].length < 24 ? 3 : 2));
-  const lh = 42;
+  const lh = 32;
   const label = c.who ? c.who.toUpperCase() : null;
-  const h = rows.length * lh + 30 + (label ? 24 : 0);
+  const h = rows.length * lh + 20 + (label ? 19 : 0);
   g.font = font;
-  const w = Math.max(...rows.map((r) => g.measureText(r).width)) + 64;
+  const w = Math.max(...rows.map((r) => g.measureText(r).width)) + 48;
   const x = (W - w) / 2;
-  const y = H - 44 - h + (1 - a) * 10;
+  const y = H - 30 - h + (1 - a) * 8;
   g.save();
   g.globalAlpha = a;
   g.shadowColor = "rgba(15,23,42,.18)";
   g.shadowBlur = 26;
   g.shadowOffsetY = 8;
   g.fillStyle = "rgba(255,255,255,.96)";
-  rounded(x, y, w, h, 20);
+  rounded(x, y, w, h, 14);
   g.fill();
   g.shadowColor = "transparent";
   g.textAlign = "center";
-  let yy = y + 44;
+  let yy = y + 32;
   if (label) {
-    g.font = `600 15px ${FONT.sans}`;
+    g.font = `600 12px ${FONT.sans}`;
     g.fillStyle = "#b45309";
-    g.fillText(label, W / 2, y + 28);
-    yy += 22;
+    g.fillText(label, W / 2, y + 21);
+    yy += 18;
   }
   g.font = font;
   g.fillStyle = INK;
@@ -237,6 +237,37 @@ function drawCard(s, t) {
   g.textAlign = "left";
   g.restore();
 }
+/** The app's "You" bubble, showing the words heard in this scene. */
+function drawSaid(text, box, fade) {
+  const k = box.w / 1600;
+  const x = box.x + 1212 * k;
+  const y = box.y + 716 * k;
+  const w = 368 * k;
+  const h = 96 * k;
+  g.save();
+  g.globalAlpha = fade;
+  g.shadowColor = "rgba(15,23,42,.16)";
+  g.shadowBlur = 20;
+  g.fillStyle = "#fff";
+  rounded(x, y, w, h, 16 * k);
+  g.fill();
+  g.shadowColor = "transparent";
+  g.fillStyle = "#9cf06b";
+  g.beginPath();
+  g.arc(x + 20 * k, y + 24 * k, 4 * k, 0, 7);
+  g.fill();
+  g.fillStyle = INK2;
+  g.font = `600 ${13 * k}px ${FONT.sans}`;
+  g.fillText("YOU", x + 32 * k, y + 29 * k);
+  g.font = `italic 500 ${17 * k}px ${FONT.sans}`;
+  g.fillStyle = INK;
+  g.fillText(`“${text}”`, x + 16 * k, y + 56 * k);
+  g.font = `500 ${13 * k}px ${FONT.sans}`;
+  g.fillStyle = INK2;
+  g.fillText("Working on it…", x + 16 * k, y + 80 * k);
+  g.restore();
+}
+
 /** The live pill, as in the app: what the agent is doing at this moment. */
 function drawPill(s, k, fade) {
   const now = [...s.pill].reverse().find((p) => p.t <= k);
@@ -667,6 +698,7 @@ async function draw(i) {
     if (OLD_ORB.has(s.take)) drawOrbOver(t, box, fade);
     if (s.flow?.length) drawFlow(s, k, fade);
     if (s.pill?.length) drawPill(s, k, fade);
+    if (s.say) drawSaid(s.say, box, fade);
     if (s.phone) {
       const rise = spring(prog(k, 0.5, 1.9));
       const out = easeInOut(prog(k, s.dur - 1, s.dur - 0.2));

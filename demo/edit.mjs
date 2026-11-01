@@ -219,7 +219,7 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
 }
 // Signing in: the roles, then the Block Education Officer
 {
-  const d = spoken("N10") + 0.35;
+  const d = spoken("N10") + 1.9; // time to see each role
   narrate("N10", now + 0.15);
   fit(home, home.marks.doors, home.marks.beo, d, { chapter: "Choose your role" });
 }
@@ -256,7 +256,7 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
   const onMap = TRACES.filter((tr) => tr.at >= vm.v2 && tr.at <= vm.end && tr.tools.includes("show_on_map")).map((tr) => tr.at)[0] ?? vm.v2 + 3000;
   const beoFrame = home.frames[home.frames.findIndex((f) => f.at >= home.marks.beo + 6000)].file;
   // Jugnu names the school, shows it, and offers to call: the story runs straight to the call.
-  const s = live(voice, vm.v1, vm.end, { chapter: "Voice agent", keep: [[0], [2]], pill: true, maxDur: 13, patch: { img: `/takes/home/frames/${beoFrame}`, until: onMap, rects: [[316, 292, 612, 54], [310, 718, 402, 48]] } });
+  const s = live(voice, vm.v1, vm.end, { chapter: "Voice agent", keep: [[0], [0, 2]], pill: true, maxDur: 13, patch: { img: `/takes/home/frames/${beoFrame}`, until: onMap, rects: [[316, 292, 612, 54], [310, 718, 402, 48]] } });
   voiceCaptions(voice, s, ["V1", "V2"]);
   // The officer's answer, in the owner's own voice from the call.
   const yes = clipFile("V6");
@@ -267,17 +267,15 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
   const at = v3Take.marks.v3;
   const said = v3Take.page.find((e) => e.kind === "speak" && e.at >= at);
   const reply = v3Take.page.find((e) => e.kind === "play" && e.at > said.at + said.ms);
-  const s3 = live(v3Take, at, reply.at - 250, { chapter: "Voice agent", pill: true, maxDur: 5 });
-  const m3 = s3.map.find((p) => said.at >= p[1] && said.at <= p[3]);
-  const t3 = s3.start + m3[0] + (said.at - m3[1]) / 1000 / (m3[4] ?? 1);
-  caps.push({ t0: t3, t1: t3 + said.ms / 1000 / TEMPO, text: `“${lines.V3}”`, who: "Officer" });
+  // The bubble in this take quotes the earlier wording; the film's card shows what is heard here.
+  live(v3Take, said.at + said.ms + 100, reply.at - 250, { chapter: "Voice agent", pill: true, maxDur: 3.2, say: "Yeah, please go ahead." });
 }
 // The real call: the live console beside the phone, its important moments at a brisker pace.
 {
   const start = now;
   const t0Call = Date.parse(callInfo.started);
   const ring = lineTake.marks.ringing;
-  const CALL_TEMPO = 1.3;
+  const CALL_TEMPO = 1.4;
   const map = [];
   let tt = spoken("N4") + 0.3;
   map.push([0, ring, tt, t0Call, 1]);
@@ -333,8 +331,8 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
   fit(tour, m.board, m.district, d7, { chapter: "Working together" });
   const n8 = spoken("N8");
   narrate("N8", now + 0.3);
-  fit(tour, m.district, m.term, n8 * 0.55 + 0.7, { chapter: "Across blocks" });
-  fit(tour, m.results + 1800, m.end, n8 * 0.45 + 1, { chapter: "Across blocks" });
+  fit(tour, m.district, m.term, n8 * 0.55 + 0.5, { chapter: "Across blocks" });
+  fit(tour, m.results + 1800, m.end, n8 * 0.45 + 0.8, { chapter: "Across blocks" });
 }
 const duration = now + OVERLAP;
 
@@ -343,7 +341,7 @@ for (const s of shots) if (s.take && !frameTimes[s.take]) frameTimes[s.take] = t
 writeFileSync(join(TAKES, "edit.json"), JSON.stringify({ fps: FPS, duration, shots, caps, frameTimes, phone: existsSync(join(TAKES, "phone/frames.json")) ? JSON.parse(readFileSync(join(TAKES, "phone/frames.json"), "utf8")) : null }));
 for (const s of shots) console.log(s.start.toFixed(1).padStart(7), s.dur.toFixed(1).padStart(6), (s.chapter ?? s.kind).padEnd(24), s.take ?? "", s.flow?.length ? `${s.flow.length} agent steps` : "");
 const bumpers = ["intro", "outro"].map((n) => length(join(ROOT, `video/out/jugnu-${n}.mp4`)));
-const total = duration + bumpers[0] + bumpers[1] - 2.6; // less the two crossfades
+const total = duration + bumpers[0] + bumpers[1] - 2.6; // less the two crossfades (see assemble.mjs)
 console.log(`demo ${duration.toFixed(1)} s + intro and outro = ${total.toFixed(1)} s (${Math.floor(total / 60)}:${String(Math.round(total % 60)).padStart(2, "0")}) ${total > LIMIT ? "OVER THE LIMIT" : "under the limit"}`);
 
 // ---------------------------------------------------------------- the sound

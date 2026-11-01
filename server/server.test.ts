@@ -221,13 +221,13 @@ describe("coder, writer and officer guardrails", () => {
 
   it("normalises Indian numbers, hashes them, and signs/escapes for the phone line", async () => {
     const t = await import("./telephony");
-    expect(t.normaliseIndianNumber("06382 844365")).toBe("+916382844365");
-    expect(t.normaliseIndianNumber("+91 63828-44365")).toBe("+916382844365");
-    expect(t.normaliseIndianNumber("916382844365")).toBe("+916382844365");
+    expect(t.normaliseIndianNumber("09876 543210")).toBe("+919876543210");
+    expect(t.normaliseIndianNumber("+91 98765-43210")).toBe("+919876543210");
+    expect(t.normaliseIndianNumber("919876543210")).toBe("+919876543210");
     expect(t.normaliseIndianNumber("12345")).toBeNull();
     expect(t.normaliseIndianNumber("+14155550100")).toBeNull();
-    expect(t.phoneHash("+916382844365")).toBe(t.phoneHash("06382844365"));
-    expect(t.phoneHash("+916382844365")).not.toContain("6382");
+    expect(t.phoneHash("+919876543210")).toBe(t.phoneHash("09876543210"));
+    expect(t.phoneHash("+919876543210")).not.toContain("9876");
     expect(t.plivoSignature("https://x.test/a", "nonce", "token")).toBe(t.plivoSignature("https://x.test/a", "nonce", "token"));
     expect(t.plivoSignature("https://x.test/a", "nonce", "token")).not.toBe(t.plivoSignature("https://x.test/b", "nonce", "token"));
     expect(t.xmlEscape("A & B < C")).toBe("A &amp; B &lt; C");
@@ -248,7 +248,7 @@ describe("scheduler and agent write tools", () => {
     await expect(writeEvent(block, "note", "s001", { text: "" })).rejects.toBeInstanceOf(EventError);
     const w = await writeEvent(block, "action", "s001-call", { status: "scheduled" }, "test");
     expect(w.id).toBeGreaterThan(0);
-    const job = await enqueueForAction(block, "s001-call", "scheduled", { dueDays: 3, teacher: "A", to: "+916382844365" });
+    const job = await enqueueForAction(block, "s001-call", "scheduled", { dueDays: 3, teacher: "A", to: "+919876543210" });
     expect(job?.kind).toBe("followup_call");
     expect(job?.school_id).toBe("s001");
     expect(new Date(job!.due_at).getTime() - Date.now()).toBeGreaterThan(2.9 * 86_400_000);
@@ -266,7 +266,7 @@ describe("scheduler and agent write tools", () => {
     const future = new Date(Date.now() + 86_400_000).toISOString();
     await enqueue(block, "reminder", "s002-note", past, { teacher: "Teacher B", school: "School B" });
     await enqueue(block, "escalate", "s003-visit", past, { reason: "no CRP visit" });
-    await enqueue(block, "followup_call", "s004-call", past, { to: "+916382844365", teacher: "Teacher D" });
+    await enqueue(block, "followup_call", "s004-call", past, { to: "+919876543210", teacher: "Teacher D" });
     await enqueue(block, "visit_check", "s005-visit", future);
     const { ran, results } = await tick();
     expect(ran).toBe(3);
@@ -297,8 +297,8 @@ describe("scheduler and agent write tools", () => {
     expect((await listJobs(block, "pending")).some((j) => j.ref === `${school.id}-visit` && j.kind === "visit_check")).toBe(true);
     expect(await use(tools, "escalate_to_beo", { school: school.name.toUpperCase(), step: "visit", reason: "teacher on leave" })).toMatch(/escalated/i);
     expect(await use(tools, "dial_teacher", { school: school.name, to: "12", language: "hi" })).toMatch(/does not look right/);
-    expect(await use(tools, "dial_teacher", { school: school.name, to: "+916382844365", language: "hi" })).toMatch(/Could not place the call/);
-    expect(await use(tools, "schedule_followup", { school: school.name, kind: "followup_call", inDays: 5, to: "+916382844365", language: "hi" })).toMatch(/^Done:/);
+    expect(await use(tools, "dial_teacher", { school: school.name, to: "+919876543210", language: "hi" })).toMatch(/Could not place the call/);
+    expect(await use(tools, "schedule_followup", { school: school.name, kind: "followup_call", inDays: 5, to: "+919876543210", language: "hi" })).toMatch(/^Done:/);
     expect(await use(tools, "schedule_followup", { school: school.name, kind: "followup_call", inDays: 5 })).toMatch(/already on the clock/);
     const listed = await use(tools, "list_followups", {});
     expect(listed).toContain("visit check");
