@@ -11,6 +11,7 @@ import { app } from "./app";
 import { claudeAvailable, MODEL } from "./claude";
 import { storage } from "./db";
 import { tick } from "./scheduler";
+import { rateLimit } from "./auth";
 import { attachTelephony, telephonyStatus } from "./telephony";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -18,10 +19,11 @@ const dist = path.resolve(here, "../dist");
 
 if (process.env.NODE_ENV === "production" && fs.existsSync(dist)) {
   // The service worker and the shell must always revalidate so a new deploy reaches phones.
-  app.get(["/sw.js", "/manifest.webmanifest"], (req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(dist, req.path)));
+  const pages = rateLimit("page", 1200, 60000);
+  for (const file of ["sw.js", "manifest.webmanifest"]) app.get(`/${file}`, pages, (_req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(dist, file)));
   app.use("/assets", express.static(path.join(dist, "assets"), { maxAge: "365d", immutable: true }));
   app.use(express.static(dist, { maxAge: "1d", index: false }));
-  app.get(/^(?!\/api).*/, (_req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(dist, "index.html")));
+  app.get(/^(?!\/api).*/, pages, (_req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(dist, "index.html")));
 }
 
 const port = process.env.NODE_ENV === "production" ? Number(process.env.PORT || 8080) : Number(process.env.API_PORT || 8788);

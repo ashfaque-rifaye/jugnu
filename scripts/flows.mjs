@@ -23,7 +23,7 @@ async function call(method, url, body) {
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
 const results = [];
-let claudeUp = true;
+let answeredBy = "claude"; // which model should answer: the first that passes the health check
 const aiNotes = [];
 async function flow(name, who, fn) {
   const started = Date.now();
@@ -61,8 +61,8 @@ await flow("App is up", "Everyone", async (step) => {
   const s = await call("GET", "/api/status");
   step("Status responds", s.status === 200, JSON.stringify(s.data));
   const h = await call("GET", "/api/ai/health");
-  claudeUp = !!h.data.claude?.ok;
-  aiNotes.push(`Claude: ${claudeUp ? "up" : `DOWN, so the backup is what these flows test (${h.data.claude?.detail})`}`);
+  answeredBy = h.data.claude?.ok ? "claude" : h.data.gemini?.ok ? "gemini" : "offline";
+  aiNotes.push(`AI tasks are answered by: ${answeredBy}${answeredBy === "claude" ? "" : ` (Claude: ${h.data.claude?.detail?.slice(0, 80)})`}`);
   step("Google voice speaks", h.data.speaking?.ok, h.data.speaking?.detail);
   step("Google voice listens", h.data.listening?.ok, h.data.listening?.detail);
   step("Storage is permanent", s.data.storage !== "temporary", s.data.storage);
@@ -96,7 +96,7 @@ await flow("Teacher web interview", "Teacher · BEO", async (step) => {
     if (r.data.status === "completed") break;
   }
   step(`Interview completes (${turns} answers)`, reply.done || reply.kind === "closing", reply.say);
-  step(claudeUp ? "Questions written by Claude" : "Questions written by the backup", claudeUp ? sources.has("claude") : sources.has("offline"), [...sources].join(", "));
+  step(`Questions written by ${answeredBy}`, sources.has(answeredBy), [...sources].join(", "));
   let d = await call("GET", `/api/interviews/${interviewId}`);
   for (let i = 0; i < 40 && d.data.codings.length === 0; i++) {
     await sleep(1000);
@@ -130,7 +130,7 @@ await flow("Teacher interview (public demo link)", "Teacher / judge", async (ste
     if (r.data.status === "completed") break;
   }
   step(`Interview completes (${n} answers)`, reply.done || reply.kind === "closing", reply.say);
-  step(claudeUp ? "Questions written by Claude" : "Questions written by the backup", claudeUp ? sources.has("claude") : sources.has("offline"), [...sources].join(", "));
+  step(`Questions written by ${answeredBy}`, sources.has(answeredBy), [...sources].join(", "));
 });
 
 await flow("Teacher says no to consent", "Teacher", async (step) => {
@@ -214,8 +214,8 @@ await flow("AI drafts → human approval", "Jugnu AI · CRP/BEO", async (step) =
 await flow("Ask Jugnu (officer agent)", "BEO", async (step) => {
   const r = await call("POST", "/api/ask", { question: "Which schools need help with reading, and who nearby can show them?" });
   step("Answer returned", r.status === 200, r.data.source);
-  step(claudeUp ? "Answered by Claude" : "Answered by the backup", r.data.source === (claudeUp ? "claude" : "offline"), r.data.warning ?? "");
-  if (claudeUp) step("Looked the data up first", (r.data.tools ?? []).length > 0, (r.data.tools ?? []).join(", "));
+  step(`Answered by ${answeredBy}`, r.data.source === answeredBy, r.data.warning ?? "");
+  if (answeredBy !== "offline") step("Looked the data up first", (r.data.tools ?? []).length > 0, (r.data.tools ?? []).join(", "));
   step("Only real school names", (r.data.checks ?? []).every((c) => c.passed), (r.data.answer ?? "").slice(0, 160));
 });
 

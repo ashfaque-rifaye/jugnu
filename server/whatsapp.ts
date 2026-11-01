@@ -156,7 +156,10 @@ export function signatureOk(raw: Buffer | undefined, header: string | undefined,
 }
 
 async function download(mediaId: string): Promise<{ buf: Buffer; mime: string }> {
+  if (!/^\d+$/.test(mediaId)) throw new WhatsAppError("Not a WhatsApp media id", 400);
   const meta = await graph<{ url: string; mime_type: string }>(mediaId, { method: "GET" });
+  // The token goes with this request, so it only ever goes to Meta.
+  if (!/(^|\.)(fbsbx|facebook|fbcdn|whatsapp)\.(com|net)$/.test(new URL(meta.url).hostname)) throw new WhatsAppError("Media is not on a Meta address", 502);
   const res = await fetch(meta.url, { headers: { Authorization: `Bearer ${cfg().token}` }, signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new WhatsAppError(`media download ${res.status}`);
   return { buf: Buffer.from(await res.arrayBuffer()), mime: meta.mime_type };
@@ -217,7 +220,7 @@ export const whatsapp = Router();
 /** Meta's webhook verification handshake. */
 whatsapp.get("/webhook", (req, res) => {
   const c = cfg();
-  if (c.verify && req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === c.verify) return res.status(200).send(String(req.query["hub.challenge"] ?? ""));
+  if (c.verify && req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === c.verify) return res.status(200).type("text/plain").send(String(req.query["hub.challenge"] ?? ""));
   res.status(403).end();
 });
 
