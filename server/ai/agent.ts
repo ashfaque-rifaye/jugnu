@@ -268,6 +268,21 @@ export interface AgentTurn {
   error?: string;
 }
 
+/** Replies are read aloud, so a stray list or bold mark must not reach the voice. */
+export const spoken = (text: string) =>
+  text
+    .replace(/\*\*|__|`/g, "")
+    .replace(/^\s*(?:[-*•]|\d+[.)])\s+/gm, "")
+    .replace(/\s*\n+\s*/g, " ")
+    .trim();
+
+/** If the reply ran out of room, keep only the sentences that finished. */
+export function wholeSentences(text: string, stop: string | null) {
+  if (stop !== "max_tokens") return text;
+  const end = Math.max(...[".", "?", "!", "।"].map((c) => text.lastIndexOf(c)));
+  return end > 0 ? text.slice(0, end + 1) : "";
+}
+
 const system = (st: PipelineState, ctx: AgentContext) => `${SAFETY}
 You are Jugnu, the voice and chat assistant inside the console a Block Education Officer (or a cluster coordinator) uses to find schools that do better than expected, learn what they do, and spread it to nearby schools.
 Block: ${st.block.name}, ${st.block.district}, ${st.block.state} — ${st.block.schools.length} government primary schools.
@@ -279,10 +294,12 @@ How to work:
 - Do things on screen with the UI tools when asked ("open", "show", "go to", "fill", "mark", "record"). Use read_screen before click or fill.
 - Write to the shared log (record) only when the officer clearly asked for it; repeat back what you recorded.
 - You can also act: move_action moves a step on the plan board, schedule_followup puts a reminder, visit check or follow-up call on Jugnu's clock, escalate_to_beo opens a BEO review, dial_teacher places a real phone call, send_whatsapp sends a voice note, check-in or message on WhatsApp, list_followups shows what is pending. Act when asked plainly ("schedule", "escalate", "call", "mark done"); confirm first only for a phone call with no number given. Say what you did in one sentence.
-- Replies are read aloud: ${ctx.lang === "hi" ? "answer in simple Hindi (Devanagari)" : "answer in plain English"} — but if the officer speaks another language (Tamil, Marathi, …) answer in theirs, in its own script. 1–3 short sentences, no lists, no markdown, numbers as digits.
+- Replies are read aloud: ${ctx.lang === "hi" ? "answer in simple Hindi (Devanagari)" : "answer in plain English"} — but if the officer speaks another language (Tamil, Marathi, …) answer in theirs, in its own script. Numbers as digits.
 - Never shame or rank teachers; a suspicious score means "revisit respectfully".
 - Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.
-- Spoken requests come through speech recognition, so names can arrive misheard or in another script ("सपना कला" for Sasna Kalan, "Mahua Kalan" for Mahguwan Kalan). Match them to the closest school, cluster or teacher in the block and carry on; ask only if two are equally close.`;
+- Spoken requests come through speech recognition, so names can arrive misheard or in another script ("सपना कला" for Sasna Kalan, "Mahua Kalan" for Mahguwan Kalan). Match them to the closest school, cluster or teacher in the block and carry on; ask only if two are equally close.
+
+Last and most important: every reply is heard, not read. Under 60 words, at most 3 short sentences, with no lists, bullets or markdown. Asked for a lot, give only the most useful part and offer the rest.`;
 
 async function trace(ref: string, usage: { i: number; o: number }, ok: boolean, error: string | null, started: number, tools: string[], model = AGENT_MODEL) {
   await db
@@ -328,7 +345,7 @@ export async function agentTurn(messages: BetaMessageParam[], st: PipelineState,
       const uses = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
       names.push(...uses.map((u) => u.name));
       if (res.stop_reason !== "tool_use" || !uses.length) {
-        const say = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join(" ").trim();
+        const say = spoken(res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join(" "));
         await trace(firstUser ?? "turn", used, true, null, started, names);
         return { messages: convo, calls: [], results: [], looked: names.filter((n) => !UI_NAMES.has(n)), say: say || null, source: "claude" };
       }
@@ -371,7 +388,9 @@ export async function agentBrief(facts: string[], lang: "en" | "hi", name?: stri
     const res = await getClient().messages.create(
       {
         model: AGENT_MODEL,
-        max_tokens: 900,
+        max_tokens: 1500,
+        // On Sonnet 5.5 this is how thinking is turned off.
+        thinking: { type: "between_tools" } as unknown as { type: "disabled" },
         system: `${SAFETY}
 You are Jugnu, briefing a Block Education Officer${name ? ` (${name})` : ""} out loud at the start of their day. Use only the facts given; never invent numbers or names.
 Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian colleague talks — English words like confirmation visit or CRP are fine" : "in plain spoken Indian English"}.
@@ -380,8 +399,8 @@ Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian 
       },
       { signal: AbortSignal.timeout(25000) },
     );
-    const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
-    const lines = text.split(/\n+/).map((l) => l.replace(/^[-*•\d.\s]+/, "").trim()).filter(Boolean).slice(0, 8);
+    const text = wholeSentences(res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n"), res.stop_reason);
+    const lines = text.split(/\n+/).map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim()).filter(Boolean).slice(0, 8);
     await trace("brief", { i: res.usage.input_tokens, o: res.usage.output_tokens }, true, null, started, []);
     return { lines, source: "claude" };
   } catch (e) {
@@ -401,7 +420,7 @@ export async function agentPageGuide(page: string, screen: string, facts: string
     const res = await getClient().messages.create(
       {
         model: GUIDE_MODEL,
-        max_tokens: 300,
+        max_tokens: 500,
         thinking: { type: "disabled" },
         system: `${SAFETY}
 You are Jugnu, the voice guide inside a console for a Block Education Officer in India. The officer has just opened the "${page}" page. Say, out loud, in 2 short sentences: what this page helps them do, and the single most useful thing to do on it right now, naming a real school or number from the screen or the facts. Never invent names or numbers.
@@ -410,7 +429,7 @@ ${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like co
       },
       { signal: AbortSignal.timeout(12000) },
     );
-    const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join(" ").replace(/\s+/g, " ").trim();
+    const text = wholeSentences(res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join(" "), res.stop_reason).replace(/\s+/g, " ").trim();
     await trace("guide", { i: res.usage.input_tokens, o: res.usage.output_tokens }, true, null, started, [], GUIDE_MODEL);
     return { text, source: "claude" };
   } catch (e) {

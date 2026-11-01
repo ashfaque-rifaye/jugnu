@@ -57,7 +57,7 @@ export async function mapColumns(target: string[], headers: string[], sample: st
     claude: (signal) =>
       askClaude({
         system: `You map the columns of an Indian school-data spreadsheet onto Jugnu's import format. For every Jugnu column give the ONE source column that holds it (copy its header exactly) or null. Never map two Jugnu columns to the same source column. Only map when the sample values fit.
-Jugnu columns and units: school_id (UDISE code or any unique id), school_name, village, cluster, crp (cluster coordinator's name), x_km / y_km (km east / north of the block HQ — longitude/latitude are NOT km, leave null), enrolment, grade3_tested, pupil_teacher_ratio, multigrade (0/1), library_in_use (0/1), attendance (share 0–1), home_language_mismatch (share 0–1), teacher, reading_<cycle> / numeracy_<cycle> (% of Grade 3 at level, 0–100). When a share is given as 0–100, set multiply_by 0.01.`,
+Jugnu columns and units: school_id (UDISE code or any unique id), school_name, village, cluster, crp (cluster coordinator's name), x_km / y_km (km east / north of the block HQ — longitude/latitude are NOT km, leave null), enrolment, grade3_tested, pupil_teacher_ratio, multigrade (0/1), library_in_use (0/1), attendance (share 0–1), home_language_mismatch (share 0–1), teacher, reading_<cycle> / numeracy_<cycle> (% of Grade 3 at level, 0–100). When a share is given as 0–100, set multiply_by 0.01. When a % column is given as 0–1, set multiply_by 100.`,
         content: `Jugnu columns: ${target.join(", ")}\nSource headers: ${JSON.stringify(headers)}\nSample rows:\n${sample.slice(0, 3).map((r) => JSON.stringify(r)).join("\n")}`,
         schema: Schema,
         effort: "low",

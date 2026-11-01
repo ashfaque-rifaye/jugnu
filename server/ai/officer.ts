@@ -53,17 +53,17 @@ export function officerTools(st: PipelineState) {
   return [
     betaZodTool({
       name: "block_overview",
-      description: "Counts for the whole block: schools, candidates, schools confirmed to be doing well, schools needing support, suspected inflation, distinctive methods, action status.",
+      description: "Counts for the whole block: schools, schools still to confirm, schools confirmed to be doing well, schools needing support, schools with doubtful data, distinctive methods, action status.",
       inputSchema: z.object({}),
       run: () =>
         JSON.stringify({
           block: `${st.block.name}, ${st.block.district}, ${st.block.state}`,
           data: st.block.source,
           schools: st.block.schools.length,
-          candidates: st.find.candidates.length,
-          verified_bright_spots: st.bright.length,
+          still_to_confirm: st.find.candidates.length,
+          confirmed_doing_well: st.bright.length,
           needs_support: st.find.struggling.length,
-          inflation_suspected: st.verify.filter((v) => v.verdict === "inflation_suspected").length,
+          data_doubtful: st.verify.filter((v) => v.verdict === "inflation_suspected").length,
           distinctive_practices: st.evidence.filter((e) => e.verdict === "distinctive").map((e) => PRACTICES[e.practice].label),
           actions: Object.fromEntries(["todo", "scheduled", "done", "stuck"].map((k) => [k, st.recs.flatMap((r) => r.actions).filter((a) => a.status === k).length])),
         }),
@@ -72,16 +72,16 @@ export function officerTools(st: PipelineState) {
       name: "find_schools",
       description: "List schools by status and/or cluster with their latest reading/maths %, expected %, and how far they beat expectation.",
       inputSchema: z.object({
-        status: z.enum(["any", "verified_bright", "candidate", "needs_support", "inflation_suspected"]).default("any"),
+        status: z.enum(["any", "doing_well", "to_confirm", "needs_support", "data_doubtful"]).default("any"),
         cluster: z.string().optional().describe("Cluster name, e.g. Tendukheda"),
         limit: z.number().int().min(1).max(40).default(15),
       }),
       run: ({ status, cluster, limit }) => {
         let ids = st.block.schools.map((s) => s.id);
-        if (status === "verified_bright") ids = st.bright;
-        if (status === "candidate") ids = st.find.candidates;
+        if (status === "doing_well") ids = st.bright;
+        if (status === "to_confirm") ids = st.find.candidates;
         if (status === "needs_support") ids = st.find.struggling;
-        if (status === "inflation_suspected") ids = st.verify.filter((v) => v.verdict === "inflation_suspected").map((v) => v.schoolId);
+        if (status === "data_doubtful") ids = st.verify.filter((v) => v.verdict === "inflation_suspected").map((v) => v.schoolId);
         const rows = ids.map((id) => schoolRow(st, id)).filter((r) => !cluster || r.cluster.toLowerCase().includes(cluster.toLowerCase()));
         return JSON.stringify({ count: rows.length, schools: rows.slice(0, limit) });
       },
@@ -106,14 +106,14 @@ export function officerTools(st: PipelineState) {
     }),
     betaZodTool({
       name: "practice_evidence",
-      description: "For every coded method: how many bright-spot vs comparison interviews describe it specifically, probability it is distinctive, verdict, and example quotes.",
+      description: "For every coded method: how many interviews from schools doing well vs similar schools describe it specifically, probability it is distinctive, verdict, and example quotes.",
       inputSchema: z.object({}),
       run: () =>
         JSON.stringify(
           st.evidence.map((e) => ({
             practice: PRACTICES[e.practice].label,
-            bright: `${e.bright.k}/${e.bright.n}`,
-            comparison: `${e.comparison.k}/${e.comparison.n}`,
+            doing_well: `${e.bright.k}/${e.bright.n}`,
+            similar_schools: `${e.comparison.k}/${e.comparison.n}`,
             p_distinctive: Math.round(e.pDistinctive * 100) / 100,
             verdict: e.verdict,
             cost: PRACTICES[e.practice].cost,
@@ -168,13 +168,13 @@ export function officerTools(st: PipelineState) {
         if (!pairs.length) return school ? `${school} is not a verified school doing well or its match.` : "No interviewed schools doing well yet, so there are no pairs.";
         return JSON.stringify(
           pairs.slice(0, limit).map((p) => ({
-            bright_spot: name(p.bright.schoolId),
+            school_doing_well: name(p.bright.schoolId),
             above_expected_pts: p.bright.aboveExpected,
             matched_with: name(p.comparison.schoolId),
             match_above_expected_pts: p.comparison.aboveExpected,
             alike: p.alike,
             road_km_apart: p.roadKm,
-            practices: p.practices.map((x) => ({ practice: PRACTICES[x.practice].label, distinctive: x.distinctive, bright_said: x.bright, match_said: x.comparison })),
+            practices: p.practices.map((x) => ({ practice: PRACTICES[x.practice].label, distinctive: x.distinctive, doing_well_said: x.bright, match_said: x.comparison })),
           })),
         );
       },
@@ -261,11 +261,11 @@ export async function askOfficer(question: string, st: PipelineState) {
         max_tokens: 8000,
         max_iterations: 8,
         thinking: { type: "adaptive" },
-        output_config: { effort: "medium", format: betaZodOutputFormat(AnswerSchema) },
+        output_config: { effort: "low", format: betaZodOutputFormat(AnswerSchema) },
         system: `${SAFETY}
 You brief a Block Education Officer about their block. Look things up with the tools before answering; never guess numbers or names.
 Name schools exactly as the tools return them. Recommend one concrete next step with an owner. If the data cannot answer, say which check would.
-Never shame or rank teachers; suspected inflation means "revisit respectfully".`,
+Never shame or rank teachers; a score that looks too high means "revisit respectfully".`,
         messages: [{ role: "user", content: question }],
         tools: officerTools(st),
       },

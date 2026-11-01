@@ -134,7 +134,7 @@ export function FilmPlayer({ open, onClose, start = 0 }: { open: boolean; onClos
     <AnimatePresence>
       {open && (
         <motion.div
-          className="on-dark fixed inset-0 z-[70] grid place-items-center bg-black/85 p-3 backdrop-blur-xl md:p-6"
+          className="on-dark fixed inset-0 z-[70] grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/85 p-3 backdrop-blur-xl md:p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -143,8 +143,8 @@ export function FilmPlayer({ open, onClose, start = 0 }: { open: boolean; onClos
           aria-modal
           aria-label={t("The Jugnu film", "जुगनू की फ़िल्म")}
         >
-          <motion.div className="w-full max-w-6xl" initial={{ scale: 0.97, y: 10 }} animate={{ scale: 1, y: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="group relative aspect-video overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10">
+          <motion.div className="w-[min(100%,calc((100dvh-8.5rem)*16/9))] max-w-6xl" initial={{ scale: 0.97, y: 10 }} animate={{ scale: 1, y: 0 }} onClick={(e) => e.stopPropagation()}>
+            <div className="group relative aspect-video overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10 [container-type:inline-size]">
               <video
                 ref={video}
                 src={FILM.video}
@@ -174,7 +174,7 @@ export function FilmPlayer({ open, onClose, start = 0 }: { open: boolean; onClos
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.25 }}
                     className={cx(
-                      "pointer-events-none absolute inset-x-0 bottom-[8%] mx-auto max-w-[86%] text-balance text-center text-[13px] font-semibold leading-snug text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.9),0_0_18px_rgb(0_0_0/0.6)] sm:text-lg md:text-[22px]",
+                      "pointer-events-none absolute inset-x-0 bottom-[8%] mx-auto max-w-[86%] text-balance text-center text-[clamp(13px,3cqw,22px)] font-semibold leading-snug text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.9),0_0_18px_rgb(0_0_0/0.6)]",
                       capLang === "hi" && "font-deva",
                     )}
                   >
@@ -253,7 +253,7 @@ export function FilmPlayer({ open, onClose, start = 0 }: { open: boolean; onClos
                   <button
                     key={c.at}
                     onClick={() => seek(c.at)}
-                    className={cx("shrink-0 rounded-full px-3 py-1 text-xs transition", i === chapter ? "bg-white/15 text-white" : "text-white/55 hover:bg-white/10 hover:text-white", lang === "hi" && "font-deva")}
+                    className={cx("shrink-0 rounded-full px-3 py-1.5 text-xs transition", i === chapter ? "bg-white/15 text-white" : "text-white/55 hover:bg-white/10 hover:text-white", lang === "hi" && "font-deva")}
                   >
                     {lang === "hi" ? c.hi : c.en}
                   </button>

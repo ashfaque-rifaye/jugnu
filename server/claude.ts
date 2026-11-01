@@ -56,12 +56,15 @@ export async function askClaude<S extends z.ZodType>(args: {
   schema: S;
   effort?: "low" | "medium" | "high";
   maxTokens?: number;
+  /** A person is waiting on a short answer: skip the thinking step. */
+  quick?: boolean;
   signal?: AbortSignal;
 }): Promise<ClaudeResult<z.infer<S>>> {
   const response = await getClient().beta.messages.parse(
     {
       model: MODEL,
       max_tokens: args.maxTokens ?? 16000,
+      ...(args.quick ? { thinking: { type: "disabled" as const } } : {}),
       system: args.system,
       output_config: { effort: args.effort ?? "medium", format: betaZodOutputFormat(args.schema) },
       messages: [{ role: "user", content: args.content }],

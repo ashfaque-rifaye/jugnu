@@ -104,6 +104,7 @@ ${menu || "(none yet)"}`,
         schema: Schema,
         effort: "low",
         maxTokens: 1500,
+        quick: true,
         signal,
       }),
     guard: (raw) => {

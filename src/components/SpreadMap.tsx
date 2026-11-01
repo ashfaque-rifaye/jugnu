@@ -530,7 +530,7 @@ export function SpreadMap({ onOpen }: { onOpen: (id: string) => void }) {
       {over && <div className="spread-foot hidden lg:block" aria-hidden />}
 
       {/* the words */}
-      <div className={cx("relative order-first px-5 pt-6", over && "lg:absolute lg:left-9 lg:top-9 lg:w-[360px] lg:p-0")}>
+      <div className={cx("relative order-first px-5 pt-24", over && "lg:absolute lg:left-9 lg:top-24 lg:w-[360px] lg:p-0")}>
         <div className={cx("text-[13px] font-semibold text-[#ffcd5c]", hi)}>{t("How the light travels", "रोशनी कैसे पहुँचती है")}</div>
         <p className={cx("mt-1 text-[13px] text-white/70", hi)}>{t("Real schools on real ground. The term shown is simulated.", "असली स्कूल, असली ज़मीन। दिखाया गया सत्र सिम्युलेटेड है।")}</p>
         <AnimatePresence mode="wait">
@@ -553,7 +553,7 @@ export function SpreadMap({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
 
       {/* the schools, also the way in for keyboards and screen readers */}
-      <div className={cx("relative px-5 pt-3", over && "lg:absolute lg:right-9 lg:top-9 lg:w-[300px] lg:p-0")}>
+      <div className={cx("relative px-5 pt-3", over ? "lg:absolute lg:right-9 lg:top-24 lg:w-[300px] lg:p-0" : "lg:pt-24")}>
         <div className={cx("mb-1.5 text-[13px] text-white/70", hi)}>{t("Learning from them", "इनसे सीख रहे हैं")}</div>
         <AnimatePresence mode="wait">
           <motion.ul key={now.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>

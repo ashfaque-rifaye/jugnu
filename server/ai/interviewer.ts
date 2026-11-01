@@ -30,7 +30,8 @@ export interface NextTurn {
 
 export const SAFETY = `You work for a Block Education Office in India, learning from government primary-school teachers.
 Rules: be warm and respectful; never judge, rank or blame a teacher; never ask about caste, religion, politics, pay, transfers or personal life;
-never ask for children's names or phone numbers; focus on concrete classroom routines; if something is unclear, ask rather than assume.`;
+never ask for children's names or phone numbers; focus on concrete classroom routines; if something is unclear, ask rather than assume.
+Words: say "school doing well", "similar school", "method" and "confirmation visit". Never say bright spot, bright school, spot check, positive deviance or inflation; a score that looks too high is "worth a respectful second visit".`;
 
 export const MAX_QUESTIONS = 14;
 
@@ -118,6 +119,7 @@ Rules:
 - One question per turn. Under 35 words. Spoken, simple ${opts.lang === "hi" ? "Hindi in Devanagari (common English classroom words like 'group' are fine)" : "English"}.
 - If the teacher's last answer names a practice but gives no concrete detail, ask ONE follow-up for specifics (kind=follow_up) before moving on.
 - If the last answer was unclear or empty, ask them to repeat (kind=clarify).
+- If Jugnu's last turn was already a follow_up or clarify, do not probe again: move to a new area (kind=question) or close.
 - If the teacher already answered an area while talking about another, skip it.
 - Never repeat an earlier question. Never praise one school over another.
 - End (kind=closing, done=true) with a short thank-you only when at least 5 areas are covered or ${MAX_QUESTIONS} questions have been asked.`,
@@ -125,6 +127,7 @@ Rules:
         schema: NextSchema,
         effort: "low",
         maxTokens: 1500,
+        quick: true,
         signal,
       }),
     guard: (out) => guardTurn(out as NextTurn, turns, opts.lang),

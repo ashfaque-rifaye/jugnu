@@ -58,6 +58,7 @@ Read a teacher's answer to a follow-up call two weeks after they were invited to
         schema: Schema,
         effort: "low",
         maxTokens: 1500,
+        quick: true,
         signal,
       }),
     guard: (out) => {

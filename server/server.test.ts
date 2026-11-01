@@ -152,6 +152,14 @@ describe("coder, writer and officer guardrails", () => {
     expect(offlineAnswer("which schools may have inflated data?", st).schools.length).toBeGreaterThan(0);
   });
 
+  it("keeps replies fit to read aloud", async () => {
+    const { spoken, wholeSentences } = await import("./ai/agent");
+    expect(spoken("**Two** schools:\n- GPS Gorkha\n1. GPS Bandhna")).toBe("Two schools: GPS Gorkha GPS Bandhna");
+    expect(spoken("3 teachers are showing 61 schools.")).toBe("3 teachers are showing 61 schools.");
+    expect(wholeSentences("पहला वाक्य। दूसरा अधू", "max_tokens")).toBe("पहला वाक्य।");
+    expect(wholeSentences("Complete", "end_turn")).toBe("Complete");
+  });
+
   it("assistant: offline turn, commands, school lookup and briefing", async () => {
     const { agentTurn } = await import("./ai/agent");
     const { buildBriefing, findSchool, parseCommand } = await import("../src/lib/agent");
@@ -274,7 +282,7 @@ describe("officer insight tools", () => {
     const run = (name: string, input: object) => (tools.find((t) => t.name === name) as unknown as { run: (i: object) => string | Promise<string> }).run(input);
     const pairs = JSON.parse(await run("contrast_pairs", { limit: 2 }));
     expect(pairs.length).toBe(2);
-    expect(pairs[0].bright_spot).not.toBe(pairs[0].matched_with);
+    expect(pairs[0].school_doing_well).not.toBe(pairs[0].matched_with);
     const practice = st.evidence.find((e) => e.verdict === "distinctive")!.practice;
     const r = JSON.parse(await run("what_if", { practice, crps: 3, days_each: 3 }));
     expect(r.schools).toBe(st.find.struggling.length);
