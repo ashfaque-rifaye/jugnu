@@ -237,6 +237,61 @@ function drawCard(s, t) {
   g.textAlign = "left";
   g.restore();
 }
+/** The live pill, as in the app: what the agent is doing at this moment. */
+function drawPill(s, k, fade) {
+  const now = [...s.pill].reverse().find((p) => p.t <= k);
+  if (!now) return;
+  const w = 470;
+  const h = 72;
+  const x = (W - w) / 2;
+  const y = 14;
+  g.save();
+  g.globalAlpha = fade * easeOut(prog(k, s.pill[0].t, s.pill[0].t + 0.25));
+  g.shadowColor = "rgba(0,0,0,.28)";
+  g.shadowBlur = 26;
+  g.shadowOffsetY = 8;
+  g.fillStyle = "rgba(10,12,16,.95)";
+  rounded(x, y, w, h, 20);
+  g.fill();
+  g.shadowColor = "transparent";
+  // The ring turns
+  const rc = [x + 42, y + h / 2];
+  const cols = ["#fde047", "#a3e635", "#2dd4bf", "#38bdf8", "#fde047"];
+  g.lineWidth = 5.5;
+  for (let i = 0; i < 40; i++) {
+    const a0 = (i / 40) * Math.PI * 2 + k * 5.5;
+    const f = (i / 40) * 4;
+    const n = Math.floor(f);
+    const mix = (a, b, q) => {
+      const pa = [1, 3, 5].map((j) => parseInt(a.slice(j, j + 2), 16));
+      const pb = [1, 3, 5].map((j) => parseInt(b.slice(j, j + 2), 16));
+      return `rgb(${pa.map((v, j) => Math.round(v + (pb[j] - v) * q)).join(",")})`;
+    };
+    g.strokeStyle = mix(cols[n], cols[n + 1], f - n);
+    g.beginPath();
+    g.arc(rc[0], rc[1], 16, a0, a0 + (Math.PI * 2) / 38);
+    g.stroke();
+  }
+  // What it is doing
+  const a = easeOut(prog(k, now.t, now.t + 0.2));
+  g.globalAlpha *= 0.4 + 0.6 * a;
+  g.fillStyle = "#fff";
+  g.font = `600 22px ${FONT.sans}`;
+  g.fillText(now.label, x + 76, y + 33 + (1 - a) * 5);
+  g.fillStyle = "rgba(255,255,255,.62)";
+  g.font = `500 16px ${FONT.sans}`;
+  g.fillText(now.sub, x + 76, y + 56 + (1 - a) * 5);
+  g.globalAlpha = fade;
+  // The voice
+  for (let i = 0; i < 5; i++) {
+    const bh = now.wave ? 8 + 22 * Math.abs(Math.sin(k * 7 + i * 1.1)) : 6;
+    g.fillStyle = now.wave ? "#2dd4bf" : "rgba(45,212,191,.5)";
+    rounded(x + w - 62 + i * 8, y + h / 2 - bh / 2, 4.5, bh, 2);
+    g.fill();
+  }
+  g.restore();
+}
+
 /** The agent's real steps so far in this scene, ticking in as they happen. */
 function drawFlow(s, k, fade) {
   const done = s.flow.filter((f) => f.t <= k);
@@ -611,6 +666,7 @@ async function draw(i) {
     drawPatch(s, sourceAt(s, k), patches[n], box, fade);
     if (OLD_ORB.has(s.take)) drawOrbOver(t, box, fade);
     if (s.flow?.length) drawFlow(s, k, fade);
+    if (s.pill?.length) drawPill(s, k, fade);
     if (s.phone) {
       const rise = spring(prog(k, 0.5, 1.9));
       const out = easeInOut(prog(k, s.dur - 1, s.dur - 0.2));

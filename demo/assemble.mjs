@@ -11,17 +11,18 @@ const intro = join(ROOT, "video/out/jugnu-intro.mp4");
 const body = join(TAKES, "body.mp4");
 const outro = join(ROOT, "video/out/jugnu-outro.mp4");
 const out = join(ROOT, "video/out/jugnu-demo.mp4");
-const FADE = 0.5;
+const INTO_DEMO = 0.8;
+const INTO_OUTRO = 1.8; // a slow dip through black, the music easing in
 const a = length(intro);
 const b = length(body);
 const graph = [
   `[0:v]fps=30,format=yuv420p,settb=AVTB[v0]`,
   `[1:v]fps=30,format=yuv420p,settb=AVTB[v1]`,
   `[2:v]fps=30,format=yuv420p,settb=AVTB[v2]`,
-  `[v0][v1]xfade=transition=fade:duration=${FADE}:offset=${a - FADE}[x]`,
-  `[x][v2]xfade=transition=fade:duration=${FADE}:offset=${a + b - 2 * FADE}[v]`,
-  `[0:a][1:a]acrossfade=d=${FADE}[y]`,
-  `[y][2:a]acrossfade=d=${FADE}[s]`,
+  `[v0][v1]xfade=transition=fade:duration=${INTO_DEMO}:offset=${a - INTO_DEMO}[x]`,
+  `[x][v2]xfade=transition=fadeblack:duration=${INTO_OUTRO}:offset=${a + b - INTO_DEMO - INTO_OUTRO}[v]`,
+  `[0:a][1:a]acrossfade=d=${INTO_DEMO}[y]`,
+  `[y][2:a]acrossfade=d=${INTO_OUTRO}:c1=qsin:c2=qsin[s]`,
 ].join(";");
 const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-i", intro, "-i", body, "-i", outro, "-filter_complex", graph, "-map", "[v]", "-map", "[s]", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", out], { encoding: "utf8", maxBuffer: 1 << 26 });
 if (r.status !== 0) throw new Error(r.stderr.slice(0, 800));

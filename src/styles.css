@@ -626,6 +626,19 @@ h3,
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.25s ease;
   }
+  /* the live pill: what Jugnu is doing right now, while it works by voice */
+  .live-pill { background: rgb(10 12 16 / 0.94); color: #fff; box-shadow: 0 10px 30px rgb(0 0 0 / 0.28); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .live-pill-ring { width: 26px; height: 26px; flex: none; border-radius: 9999px; background: conic-gradient(#fde047, #a3e635, #2dd4bf, #38bdf8, #fde047); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px)); animation: live-pill-turn 1.1s linear infinite; }
+  .live-pill-bars { display: flex; align-items: center; gap: 2.5px; height: 20px; flex: none; }
+  .live-pill-bars i { width: 3px; height: 5px; border-radius: 2px; background: #2dd4bf; opacity: 0.55; }
+  .live-pill-bars.is-on i { opacity: 1; animation: live-pill-bar 0.9s ease-in-out infinite; }
+  .live-pill-bars.is-on i:nth-child(2) { animation-delay: 0.15s; }
+  .live-pill-bars.is-on i:nth-child(3) { animation-delay: 0.3s; }
+  .live-pill-bars.is-on i:nth-child(4) { animation-delay: 0.45s; }
+  .live-pill-bars.is-on i:nth-child(5) { animation-delay: 0.6s; }
+  @keyframes live-pill-turn { to { transform: rotate(360deg); } }
+  @keyframes live-pill-bar { 0%, 100% { height: 5px; } 50% { height: 18px; } }
+  @media (prefers-reduced-motion: reduce) { .live-pill-ring, .live-pill-bars.is-on i { animation: none; } }
   /* lifts off whatever is behind it, light or dark */
   .dock-orb canvas { filter: drop-shadow(0 4px 10px rgb(30 90 90 / 0.2)); }
   .dock-orb:hover { transform: scale(1.06); }

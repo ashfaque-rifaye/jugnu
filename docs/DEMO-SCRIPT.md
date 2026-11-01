@@ -34,14 +34,15 @@ The owner chose the Google voice for these, so there is nothing to record. They 
 
 | File | Part | Say this |
 |---|---|---|
-| **N1** | The idea and the homepage | Jugnu finds the government schools that teach better than expected, learns why from their teachers, and spreads it next door. The homepage follows one method on that journey. |
-| **N10** | Choosing a role | Open Jugnu and choose your role. Each one sees its own work. Here, the Block Education Officer. |
-| **N2** | How it works | It compares every school with what its context predicts, then someone visits to confirm. The schools are real; the results here are simulated. |
+| **N1** | The idea and the homepage | Jugnu finds the government schools that teach better than expected, learns why from their teachers, and spreads it next door. |
+| **N10** | Choosing a role | Open Jugnu and choose your role. Here, the Block Education Officer. |
+| **N2** | How it works | It compares every school with what its context predicts, then someone visits to confirm. Results here are simulated. |
+| **N12** | The chat agent | In chat, the officer simply types. The agent looks up who needs this most, opens the plan, schedules the voice note and the visit, and sets the follow-up. |
 | **N9** | The architecture | A Claude agent plans, calls tools and checks its work. People approve what goes out. |
 | **N4** | The call | A real call on any phone, with no app. I'm playing the teacher. |
-| **N5** | What it learned | As the call ends, it becomes methods, each tied to the teacher's exact words, and compared with similar schools. |
-| **N11** | WhatsApp | The voice note also goes out on WhatsApp, and replies update the board. This part is simulated for now. |
-| **N6** | The action plan | The plan cascades from the block office to coordinators, school heads and teachers, with each voice note approved by a person first. |
+| **N5** | What it learned | As the call ends, it becomes methods, each tied to the teacher's exact words. |
+| **N11** | WhatsApp | The voice note also goes out on WhatsApp, and replies update the board. Simulated for now. |
+| **N6** | The action plan | The plan cascades from the block office to coordinators, heads and teachers, with every voice note approved first. |
 | **N7** | Working together | Everyone works from one live board. Someone else signs off the work, and on day fourteen Jugnu follows up. |
 | **N8** | Across blocks | What works in one block can spread across the district. Half the schools start now and half next term, so we can tell if it worked. |
 

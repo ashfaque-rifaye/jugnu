@@ -810,6 +810,46 @@ function Chips({ tools, dark }: { tools: Line["tools"]; dark?: boolean }) {
   );
 }
 
+/** While Jugnu works by voice, a small live pill at the top of the screen says what it is doing right now. */
+function LivePill({ mode, steps }: { mode: Mode; steps: Line["tools"] }) {
+  const t = useT();
+  const last = [...steps].reverse().find((x) => x.name !== "read_screen");
+  const talking = mode === "listening" || mode === "speaking";
+  const [label, sub] =
+    mode === "listening"
+      ? [t("Listening", "सुन रहा हूँ"), "Chirp 3"]
+      : mode === "hearing"
+        ? [t("Understanding", "समझ रहा हूँ"), "Chirp 3"]
+        : mode === "speaking"
+          ? [t("Speaking", "बोल रहा हूँ"), "Chirp 3 HD"]
+          : last && TOOL_LABEL[last.name]
+            ? [t(...TOOL_LABEL[last.name]), last.name]
+            : [t("Planning the next step", "अगला कदम सोच रहा हूँ"), "Claude"];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -14, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -14, scale: 0.97 }}
+      transition={{ type: "spring", damping: 26, stiffness: 300 }}
+      className="live-pill fixed left-1/2 top-2.5 z-[63] flex w-[min(340px,calc(100vw-24px))] -translate-x-1/2 items-center gap-3 rounded-2xl px-3.5 py-2"
+      role="status"
+    >
+      <span className="live-pill-ring" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold leading-tight">{label}</span>
+        <span className="block truncate text-xs leading-tight opacity-60">{sub}</span>
+      </span>
+      <span className={cx("live-pill-bars", talking && "is-on")} aria-hidden>
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </span>
+    </motion.div>
+  );
+}
+
 /** The agent's work so far this turn: each step ticks in as it finishes. */
 function Steps({ tools }: { tools: Line["tools"] }) {
   const t = useT();
@@ -926,6 +966,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
   };
   return (
     <div data-agent className="no-print">
+      <AnimatePresence>{!open && a.mode !== "off" && a.mode !== "error" && <LivePill key="pill" mode={a.mode} steps={a.steps} />}</AnimatePresence>
       <AnimatePresence>
         {open && (
           <motion.aside

@@ -11,8 +11,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TAKES = process.env.DEMO_TAKES ?? "E:/jugnu-takes";
 const FPS = 30;
-const LIMIT = 178; // seconds, intro and outro included
-const TEMPO = 1.1; // speech in the agent scenes
+const LIMIT = 179; // seconds, intro and outro included
+const TEMPO = 1.14; // speech in the agent scenes
 const NARRATION_TEMPO = 1.06;
 const lines = JSON.parse(readFileSync(join(ROOT, "demo/voice/lines.json"), "utf8"));
 
@@ -84,12 +84,24 @@ function live(t, a, b, opts = {}) {
     if (last && e.at - (last.at(-1).at + last.at(-1).ms) < 900) last.push(e);
     else replies.push([e]);
   }
+  const keptPlays = [];
   replies.forEach((r, n) => {
+    // Either chosen sentences, or as many as fit the budget.
+    if (opts.keep) {
+      for (const i of opts.keep[n] ?? [0]) {
+        if (r[i]) {
+          busy.push([r[i].at - 120, r[i].at + r[i].ms + 200]);
+          keptPlays.push(r[i]);
+        }
+      }
+      return;
+    }
     const budget = (opts.replies?.[n] ?? opts.replies?.at?.(-1) ?? 6) * 1000;
     let used = 0;
     for (const e of r) {
       if (used && used + e.ms > budget) break;
       busy.push([e.at - 120, e.at + e.ms + 200]);
+      keptPlays.push(e);
       used += e.ms;
     }
   });
@@ -130,8 +142,28 @@ function live(t, a, b, opts = {}) {
     const m = map.find((p) => at >= p[1] && at <= p[3]) ?? map.at(-1);
     return m[0] + ((at - m[1]) / (m[3] - m[1] || 1)) * (m[2] - m[0]);
   };
+  // For voice: a live pill saying what the agent is doing at each moment, from its own log.
+  if (opts.pill) {
+    const raw = [];
+    for (const e of t.page) {
+      if (e.kind === "speak" && e.at >= a && e.at <= b) {
+        raw.push({ at: e.at, label: "Listening to the officer", sub: "Chirp 3 speech", wave: true });
+        raw.push({ at: e.at + e.ms, label: "Understanding", sub: "Chirp 3 speech" });
+      }
+    }
+    for (const tr of TRACES) {
+      if (tr.at < a || tr.at > b || !tr.ok) continue;
+      raw.push({ at: tr.at - tr.ms, label: "Claude is planning", sub: "Sonnet 5.5" });
+      tr.tools.forEach((n, i) => FRIENDLY[n] && raw.push({ at: tr.at + i * 60, label: FRIENDLY[n], sub: n }));
+    }
+    for (const e of keptPlays) raw.push({ at: e.at, label: "Jugnu is speaking", sub: "Chirp 3 HD", wave: true });
+    const list = raw.sort((x, y) => x.at - y.at).map((r) => ({ t: inEdit(r.at), label: r.label, sub: r.sub, wave: !!r.wave }));
+    // Every step stays up long enough to read.
+    for (let i = 1; i < list.length; i++) list[i].t = Math.max(list[i].t, list[i - 1].t + 0.6);
+    shot.pill = list.filter((x) => x.t < tt);
+  }
   // What the agent really did in this stretch.
-  if (!opts.noFlow) {
+  if (!opts.noFlow && !opts.pill) {
     const flow = [];
     for (const e of t.page) if (e.kind === "speak" && e.at >= a && e.at <= b) flow.push({ at: e.at + e.ms, label: "Heard the officer", tech: "Chirp 3 speech" });
     for (const e of t.events) if (e.kind === "type" && e.at >= a && e.at <= b) flow.push({ at: e.at + 800, label: "Read the message", tech: "chat" });
@@ -181,7 +213,7 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
 
 // What the USP is, on the whole homepage
 {
-  const d = spoken("N1") + 1.7; // a little longer than the words, so the whole homepage is seen
+  const d = spoken("N1") + 1.9; // a little longer than the words, so the whole homepage is seen
   narrate("N1", now + 0.15);
   fit(home, home.marks.home, home.marks.doors, d, { chapter: "The idea" });
 }
@@ -216,17 +248,26 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
 // All the agent work in one flow: chat builds the plan, voice asks across blocks, finds the next school, and calls.
 {
   const pm = plan.marks;
-  live(plan, pm.chat, pm.close, { chapter: "Chat agent", maxDur: 9 });
+  const c = spoken("N12") + 0.4;
+  narrate("N12", now + 0.15);
+  live(plan, pm.chat, pm.close, { chapter: "Chat agent", maxDur: c });
   const vm = voice.marks;
   // Jugnu's newer label, for the moments the old Today screen is in view.
   const onMap = TRACES.filter((tr) => tr.at >= vm.v2 && tr.at <= vm.end && tr.tools.includes("show_on_map")).map((tr) => tr.at)[0] ?? vm.v2 + 3000;
   const beoFrame = home.frames[home.frames.findIndex((f) => f.at >= home.marks.beo + 6000)].file;
-  const s = live(voice, vm.v1, vm.end, { chapter: "Voice agent", replies: [12, 3.6], maxDur: 19, patch: { img: `/takes/home/frames/${beoFrame}`, until: onMap, rects: [[316, 292, 612, 54], [310, 718, 402, 48]] } });
+  // Jugnu names the school, shows it, and offers to call: the story runs straight to the call.
+  const s = live(voice, vm.v1, vm.end, { chapter: "Voice agent", keep: [[0], [2]], pill: true, maxDur: 13, patch: { img: `/takes/home/frames/${beoFrame}`, until: onMap, rects: [[316, 292, 612, 54], [310, 718, 402, 48]] } });
   voiceCaptions(voice, s, ["V1", "V2"]);
+  // The officer's answer, in the owner's own voice from the call.
+  const yes = clipFile("V6");
+  const yd = length(yes) + 0.5;
+  cues.push({ file: yes, at: now + 0.15, ss: 0, dur: length(yes), vol: 1 });
+  caps.push({ t0: now + 0.15, t1: now + 0.15 + length(yes), text: "“Yeah, please go ahead.”", who: "Officer" });
+  fit(voice, vm.end - 1200, vm.end - 200, yd, { chapter: "Voice agent", pill: [{ t: 0, label: "Listening to the officer", sub: "Chirp 3 speech", wave: true }] });
   const at = v3Take.marks.v3;
   const said = v3Take.page.find((e) => e.kind === "speak" && e.at >= at);
   const reply = v3Take.page.find((e) => e.kind === "play" && e.at > said.at + said.ms);
-  const s3 = live(v3Take, at, reply.at - 250, { chapter: "Voice agent", maxDur: 5 });
+  const s3 = live(v3Take, at, reply.at - 250, { chapter: "Voice agent", pill: true, maxDur: 5 });
   const m3 = s3.map.find((p) => said.at >= p[1] && said.at <= p[3]);
   const t3 = s3.start + m3[0] + (said.at - m3[1]) / 1000 / (m3[4] ?? 1);
   caps.push({ t0: t3, t1: t3 + said.ms / 1000 / TEMPO, text: `“${lines.V3}”`, who: "Officer" });
@@ -236,7 +277,7 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
   const start = now;
   const t0Call = Date.parse(callInfo.started);
   const ring = lineTake.marks.ringing;
-  const CALL_TEMPO = 1.18;
+  const CALL_TEMPO = 1.3;
   const map = [];
   let tt = spoken("N4") + 0.3;
   map.push([0, ring, tt, t0Call, 1]);
@@ -248,7 +289,16 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
     for (const c of callInfo.captions ?? []) {
       const at = t0Call + c.atMs;
       const from = Math.max(at, a);
-      if (at + c.ms > a && at < b) caps.push({ t0: start + tt + (from - a) / 1000 / CALL_TEMPO, t1: start + tt + (Math.min(at + c.ms, b) - a) / 1000 / CALL_TEMPO, text: c.text, who: c.who });
+      if (at + c.ms > a && at < b) {
+        // Only the sentences that are actually heard in this moment.
+        const heardMs = Math.min(at + c.ms, b) - from;
+        let text = "";
+        for (const part of c.text.split(/(?<=[.!?])\s+/)) {
+          if (text && (text.length + part.length) / 15 > heardMs / 1000) break;
+          text = text ? `${text} ${part}` : part;
+        }
+        caps.push({ t0: start + tt + (from - a) / 1000 / CALL_TEMPO, t1: start + tt + (Math.min(at + c.ms, b) - a) / 1000 / CALL_TEMPO, text, who: c.who });
+      }
     }
     map.push([tt, a, tt + (b - a) / 1000 / CALL_TEMPO, b, CALL_TEMPO]);
     tt += (b - a) / 1000 / CALL_TEMPO;
@@ -261,8 +311,8 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
   const d = spoken("N5") + 0.35;
   narrate("N5", now + 0.15);
   const ins = take("insight");
-  fit(ins, ins.marks.coded - 1800, ins.marks.end, d * 0.6 + 0.9, { chapter: "From the call to insight" });
-  fit(tour, m.methods, m.rollout, d * 0.4 + OVERLAP + 0.5, { chapter: "From the call to insight" });
+  fit(ins, ins.marks.coded - 1800, ins.marks.end, d * 0.6 + 1, { chapter: "From the call to insight" });
+  fit(tour, m.methods, m.rollout, d * 0.4 + OVERLAP + 0.7, { chapter: "From the call to insight" });
 }
 // How the plan reaches teachers: WhatsApp, simulated and marked so
 {
@@ -273,17 +323,18 @@ const callInfo = JSON.parse(readFileSync(join(TAKES, "call/call.json"), "utf8"))
 }
 // How it cascades, how people work together, and across blocks
 {
+  // Unhurried: a moment of quiet around each thought, so the screens can be read.
   const n6 = spoken("N6");
-  narrate("N6", now + 0.15);
-  fit(tour, m.rollout, m.approvals, n6 * 0.6 + 0.2, { chapter: "The action plan" });
-  fit(tour, m.approvals, m.board, n6 * 0.4 + 0.55, { chapter: "The action plan" });
-  const d7 = spoken("N7") + 0.35;
-  narrate("N7", now + 0.15);
+  narrate("N6", now + 0.3);
+  fit(tour, m.rollout, m.approvals, n6 * 0.6 + 0.6, { chapter: "The action plan" });
+  fit(tour, m.approvals, m.board, n6 * 0.4 + 0.7, { chapter: "The action plan" });
+  const d7 = spoken("N7") + 0.8;
+  narrate("N7", now + 0.3);
   fit(tour, m.board, m.district, d7, { chapter: "Working together" });
   const n8 = spoken("N8");
-  narrate("N8", now + 0.15);
-  fit(tour, m.district, m.term, n8 * 0.55 + 0.2, { chapter: "Across blocks" });
-  fit(tour, m.results, m.end, n8 * 0.45 + 0.6, { chapter: "Across blocks" });
+  narrate("N8", now + 0.3);
+  fit(tour, m.district, m.term, n8 * 0.55 + 0.7, { chapter: "Across blocks" });
+  fit(tour, m.results + 1800, m.end, n8 * 0.45 + 1, { chapter: "Across blocks" });
 }
 const duration = now + OVERLAP;
 
@@ -292,7 +343,7 @@ for (const s of shots) if (s.take && !frameTimes[s.take]) frameTimes[s.take] = t
 writeFileSync(join(TAKES, "edit.json"), JSON.stringify({ fps: FPS, duration, shots, caps, frameTimes, phone: existsSync(join(TAKES, "phone/frames.json")) ? JSON.parse(readFileSync(join(TAKES, "phone/frames.json"), "utf8")) : null }));
 for (const s of shots) console.log(s.start.toFixed(1).padStart(7), s.dur.toFixed(1).padStart(6), (s.chapter ?? s.kind).padEnd(24), s.take ?? "", s.flow?.length ? `${s.flow.length} agent steps` : "");
 const bumpers = ["intro", "outro"].map((n) => length(join(ROOT, `video/out/jugnu-${n}.mp4`)));
-const total = duration + bumpers[0] + bumpers[1] - 1;
+const total = duration + bumpers[0] + bumpers[1] - 2.6; // less the two crossfades
 console.log(`demo ${duration.toFixed(1)} s + intro and outro = ${total.toFixed(1)} s (${Math.floor(total / 60)}:${String(Math.round(total % 60)).padStart(2, "0")}) ${total > LIMIT ? "OVER THE LIMIT" : "under the limit"}`);
 
 // ---------------------------------------------------------------- the sound
