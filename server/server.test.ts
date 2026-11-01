@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// Tests never call out: with Claude and Gemini both unavailable, every AI task must fall back offline.
+vi.mock("./ai/gemini", () => ({
+  GEMINI_MODEL: "gemini-test",
+  geminiStep: () => Promise.reject(new Error("no Gemini in tests")),
+  geminiText: () => Promise.reject(new Error("no Gemini in tests")),
+  startedByGemini: () => false,
+}));
 
 // Offline engine + in-memory database for every server test.
 process.env.JUGNU_DB = ":memory:";
