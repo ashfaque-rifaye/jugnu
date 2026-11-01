@@ -15,8 +15,9 @@ const EMAIL = `${NAME}@${PROJECT}.iam.gserviceaccount.com`;
 const win = process.platform === "win32";
 const gcloud = win ? "gcloud.cmd" : "gcloud";
 const vercel = win ? "vercel.cmd" : "vercel";
+// On Windows these run through a shell, which splits any argument with a space unless it is quoted.
 const run = (cmd, args, input) =>
-  execFileSync(cmd, args, { input, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"], shell: win, encoding: "utf8" });
+  execFileSync(cmd, win ? args.map((a) => (/\s/.test(a) ? `"${a}"` : a)) : args, { input, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"], shell: win, encoding: "utf8" });
 const addEnv = (name, value) => {
   run(vercel, ["env", "add", name, "production", "--force", "--yes", "--sensitive"], value);
   console.log(`set   ${name} on Vercel`);
