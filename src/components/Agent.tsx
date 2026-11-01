@@ -593,9 +593,8 @@ export function useAgent() {
         await wait(500);
         if (!r.text) await notHeard();
         return r.text || null;
-      } catch (e) {
-        setMode("error");
-        setHeard((e as Error).message);
+      } catch {
+        await notHeard();
         return null;
       }
     }

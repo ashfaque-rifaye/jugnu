@@ -252,9 +252,12 @@ await flow("Safety filter", "Everyone", async (step) => {
 });
 
 await flow("Clean up", "—", async (step) => {
-  if (interviewId) {
-    const r = await call("DELETE", `/api/interviews/${interviewId}`);
-    step("Test interview erased", r.status === 200);
+  // Everything labelled "Flow check", whichever flow made it (web interviews and phone-line tests alike).
+  const list = await call("GET", "/api/interviews");
+  const rows = Array.isArray(list.data) ? list.data : (list.data.interviews ?? []);
+  for (const row of rows.filter((r) => /flow check/i.test(`${r.school_name ?? ""} ${r.teacher_name ?? ""}`))) {
+    const r = await call("DELETE", `/api/interviews/${row.id}`);
+    step(`Test interview erased: ${row.school_name}`, r.status === 200);
   }
 });
 
