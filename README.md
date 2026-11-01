@@ -58,7 +58,7 @@ or a spreadsheet they already have) and gets back one clear next step, not a das
 | **Teacher** (struggling school) | WhatsApp or a phone call | Listens to a 60-second voice note; at day 14 answers "did you try it?" by voice note, text or call | The practice in a peer's voice; a peer visit; if something blocks them, the barrier goes to the person who can remove it |
 | **CRP** (cluster resource person) | Console on a phone (`/today`, school pages) | A 15-child confirmation visit, a classroom photo, a visit marked done or stuck | Which schools to check and in what order, distances and motorbike time, whether the photo shows the practice |
 | **BEO** (block officer) | Console (`/today`), or simply asks Jugnu by voice | Questions in Hindi or English ("which schools are stuck?"), approvals of AI drafts, their own district spreadsheet | Owned actions (to do / scheduled / done / stuck), a plan board to export to Excel, calendar invites for peer visits, and a spoken briefing |
-| **Evaluators** | `/ai` | — | Where AI is used, the live trace of every AI call, and the evaluation |
+| **Evaluators** | `/ai` (More → Safety) | Anything to test the safety filter | What the checks have caught; every AI call is traced and readable at `/api/ai/trace` |
 
 **Designed for the constraints of a block:** voice first and Hindi first (the console has a Hindi
 switch, and the assistant speaks and listens in both languages); basic phones reached by a real call;
@@ -118,7 +118,7 @@ flowchart LR
 | Component | What it does | How it connects | Code |
 |---|---|---|---|
 | **Statistics engine** | Find (robust regression on context: multigrade, size, attendance, home language, pupils per teacher), Confirm (jump checks + a binomial test on the confirmation visit), Contrast (Beta-Binomial), Share (fit, nearest demonstrator by road, this term's schools then next term's), Track (difference-in-differences, bootstrap intervals), plus contrast pairs and a what-if simulator | Runs identically in the browser and on the server, so every screen and every AI prompt sees the same numbers | `src/engine/` |
-| **Guarded AI layer** | Ten AI tasks, each in the same five layers: input → Claude, then Gemini (structured output, deadline) → deterministic guardrails → value, or the offline engine | Every call is traced in `ai_calls` and shown on `/ai` | `server/ai/run.ts`, `server/ai/model.ts`, `server/ai/gemini.ts`, `server/ai/guardrails.ts` |
+| **Guarded AI layer** | Ten AI tasks, each in the same five layers: input → Claude, then Gemini (structured output, deadline) → deterministic guardrails → value, or the offline engine | Every call is traced in `ai_calls` and readable at `/api/ai/trace` | `server/ai/run.ts`, `server/ai/model.ts`, `server/ai/gemini.ts`, `server/ai/guardrails.ts` |
 | **Interview service** | Consent, the adaptive interview, turns, coding, erasure on request | Same service behind the web talk page and the phone call | `server/interviews.ts`, `src/pages/Talk.tsx` |
 | **Voice** | Google Chirp 3 speech-to-text (with the block's school and teacher names as hints) and Chirp 3 HD voices | Used by the talk page, the phone audio bridge, WhatsApp voice notes and the assistant | `server/voice.ts` |
 | **Phone line** | Real outbound calls; the provider streams audio over a WebSocket and Jugnu speaks and listens on it. A stream is admitted only for a call Jugnu is dialling | Plivo live on an Indian number; Exotel also wired. Needs a long-running host (`docs/PHONE-SERVER.md`), not Vercel | `server/telephony.ts` |
@@ -218,7 +218,7 @@ officers come in the pilot; the app's Test lab (`/testing`) is ready to record t
 - **A model down or slow:** every task goes from Claude to Gemini to the offline engine, so quality drops
   but work never stops. On the phone the models get 8 s per turn so the caller never waits.
 - **Low connectivity and cheap phones:** see §1. The app shell is cached by a service worker.
-- **Real data:** works on a district's own spreadsheet (Data & method → Import CSV), with the column
+- **Real data:** works on a district's own spreadsheet (Schools → Use your own data), with the column
   mapper handling UDISE+ exports and Hindi headers.
 
 ## 6. Privacy and safety

@@ -263,7 +263,7 @@ function Console() {
 
       <div className="lg:pl-[268px]">
         <header className={cx("no-print sticky top-0 z-20 px-3 pt-3 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] md:px-5", tucked && !more && "max-lg:-translate-y-[120%]")}>
-          <div className="chrome mx-auto flex max-w-[1400px] items-center gap-2 rounded-full py-1.5 pl-2 pr-1.5">
+          <div className="chrome chrome-solid mx-auto flex max-w-[1400px] items-center gap-2 rounded-full py-1.5 pl-2 pr-1.5">
             <NavLink to="/" className="shrink-0 lg:hidden" title={t("Home page", "होम पेज")}>
               <LogoMark size={34} />
             </NavLink>
@@ -334,7 +334,7 @@ function Console() {
       {/* phones: floating glass tab bar — it shrinks while you scroll down, like iOS */}
       <nav className="no-print fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 lg:hidden" aria-label={t("Main", "मुख्य")} data-tour="nav-loop">
         <motion.div
-          className="chrome mx-auto flex rounded-full p-1.5"
+          className="chrome chrome-solid mx-auto flex rounded-full p-1.5"
           initial={false}
           animate={{ maxWidth: tucked ? 300 : 448, y: tucked ? 4 : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}

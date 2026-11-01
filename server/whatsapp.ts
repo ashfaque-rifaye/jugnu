@@ -220,7 +220,7 @@ export const whatsapp = Router();
 /** Meta's webhook verification handshake. */
 whatsapp.get("/webhook", (req, res) => {
   const c = cfg();
-  if (c.verify && req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === c.verify) return res.status(200).type("text/plain").send(String(req.query["hub.challenge"] ?? ""));
+  if (c.verify && req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === c.verify) return res.status(200).type("text/plain").send(String(req.query["hub.challenge"] ?? "").replace(/\D/g, ""));
   res.status(403).end();
 });
 

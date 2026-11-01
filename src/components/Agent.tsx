@@ -1040,7 +1040,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 40, opacity: 0 }}
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
-            className="glass-strong fixed bottom-[168px] right-3 top-3 z-[61] flex w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden lg:bottom-24"
+            className="glass-strong chrome-solid fixed bottom-[168px] right-3 top-3 z-[61] flex w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden lg:bottom-24"
             aria-label={t("Jugnu assistant", "जुगनू सहायक")}
           >
             <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] px-4 py-3">
@@ -1154,7 +1154,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.97 }}
               transition={{ type: "spring", damping: 26, stiffness: 300 }}
-              className="glass-strong relative mr-1 max-w-[min(320px,calc(100vw-40px))] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[14px] leading-snug shadow-xl"
+              className="glass-strong chrome-solid relative mr-1 max-w-[min(320px,calc(100vw-40px))] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[14px] leading-snug shadow-xl"
               aria-live="polite"
             >
               <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-3)]">

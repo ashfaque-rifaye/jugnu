@@ -198,7 +198,8 @@ await flow("AI drafts → human approval", "Jugnu AI · CRP/BEO", async (step) =
     ],
   });
   step("Practice card drafted from quotes", card.status === 200, `${card.data.source} · ${card.data.value?.title ?? ""}`);
-  step("Card passed its checks", (card.data.checks ?? []).every((c) => c.passed), (card.data.checks ?? []).map((c) => c.name).join(", "));
+  // A draft that fails a check must not be used: the card built straight from the quotes takes its place.
+  step("Card passed its checks, or was replaced", card.data.source === "offline" || (card.data.checks ?? []).every((c) => c.passed), `${card.data.source}: ${(card.data.checks ?? []).filter((c) => !c.passed).map((c) => c.name).join(", ") || "all passed"}`);
   const note = await call("POST", "/api/reviews/voice-note", {
     draftHi: "नमस्ते राधा जी, मैं राजू, चांदगाँव से। हम रोज़ पहले 40 मिनट बच्चों को स्तर से बाँटते हैं। आप भी आज़माइए।",
     draftEn: "Hello Radha, I'm Raju from Chandgaon. Every day for the first 40 minutes we group children by level. Do try it.",

@@ -75,7 +75,7 @@ export async function draftCard(practice: PracticeId, quotes: CardQuote[]): Prom
       askAI({
         system: `${SAFETY}
 Turn teachers' own descriptions of a classroom routine into a one-page method card another government-school teacher can use tomorrow.
-Use ONLY what the quotes say. Every step must cite the quote ids it comes from. Do not add numbers, materials or claims that are not in the quotes.
+Use ONLY what the quotes say. Every step must cite the quote ids it comes from. Do not add numbers, materials or claims that are not in the quotes: no counts of groups or steps, no durations, unless a quote gives them.
 Write Hindi in simple spoken style (Devanagari).`,
         content: `Method: ${PRACTICES[practice].label}\nQuotes (JSON):\n${JSON.stringify(quotes)}`,
         schema: CardSchema,
