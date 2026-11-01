@@ -25,3 +25,7 @@ demo/logo-concepts/
 
 # rendered films
 video/out/
+
+# private records of the conversation: local only, never in git
+CONVERSATION-HISTORY.md
+PROJECT-HISTORY.md
