@@ -36,6 +36,7 @@ If you skip these, I'll use a Google voice instead, but a Loom feels best in you
 |---|---|---|
 | **N1** | The idea | Jugnu finds the government schools that teach better than expected, learns why from their teachers, and spreads it to the school next door. |
 | **N2** | How it works | It compares every school with what its context predicts, then someone visits to confirm. The schools are real; the results here are simulated. |
+| **N9** | The architecture | A Claude agent plans, calls tools and checks its work. People approve what goes out. |
 | **N3** | Lead-in | As an officer, I can just ask. |
 | **N4** | The call | A real call, on any phone, with no app. It asks my language and my consent. I'm playing the teacher. |
 | **N5** | What it learned | Each method is tied to the teacher's exact words. |

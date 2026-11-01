@@ -1,6 +1,6 @@
 // Jugnu demo film: the compositor. Draws each frame from the edit (edit.json) as a pure function of time,
-// in a light, Loom-style frame: the screen in a rounded window, the camera gliding to what is being touched,
-// soft transitions, chapter cards, captions, and the phone rising beside the live console during the call.
+// like a Loom recording: the whole screen, full-frame, with soft transitions, captions, a panel of the agent's real
+// steps, one architecture picture, and the phone rising beside the live console during the call.
 const edit = await (await fetch("/takes/edit.json")).json();
 const FPS = edit.fps;
 const W = 1920;
@@ -74,25 +74,20 @@ const rounded = (x, y, w, h, r) => {
 };
 
 /** The screen, in its window, seen through the camera. */
-function drawWindow(img, cam, box, alpha) {
-  const [cx, cy, z] = cam;
+function drawWindow(img, box, alpha, r) {
   g.save();
   g.globalAlpha = alpha;
   g.shadowColor = "rgba(15,23,42,.22)";
   g.shadowBlur = 44;
   g.shadowOffsetY = 18;
   g.fillStyle = "#fff";
-  rounded(box.x, box.y, box.w, box.h, 18);
+  rounded(box.x, box.y, box.w, box.h, r);
   g.fill();
   g.shadowColor = "transparent";
-  rounded(box.x, box.y, box.w, box.h, 18);
+  rounded(box.x, box.y, box.w, box.h, r);
   g.clip();
-  // The camera is in page pixels (1600x900); source frames are a multiple of that.
-  const r = img.width / 1600;
-  const sw = (1600 / z) * r;
-  const sh = (900 / z) * r;
   g.imageSmoothingQuality = "high";
-  g.drawImage(img, (cx - 800 / z) * r, (cy - 450 / z) * r, sw, sh, box.x, box.y, box.w, box.h);
+  g.drawImage(img, box.x, box.y, box.w, box.h);
   g.restore();
 }
 
@@ -156,7 +151,9 @@ function drawCaption(c, t) {
   if (a <= 0) return;
   const font = `500 30px ${FONT.sans}`;
   // Long narration shows a phrase at a time, paced through its length.
-  const all = wrap(c.text, font, 1180);
+  // One long line reads better than a last line of one word.
+  const one = wrap(c.text, font, 1560);
+  const all = one.length === 1 ? one : wrap(c.text, font, 1180);
   const per = (c.t1 - c.t0) / all.length;
   let idx = Math.floor(clamp((t - c.t0) / per, 0, all.length - 0.001) / 2) * 2;
   if (idx && all.length % 2 && idx === all.length - 1 && all[idx].length < 24) idx -= 2;
@@ -191,6 +188,8 @@ function drawCaption(c, t) {
   g.textAlign = "left";
   g.restore();
 }
+// In the empty part of the app's top bar, clear of the chat panel.
+const CHIP_RIGHT = 1390;
 function drawChip(text, a) {
   if (!text || a <= 0) return;
   g.save();
@@ -201,15 +200,15 @@ function drawChip(text, a) {
   g.shadowColor = "rgba(15,23,42,.14)";
   g.shadowBlur = 16;
   g.fillStyle = "rgba(255,255,255,.95)";
-  rounded(1920 - 110 - w, 12, w, 42, 21);
+  rounded(CHIP_RIGHT - w, 22, w, 42, 21);
   g.fill();
   g.shadowColor = "transparent";
   g.fillStyle = "#f59e0b";
   g.beginPath();
-  g.arc(1920 - 110 - w + 24, 33, 6, 0, 7);
+  g.arc(CHIP_RIGHT - w + 24, 43, 6, 0, 7);
   g.fill();
   g.fillStyle = INK;
-  g.fillText(text, 1920 - 110 - w + 40, 40);
+  g.fillText(text, CHIP_RIGHT - w + 40, 50);
   g.restore();
 }
 function drawCard(s, t) {
@@ -236,6 +235,158 @@ function drawCard(s, t) {
   g.textAlign = "left";
   g.restore();
 }
+/** The agent's real steps so far in this scene, ticking in as they happen. */
+function drawFlow(s, k, fade) {
+  const done = s.flow.filter((f) => f.t <= k);
+  if (!done.length) return;
+  const shown = done.slice(-5);
+  const W2 = 320;
+  const rowH = 40;
+  const h = 58 + shown.length * rowH + 10;
+  const x = 22;
+  const y = H - 22 - h;
+  g.save();
+  g.globalAlpha = fade * easeOut(prog(k, done[0].t, done[0].t + 0.3));
+  g.shadowColor = "rgba(15,23,42,.22)";
+  g.shadowBlur = 26;
+  g.shadowOffsetY = 8;
+  g.fillStyle = "rgba(255,255,255,.97)";
+  rounded(x, y, W2, h, 18);
+  g.fill();
+  g.shadowColor = "transparent";
+  g.font = `700 20px ${FONT.display}`;
+  g.fillStyle = "#b45309";
+  g.fillText("Agent at work", x + 18, y + 36);
+  shown.forEach((f, i) => {
+    const a = easeOut(prog(k, f.t, f.t + 0.25));
+    const yy = y + 58 + i * rowH;
+    g.globalAlpha = fade * a;
+    g.fillStyle = "#16a34a";
+    g.font = `700 18px ${FONT.sans}`;
+    g.fillText("✓", x + 18, yy + 19 - (1 - a) * 6);
+    g.fillStyle = INK;
+    g.font = `600 16px ${FONT.sans}`;
+    g.fillText(f.label, x + 42, yy + 13 - (1 - a) * 6);
+    g.fillStyle = INK2;
+    g.font = `500 13px ${FONT.sans}`;
+    g.fillText(f.tech, x + 42, yy + 31 - (1 - a) * 6);
+  });
+  g.restore();
+}
+
+/** The architecture in one picture: who talks to the agent, how it works, what it can touch, what keeps it safe. */
+function drawArch(s, t) {
+  const k = t - s.start;
+  const out = 1 - prog(k, s.dur - OVERLAP, s.dur);
+  const box = (x, y, w, h, title, lines, opts = {}) => {
+    const a = easeOut(prog(k, opts.at ?? 0, (opts.at ?? 0) + 0.45));
+    g.save();
+    g.globalAlpha = a * out;
+    const dy = (1 - a) * 18;
+    g.shadowColor = "rgba(15,23,42,.13)";
+    g.shadowBlur = 22;
+    g.shadowOffsetY = 7;
+    g.fillStyle = opts.fill ?? "#fff";
+    rounded(x, y + dy, w, h, 20);
+    g.fill();
+    g.shadowColor = "transparent";
+    if (opts.line) {
+      g.strokeStyle = opts.line;
+      g.lineWidth = 3;
+      rounded(x, y + dy, w, h, 20);
+      g.stroke();
+    }
+    g.fillStyle = opts.ink ?? INK;
+    g.font = `700 ${opts.size ?? 27}px ${FONT.display}`;
+    g.fillText(title, x + 24, y + dy + (opts.size ?? 27) + 16);
+    g.font = `500 ${opts.small ?? 20}px ${FONT.sans}`;
+    g.fillStyle = opts.ink2 ?? INK2;
+    lines.forEach((l, i) => g.fillText(l, x + 24, y + dy + (opts.size ?? 27) + 50 + i * ((opts.small ?? 20) + 9)));
+    g.restore();
+  };
+  const arrow = (x1, y1, x2, y2, at) => {
+    const a = prog(k, at, at + 0.4);
+    if (!a) return;
+    const x = x1 + (x2 - x1) * easeOut(a);
+    const y = y1 + (y2 - y1) * easeOut(a);
+    g.save();
+    g.globalAlpha = out;
+    g.strokeStyle = "#d97706";
+    g.fillStyle = "#d97706";
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(x1, y1);
+    g.lineTo(x, y);
+    g.stroke();
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    g.beginPath();
+    g.moveTo(x + Math.cos(ang) * 4, y + Math.sin(ang) * 4);
+    g.lineTo(x - Math.cos(ang - 0.5) * 15, y - Math.sin(ang - 0.5) * 15);
+    g.lineTo(x - Math.cos(ang + 0.5) * 15, y - Math.sin(ang + 0.5) * 15);
+    g.closePath();
+    g.fill();
+    g.restore();
+  };
+  g.save();
+  g.globalAlpha = easeOut(prog(k, 0, 0.3)) * out;
+  g.drawImage(back, 0, 0);
+  g.fillStyle = INK;
+  g.font = `700 54px ${FONT.display}`;
+  g.fillText("The agent behind Jugnu", 70, 92);
+  g.restore();
+  // Who talks to it
+  box(70, 150, 340, 138, "Officer", ["Voice or chat, in", "Hindi or English"], { at: 0.05 });
+  box(70, 306, 340, 138, "Coordinator", ["Visits, follow-ups,", "the shared board"], { at: 0.15 });
+  box(70, 462, 340, 138, "Teacher", ["Any phone, no app,", "own language"], { at: 0.25 });
+  arrow(418, 375, 492, 375, 0.5);
+  // The loop
+  box(500, 150, 520, 450, "Claude agent", [], { at: 0.35, fill: "#0f172a", ink: "#fff", size: 36 });
+  const steps = ["Understand", "Plan", "Call tools", "Check, then reply"];
+  const live = Math.floor(k * 2.4) % 4;
+  steps.forEach((label, i) => {
+    const a = easeOut(prog(k, 0.55 + i * 0.12, 0.85 + i * 0.12));
+    g.save();
+    g.globalAlpha = a * out;
+    const y = 232 + i * 72;
+    g.fillStyle = i === live ? "#facc15" : "rgba(255,255,255,.12)";
+    rounded(528, y, 464, 58, 29);
+    g.fill();
+    g.fillStyle = i === live ? "#0f172a" : "#fff";
+    g.font = `600 26px ${FONT.sans}`;
+    g.fillText(`${i + 1}   ${label}`, 556, y + 38);
+    g.restore();
+  });
+  g.save();
+  g.globalAlpha = easeOut(prog(k, 0.9, 1.2)) * out;
+  g.font = `500 18px ${FONT.sans}`;
+  g.fillStyle = "#cbd5e1";
+  g.fillText("Sonnet 5.5 for the agent · Haiku 5.5 for interviews", 528, 584);
+  g.restore();
+  arrow(1028, 375, 1102, 375, 0.8);
+  // What it can touch
+  box(1110, 150, 740, 138, "Reads the block", ["find_schools · school_detail · practice_evidence", "contrast_pairs · what_if · pilot_interviews"], { at: 0.9 });
+  box(1110, 306, 740, 138, "Works the screen", ["go_to · open_school · show_on_map", "point_at · click · fill · record"], { at: 1.05 });
+  box(1110, 462, 740, 138, "Acts for the officer", ["dial_teacher · move_action", "schedule_followup · escalate_to_beo"], { at: 1.2 });
+  // What keeps it safe
+  const safe = [["Guardrails", "check every answer"], ["Offline fallback", "if the AI is unavailable"], ["People approve", "what reaches teachers"], ["Every AI call", "traced and logged"]];
+  safe.forEach(([a, b], i) => box(70 + i * 450, 626, 430, 112, a, [b], { at: 1.4 + i * 0.1, fill: "#fffbeb", line: "#fbbf24", size: 26, small: 20 }));
+  // What it runs on
+  const base = ["Google Chirp 3 speech", "Phone line: Plivo, Exotel", "Turso shared log", "UDISE+ real school data"];
+  g.save();
+  g.globalAlpha = easeOut(prog(k, 1.8, 2.2)) * out;
+  base.forEach((b, i) => {
+    g.fillStyle = "rgba(15,23,42,.06)";
+    rounded(70 + i * 450, 764, 430, 64, 32);
+    g.fill();
+    g.fillStyle = INK;
+    g.font = `600 22px ${FONT.sans}`;
+    g.textAlign = "center";
+    g.fillText(b, 70 + i * 450 + 215, 804);
+    g.textAlign = "left";
+  });
+  g.restore();
+}
+
 function drawEnd(s, t) {
   const k = t - s.start;
   const a = easeOut(prog(k, 0.1, 0.7));
@@ -254,7 +405,7 @@ function drawEnd(s, t) {
 }
 
 // ---------------------------------------------------------------- one frame
-const FULL = { x: 110, y: 66, w: 1700, h: 956 };
+const FULL = { x: 0, y: 0, w: 1920, h: 1080 };
 const SPLIT = { x: 44, y: 150, w: 1364, h: 767 };
 async function draw(i) {
   const t = i / FPS;
@@ -283,16 +434,16 @@ async function draw(i) {
     const lift = 1 - easeOut(prog(k, 0, 0.6));
     const leave = easeInOut(prog(k, s.dur - OVERLAP, s.dur));
     const split = s.phone ? easeInOut(prog(k, 0.3, 1.2)) * (1 - easeInOut(prog(k, s.dur - 1, s.dur - 0.2))) : 0;
-    const scale = (1 - lift * 0.035) * (1 - leave * 0.02);
+    const scale = 1;
     const base = {
       x: FULL.x + (SPLIT.x - FULL.x) * split,
       y: FULL.y + (SPLIT.y - FULL.y) * split,
       w: FULL.w + (SPLIT.w - FULL.w) * split,
       h: FULL.h + (SPLIT.h - FULL.h) * split,
     };
-    const box = { x: base.x + (base.w * (1 - scale)) / 2, y: base.y + (base.h * (1 - scale)) / 2 + lift * 26, w: base.w * scale, h: base.h * scale };
-    const cam = s.cam[clamp(Math.round(k * FPS), 0, s.cam.length - 1)];
-    drawWindow(images[n], cam, box, fade);
+    const box = { x: base.x + (base.w * (1 - scale)) / 2, y: base.y + (base.h * (1 - scale)) / 2, w: base.w * scale, h: base.h * scale };
+    drawWindow(images[n], box, fade, 18 * split);
+    if (s.flow?.length) drawFlow(s, k, fade);
     if (s.phone) {
       const rise = spring(prog(k, 0.5, 1.9));
       const out = easeInOut(prog(k, s.dur - 1, s.dur - 0.2));
@@ -301,7 +452,7 @@ async function draw(i) {
     }
     drawChip(s.chapter, fade * clamp((k - 0.2) / 0.3));
   });
-  for (const s of live) if (s.kind === "card") drawCard(s, t);
+  for (const s of live) if (s.kind === "arch") drawArch(s, t);
   for (const s of live) if (s.kind === "end") drawEnd(s, t);
   for (const c of edit.caps) if (t >= c.t0 && t <= c.t1 + 0.2) drawCaption(c, t);
 }

@@ -1,5 +1,6 @@
 // The edit: turns the recorded takes into a timeline (edit.json) and a sound mix (mix.wav), beside the takes.
-// Waiting is sped up, speech plays at its true speed, and the camera follows what the agent and the pointer touch.
+// Waiting is sped up, speech plays at its true speed, and the screen plays full-frame, like a Loom recording.
+// During the agent's scenes a small panel lists the steps it really took, from its own trace log.
 // The whole film, with the intro and outro, must stay under 3 minutes: this prints where it stands.
 //   node demo/edit.mjs
 import { execFileSync, spawnSync } from "node:child_process";
@@ -38,18 +39,32 @@ const shots = [];
 const cues = [];
 const caps = [];
 let now = 0;
-const OVERLAP = 0.35;
-
-/** Where the camera wants to be, from what was touched during this stretch of the take. */
-function focusList(t, a, b, extra = []) {
-  const hits = [...t.events.filter((e) => e.kind === "focus"), ...t.page.filter((e) => e.kind === "light"), ...extra].filter((e) => e.at >= a && e.at <= b && e.w > 0);
-  return hits.sort((x, y) => x.at - y.at);
-}
+const OVERLAP = 0.3;
+const TRACES = existsSync(join(TAKES, "agent-traces.json")) ? JSON.parse(readFileSync(join(TAKES, "agent-traces.json"), "utf8")) : [];
+const FRIENDLY = {
+  find_schools: "Looked up schools",
+  pilot_interviews: "Read the interviews",
+  show_on_map: "Showed it on the map",
+  go_to: "Opened the page",
+  point_at: "Pointed it out",
+  move_action: "Moved actions on the board",
+  schedule_followup: "Put a follow-up on the clock",
+  practice_evidence: "Checked the evidence",
+  block_overview: "Checked the block",
+  school_detail: "Read a school's record",
+  action_board: "Checked the actions",
+  list_followups: "Checked the clock",
+  open_school: "Opened the school",
+  dial_teacher: "Called the teacher",
+  contrast_pairs: "Compared similar schools",
+  what_if: "Estimated the effect",
+  click: "Clicked on screen",
+  fill: "Filled in a field",
+};
 
 /** The screen plays from a to b fitted to `dur` seconds (narration over a walk through the pages). */
 function fit(t, a, b, dur, opts = {}) {
   const shot = { kind: "screen", take: t.name, start: now, dur, map: [[0, a, dur, b]], ...opts };
-  shot.focus = focusList(t, a, b).map((e) => ({ t: ((e.at - a) / (b - a)) * dur, x: e.x, y: e.y, w: e.w, h: e.h }));
   shots.push(shot);
   now += dur - OVERLAP;
   return shot;
@@ -114,7 +129,22 @@ function live(t, a, b, opts = {}) {
     const m = map.find((p) => at >= p[1] && at <= p[3]) ?? map.at(-1);
     return m[0] + ((at - m[1]) / (m[3] - m[1] || 1)) * (m[2] - m[0]);
   };
-  shot.focus = focusList(t, a, b, opts.extraFocus ?? []).map((e) => ({ t: inEdit(e.at), x: e.x, y: e.y, w: e.w, h: e.h }));
+  // What the agent really did in this stretch.
+  const flow = [];
+  for (const e of t.page) if (e.kind === "speak" && e.at >= a && e.at <= b) flow.push({ at: e.at + e.ms, label: "Heard the officer", tech: "Chirp 3 speech" });
+  for (const e of t.events) if (e.kind === "type" && e.at >= a && e.at <= b) flow.push({ at: e.at + 800, label: "Read the message", tech: "chat" });
+  for (const tr of [...TRACES].sort((p, q) => p.at - q.at)) {
+    if (tr.at < a || tr.at > b || !tr.ok) continue;
+    flow.push({ at: tr.at - tr.ms, label: "Claude planned the next step", tech: "claude" });
+    tr.tools.forEach((n, i) => FRIENDLY[n] && flow.push({ at: tr.at + i * 60, label: FRIENDLY[n], tech: n }));
+  }
+  const firstReply = t.page.find((e) => e.kind === "play" && e.at >= a && e.at <= b);
+  if (firstReply) flow.push({ at: firstReply.at, label: "Replied by voice", tech: "Chirp 3 HD" });
+  const seen = new Set();
+  shot.flow = flow
+    .sort((x, y) => x.at - y.at)
+    .filter((f, i, all) => (f.tech === "claude" ? all[i - 1]?.tech !== "claude" && all[i + 1]?.tech !== "claude" && FRIENDLY[all[i + 1]?.tech] : f.tech === "chat" || f.tech === "Chirp 3 speech" || !seen.has(f.tech)) && (seen.add(f.tech) || true))
+    .map((f) => ({ t: inEdit(f.at), label: f.label, tech: f.tech === "claude" ? "Sonnet 5.5" : f.tech }));
   shots.push(shot);
   now += tt - OVERLAP;
   return shot;
@@ -157,19 +187,26 @@ if (tour) {
   narrate("N2", now + 0.15);
   fit(tour, m.find, m.rollout, d, { chapter: "How it works" });
 }
+{
+  // The architecture, as one clear picture.
+  const dur = Math.max(5, length(clipFile("N9")) + 0.3);
+  narrate("N9", now + 0.15);
+  shots.push({ kind: "arch", start: now, dur });
+  now += dur - OVERLAP;
+}
 if (voice) {
   // The voice agent acting on screen
   const vm = voice.marks;
   const d = length(clipFile("N3")) + 0.25;
   narrate("N3", now + 0.1);
   fit(voice, voice.first, Math.min(voice.first + 900, vm.v1), d, { chapter: "Voice agent" });
-  const s = live(voice, vm.v1, vm.ringing ?? vm.end, { chapter: "Voice agent", replies: [6, 3, 3], maxDur: vm.ringing ? 26 : 19 });
+  const s = live(voice, vm.v1, vm.ringing ?? vm.end, { chapter: "Voice agent", replies: [6, 3, 3], maxDur: vm.ringing ? 24 : 18 });
   voiceCaptions(voice, s, ["V1", "V2", "V3"]);
   if (v3Take) {
     const at = v3Take.marks.v3;
     const said = v3Take.page.find((e) => e.kind === "speak" && e.at >= at);
     const reply = v3Take.page.find((e) => e.kind === "play" && e.at > said.at + said.ms);
-    const s3 = live(v3Take, at, reply.at - 250, { chapter: "Voice agent", maxDur: 6 });
+    const s3 = live(v3Take, at, reply.at - 250, { chapter: "Voice agent", maxDur: 5.5 });
     const m3 = s3.map.find((p) => said.at >= p[1] && said.at <= p[3]);
     const t3 = s3.start + m3[0] + (said.at - m3[1]) / 1000 / (m3[4] ?? 1);
     caps.push({ t0: t3, t1: t3 + said.ms / 1000, text: `“${lines.V3}”`, who: "Officer" });
@@ -202,13 +239,13 @@ if (callInfo) {
 if (plan) {
   // What was learned
   const pm = plan.marks;
-  const s5 = live(plan, pm.v4, pm.chat - 1500, { chapter: "What it learned", replies: [5], maxDur: 8.5 });
+  const s5 = live(plan, pm.v4, pm.chat - 1500, { chapter: "What it learned", replies: [3], maxDur: 8 });
   voiceCaptions(plan, s5, ["V4"]);
   const d5 = length(clipFile("N5")) + 0.25;
   narrate("N5", now + 0.1);
   fit(plan, pm.chat - 1500, pm.chat, d5, { chapter: "What it learned", zoomless: true });
   // The chat agent building the plan
-  live(plan, pm.chat, pm.close, { chapter: "Chat agent", maxDur: 11, extraFocus: [{ at: pm.chat + 1200, x: 1165, y: 15, w: 420, h: 800 }] });
+  live(plan, pm.chat, pm.close, { chapter: "Chat agent", maxDur: 9, extraFocus: [{ at: pm.chat + 1200, x: 1165, y: 15, w: 420, h: 800 }] });
 }
 if (tour) {
   // How the plan reaches teachers, and how it cascades
@@ -223,7 +260,10 @@ if (tour) {
 }
 if (plan) {
   // Across blocks, by voice
-  const s8 = live(plan, plan.marks.v5, plan.marks.end, { chapter: "Across blocks", replies: [4], maxDur: 8.5 });
+  // To the moment the district opens; the narration carries on from there.
+  const said5 = plan.page.find((e) => e.kind === "speak" && e.at >= plan.marks.v5);
+  const reply5 = plan.page.find((e) => e.kind === "play" && e.at > said5.at + said5.ms);
+  const s8 = live(plan, plan.marks.v5, reply5 ? reply5.at - 150 : plan.marks.end, { chapter: "Across blocks", maxDur: 5 });
   voiceCaptions(plan, s8, ["V5"]);
 }
 if (tour) {
@@ -234,45 +274,10 @@ if (tour) {
 }
 const duration = now + OVERLAP;
 
-// ---------------------------------------------------------------- the camera: a smooth path through each shot
-const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
-for (const s of shots) {
-  const n = Math.ceil(s.dur * FPS) + 1;
-  const path = [];
-  const focus = s.zoomless ? [] : s.focus ?? [];
-  for (let i = 0; i < n; i++) {
-    const t = i / FPS;
-    const here = [...focus].reverse().find((f) => f.t <= t + 0.25 && t - f.t < 2.2);
-    if (here) {
-      const z = clamp(Math.min((W * 0.62) / Math.max(here.w, 60), (H * 0.62) / Math.max(here.h, 60)), 1.15, 1.5);
-      path.push([here.x + here.w / 2, here.y + here.h / 2, z]);
-    } else path.push([W / 2, H / 2, 1]);
-  }
-  // Glide: smooth forwards and backwards, so moves ease in and out with no lag.
-  const k = 1 - Math.exp(-1 / (FPS * 0.3));
-  for (let pass = 0; pass < 2; pass++) {
-    for (const dir of [1, -1]) {
-      const cur = [...path[dir > 0 ? 0 : n - 1]];
-      for (let j = 0; j < n; j++) {
-        const i = dir > 0 ? j : n - 1 - j;
-        for (const c of [0, 1, 2]) {
-          cur[c] += (path[i][c] - cur[c]) * k;
-          path[i][c] = cur[c];
-        }
-      }
-    }
-  }
-  s.cam = path.map(([x, y, z]) => {
-    const hw = W / 2 / z;
-    const hh = H / 2 / z;
-    return [Math.round(clamp(x, hw, W - hw) * 10) / 10, Math.round(clamp(y, hh, H - hh) * 10) / 10, Math.round(z * 1000) / 1000];
-  });
-}
-
 const frameTimes = {};
 for (const s of shots) if (s.take && !frameTimes[s.take]) frameTimes[s.take] = take(s.take).frames.map((f) => f.at);
 writeFileSync(join(TAKES, "edit.json"), JSON.stringify({ fps: FPS, duration, shots, caps, frameTimes, phone: existsSync(join(TAKES, "phone/frames.json")) ? JSON.parse(readFileSync(join(TAKES, "phone/frames.json"), "utf8")) : null }));
-for (const s of shots) console.log(s.start.toFixed(1).padStart(7), s.dur.toFixed(1).padStart(6), (s.chapter ?? "").padEnd(18), s.take ?? "", s.focus?.length ? `${s.focus.length} zooms` : "");
+for (const s of shots) console.log(s.start.toFixed(1).padStart(7), s.dur.toFixed(1).padStart(6), (s.chapter ?? s.kind).padEnd(18), s.take ?? "", s.flow?.length ? `${s.flow.length} agent steps` : "");
 const bumpers = ["intro", "outro"].map((n) => length(join(ROOT, `video/out/jugnu-${n}.mp4`)));
 const total = duration + bumpers[0] + bumpers[1] - 1;
 console.log(`demo ${duration.toFixed(1)} s + intro and outro = ${total.toFixed(1)} s (${Math.floor(total / 60)}:${String(Math.round(total % 60)).padStart(2, "0")}) ${total > LIMIT ? "OVER THE LIMIT" : "under the limit"}${callInfo ? "" : ", call not in yet"}`);
