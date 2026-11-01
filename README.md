@@ -210,14 +210,14 @@ transfers or personal life. Visit photos are never stored.
 
 ## External services and where keys are needed
 
-Every key is optional for running the app: with none set, it runs on the offline engine and the
-browser's own voices. Keys go in `.env` locally, or in the host's environment. None are in this repository.
+Every key is optional for running the app: with none set, it runs on the offline engine, the
+browser's own voices and typed answers. Keys go in `.env` locally, or in the host's environment. None are in this repository.
 
 | Service | Model or product | Used for | Key (`.env`) | Without it |
 |---|---|---|---|---|
 | **Anthropic Claude** | Claude Haiku 5.5 (structured tasks); Claude Sonnet 5.5 (assistant agent) | The ten AI tasks in §3 | `ANTHROPIC_API_KEY`; optional `CLAUDE_MODEL`, `AGENT_MODEL` (only these two models are allowed), `CREDIT_BUDGET_USD` | Offline engine for every task |
-| **Google Cloud Speech-to-Text** | Chirp 3 | Hearing teachers and officers; school and teacher names as hints | `GOOGLE_SERVICE_ACCOUNT_JSON`, or a `gcloud` login on your machine; falls back to `GOOGLE_CLOUD_API_KEY` | Browser recogniser, or typing |
-| **Google Cloud Text-to-Speech** | Chirp 3 HD voices | Jugnu's voice on the web, on calls and in voice notes | `GOOGLE_CLOUD_API_KEY` | Browser voices; phone calls need it |
+| **Google Cloud Speech-to-Text** | Chirp 3 | Hearing teachers and officers on every screen | `GOOGLE_SERVICE_ACCOUNT_JSON` on a host (`npm run speech:setup` sets it up on Vercel), or a `gcloud` login on your machine; falls back to `GOOGLE_CLOUD_API_KEY` | Typing |
+| **Google Cloud Text-to-Speech** | Chirp 3 HD voices | Jugnu's voice on every screen, on calls and in voice notes | `GOOGLE_CLOUD_API_KEY` | Browser voices; phone calls need it |
 
 Not AI, and also optional:
 

@@ -76,16 +76,15 @@ export async function transcribe(audio: Buffer, mime: string, lang: string, hint
   }
   const key = KEY();
   if (!key) throw new Error("Voice is not configured (GOOGLE_CLOUD_API_KEY).");
-  const encoding = mime.includes("ogg") ? "OGG_OPUS" : mime.includes("webm") ? "WEBM_OPUS" : undefined;
-  const others = [...new Set(["en-IN", "hi-IN"].filter((l) => l !== locale))];
-  const res = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${key}`, {
+  const encoding = mime.includes("ogg") ? "OGG_OPUS" : mime.includes("webm") ? "WEBM_OPUS" : mime.includes("mpeg") ? "MP3" : undefined;
+  const rate = encoding === "MP3" ? 24000 : 48000;
+  const res = await fetch(`https://speech.googleapis.com/v1p1beta1/speech:recognize`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({
       config: {
-        ...(encoding ? { encoding, sampleRateHertz: 48000 } : {}),
+        ...(encoding ? { encoding, sampleRateHertz: rate } : {}),
         languageCode: locale,
-        alternativeLanguageCodes: others,
         enableAutomaticPunctuation: true,
         speechContexts: hints.length ? [{ phrases: hints.slice(0, 450), boost: 12 }] : undefined,
       },

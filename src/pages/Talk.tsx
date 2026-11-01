@@ -1,5 +1,5 @@
 // The teacher's side of a Jugnu interview: opened from a WhatsApp/SMS link on any Android phone.
-// Voice first (Jugnu speaks every question; the teacher answers by voice), Hindi by default,
+// Voice first, with Google speech (Jugnu speaks every question; the teacher answers by voice), Hindi by default,
 // no login, no video or 3D — and an answer is never lost if the network drops mid-call.
 import { AnimatePresence, motion } from "framer-motion";
 import { Keyboard, Loader2, Mic, Send, Square, Volume2, VolumeX, WifiOff } from "lucide-react";

@@ -13,6 +13,7 @@
     "typecheck": "tsc",
     "smoke": "node scripts/smoke.mjs",
     "env:push": "node scripts/push-env.mjs",
+    "speech:setup": "node scripts/setup-speech.mjs",
     "phone:deploy": "node scripts/deploy-phone.mjs",
     "ai:check": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/ai-check.ts",
     "credits": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/credits.ts",

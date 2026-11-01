@@ -1,25 +1,24 @@
-// Browser speech: Mitthu speaks (speechSynthesis) and listens (Web Speech recognition).
-// In production these are swapped for Indic ASR/TTS (Bhashini / AI4Bharat / Sarvam);
-// the interface stays the same.
+// Speech for the teacher's page and the small mic buttons: Google Chirp 3 speaks and listens, through
+// the server. With no network or no Google, speaking falls back to the browser's own voice, and
+// listening rejects so the page can offer typing instead.
+import { fetchSpeech, openMic, play, stopPlayback, transcribe, type Mic } from "./voice";
+
+const VOICE = "Aoede";
 
 export function canSpeak(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
+  return typeof window !== "undefined";
 }
 
-function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
-  const voices = window.speechSynthesis.getVoices();
-  return voices.find((v) => v.lang === lang) ?? voices.find((v) => v.lang.startsWith(lang.split("-")[0])) ?? undefined;
-}
-
-export function speak(text: string, lang = "hi-IN", rate = 0.95): Promise<void> {
+function browserVoice(text: string, lang: string, rate: number): Promise<void> {
   return new Promise((resolve) => {
-    if (!canSpeak()) return resolve();
+    if (!("speechSynthesis" in window)) return resolve();
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
     u.rate = rate;
     u.pitch = lang.startsWith("hi") ? 1.15 : 1;
-    const voice = pickVoice(lang);
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find((v) => v.lang === lang) ?? voices.find((v) => v.lang.startsWith(lang.split("-")[0]));
     if (voice) u.voice = voice;
     u.onend = () => resolve();
     u.onerror = () => resolve();
@@ -27,48 +26,47 @@ export function speak(text: string, lang = "hi-IN", rate = 0.95): Promise<void> 
   });
 }
 
+let run = 0; // a newer line, or a stop, cancels a line still being fetched
+
+export async function speak(text: string, lang = "hi-IN", rate = 0.95): Promise<void> {
+  const me = ++run;
+  stopPlayback();
+  let line: AudioBuffer;
+  try {
+    line = await fetchSpeech(text, VOICE);
+  } catch {
+    if (me === run) await browserVoice(text, lang, rate);
+    return;
+  }
+  if (me === run) await play(line);
+}
+
 export function stopSpeaking() {
-  if (canSpeak()) window.speechSynthesis.cancel();
+  run++;
+  stopPlayback();
 }
 
-interface RecognitionLike {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  continuous: boolean;
-  start(): void;
-  stop(): void;
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-  onend: (() => void) | null;
-}
+export const canListen = () => typeof window !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
 
-function recognitionCtor(): (new () => RecognitionLike) | null {
-  const w = window as unknown as { SpeechRecognition?: new () => RecognitionLike; webkitSpeechRecognition?: new () => RecognitionLike };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
-export const canListen = () => typeof window !== "undefined" && recognitionCtor() !== null;
-
-export function listen(lang = "hi-IN", onInterim?: (text: string) => void): { promise: Promise<string>; stop: () => void } {
-  const Ctor = recognitionCtor();
-  if (!Ctor) return { promise: Promise.reject(new Error("Speech recognition is not available in this browser — type the reply instead.")), stop: () => {} };
-  const rec = new Ctor();
-  rec.lang = lang;
-  rec.interimResults = true;
-  rec.maxAlternatives = 1;
-  rec.continuous = false;
-  let finalText = "";
-  const promise = new Promise<string>((resolve, reject) => {
-    rec.onresult = (e) => {
-      let text = "";
-      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
-      finalText = text;
-      onInterim?.(text);
-    };
-    rec.onerror = (e) => reject(new Error(e.error === "not-allowed" ? "Microphone permission denied." : `Speech recognition error: ${e.error}`));
-    rec.onend = () => resolve(finalText.trim());
-  });
-  rec.start();
-  return { promise, stop: () => rec.stop() };
+/** Record one spoken answer and read it with Google. Resolves with "" if nobody spoke. */
+export function listen(lang = "hi-IN", _onInterim?: (text: string) => void): { promise: Promise<string>; stop: () => void } {
+  let mic: Mic | null = null;
+  let stopped = false;
+  const promise = (async () => {
+    mic = await openMic();
+    try {
+      if (stopped) return "";
+      const blob = await mic.turn({ waitMs: 12000, maxMs: 55000 });
+      return blob ? (await transcribe(blob, lang.split("-")[0], Number.NaN)).text.trim() : "";
+    } finally {
+      mic.close();
+    }
+  })();
+  return {
+    promise,
+    stop: () => {
+      stopped = true;
+      mic?.stopTurn();
+    },
+  };
 }

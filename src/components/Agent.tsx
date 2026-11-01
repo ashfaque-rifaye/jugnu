@@ -560,7 +560,7 @@ export function useAgent() {
     [brief, runTool, speakOut, status.claude, t],
   );
 
-  /** Hear one turn. Google Chirp 3 when voice is configured (any Indian language); the browser's recogniser otherwise. */
+  /** Hear one turn with Google speech. */
   const listenOnce = useCallback(async (): Promise<string | null> => {
     stopPlayback();
     stopSpeaking();
@@ -575,14 +575,9 @@ export function useAgent() {
         return null;
       }
       setMode("listening");
-      // Words appear live as the officer speaks (the browser's quick recogniser, where it has one);
-      // the recording then goes to Chirp 3 for the accurate version, which replaces them.
-      const quick = canListen() ? listen(speechLang(), (txt) => setHeard(txt)) : null;
-      quick?.promise.catch(() => {});
       stopRef.current = () => mic.current?.stopTurn();
       const blob = await mic.current.turn({ waitMs: 12000, maxMs: 40000 });
       stopRef.current = null;
-      quick?.stop();
       if (!blob || cancelled.current) return null;
       setMode("hearing");
       try {
