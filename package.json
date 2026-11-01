@@ -1,5 +1,6 @@
 {
   "name": "jugnu",
+  "license": "MIT",
   "private": true,
   "version": "0.1.0",
   "description": "Jugnu — finds the teachers who have cracked foundational learning in every block, learns what they do, and spreads it. AI for Foundational Learning Hackathon, Challenge 4.",

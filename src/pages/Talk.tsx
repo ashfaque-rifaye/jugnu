@@ -46,6 +46,8 @@ const COPY = {
     rated: "धन्यवाद! आपकी राय से हम जुगनू को बेहतर बनाएँगे।",
     noVoice: "इस ब्राउज़र में आवाज़ से जवाब नहीं हो सकता — कृपया लिखकर जवाब दें, या Chrome में खोलें।",
     bad: "यह लिंक सही नहीं है। कृपया अपने CRP से नया लिंक माँगें।",
+    noNetwork: "अभी नेटवर्क नहीं है। नेटवर्क आते ही यह पेज अपने-आप खुल जाएगा।",
+    retry: "फिर कोशिश करें",
   },
   en: {
     hello: (n: string | null) => (n ? `Namaste ${n}` : "Namaste"),
@@ -67,10 +69,14 @@ const COPY = {
     rated: "Thank you! Your opinion helps us improve Jugnu.",
     noVoice: "Voice answers don't work in this browser — please type, or open the link in Chrome.",
     bad: "This link is not valid. Please ask your CRP for a new one.",
+    noNetwork: "No network right now. This page will open by itself when the network returns.",
+    retry: "Try again",
   },
 };
 
 const pendingKey = (t: string) => `jugnu-pending-${t}`;
+/** A server's own message, or "offline" when the request never got through. */
+const reason = (e: Error) => (e instanceof ApiError ? e.message : "offline");
 
 export default function TalkPage() {
   const { lite } = usePrefs();
@@ -95,7 +101,7 @@ export default function TalkPage() {
     if (token) return;
     postJSON<{ token: string }>("/api/talk/practice", { language: "hi" })
       .then((r) => nav(`/talk/${r.token}`, { replace: true }))
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => setError(reason(e)));
   }, [token, nav]);
 
   useEffect(() => {
@@ -105,8 +111,16 @@ export default function TalkPage() {
         setView(v);
         spoken.current = v.turns.length; // don't re-read an old conversation aloud
       })
-      .catch((e: Error) => setError(e instanceof ApiError && e.status === 404 ? "bad" : e.message));
+      .catch((e: Error) => setError(e instanceof ApiError && e.status === 404 ? "bad" : reason(e)));
   }, [token]);
+
+  // The page could not open for lack of a network: open it as soon as one returns.
+  useEffect(() => {
+    if (error !== "offline") return;
+    const again = () => window.location.reload();
+    window.addEventListener("online", again);
+    return () => window.removeEventListener("online", again);
+  }, [error]);
 
   const lang = view?.interview.language ?? "hi";
   const c = COPY[lang];
@@ -207,7 +221,7 @@ export default function TalkPage() {
       spoken.current = 0;
       setView(v);
     } catch (e) {
-      setError((e as Error).message);
+      setError(reason(e as Error));
     } finally {
       setBusy(false);
     }
@@ -220,6 +234,18 @@ export default function TalkPage() {
 
   const asked = view?.turns.filter((t) => t.speaker === "jugnu" && t.kind === "question").length ?? 0;
 
+  if (error === "offline")
+    return (
+      <Shell>
+        <div className="glass p-6 text-center">
+          <p className="font-deva text-lg">{COPY.hi.noNetwork}</p>
+          <p className="mt-2 text-sm text-[var(--color-ink-3)]">{COPY.en.noNetwork}</p>
+          <button className="btn btn-glass mt-4" onClick={() => window.location.reload()}>
+            {COPY.hi.retry} · {COPY.en.retry}
+          </button>
+        </div>
+      </Shell>
+    );
   if (error)
     return (
       <Shell>

@@ -1,7 +1,7 @@
 # Jugnu (जुगनू) — finds the fireflies
 
 **The answer to a block's learning gap is often already in the block.**
-AI for Foundational Learning Hackathon · Challenge 4 (Data to Action) · Build stage · Team Jugnu (Firefly).
+AI for Foundational Learning Hackathon · Challenge 4 (Data to Action) · Build stage · Team ShikshaSaathi AI.
 
 **Live demo:** https://jugnu-nine.vercel.app · test credentials for each role and sample inputs are in
 the submitted presentation. Nothing to install to test it. To run it yourself, see [Run it](#run-it).
@@ -30,7 +30,7 @@ or a spreadsheet they already have) and gets back one clear next step, not a das
 
 **Designed for the constraints of a block:** voice first and Hindi first (the console has a Hindi
 switch, and the assistant speaks and listens in both languages); basic phones reached by a real call;
-the teacher page loads about 90 KB and keeps an unsent answer until the network returns; low-data mode
+the teacher page downloads about 240 KB on a first visit (usable in about 7 s at 400 kbps) and keeps an unsent answer until the network returns; once opened, the console reopens with no network; low-data mode
 switches itself on for 2G/3G, data-saver or ≤ 2 GB RAM; light mode for sunlight. A first-visit
 welcome, a spotlight guide over the real screens, "Your first 10 minutes" and "See a sample term" (one
 term replayed in about 40 s) teach the console without a manual.
@@ -284,4 +284,8 @@ docs/DATA-AND-METHOD.md  the data and the statistics
 demo/, video/      how the demo film is captured and put together
 ```
 
-Built with Claude (Anthropic).
+Built with Claude (Anthropic) by Team ShikshaSaathi AI: Ashfaque Rifaye, Patel Mishal, Umesh Kumar, Aryan Patel.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
