@@ -141,7 +141,7 @@ export function readLanguage(text: string): Lang | null {
 // Turns about the call itself, not about the classroom: the interviewer and the coder never see them.
 const HOUSEKEEPING = new Set(["language", "language_reply", "intro", "consent", "consent_reply"]);
 
-const YES = /हाँ|हां|हा\b|जी|ठीक|बिल्कुल|ज़रूर|जरूर|चलिए|शुरू|yes|yeah|ok|okay|sure|haan|ha\b/i;
+const YES = /हाँ|हां|हा\b|जी|ठीक|बिल्कुल|ज़रूर|जरूर|चलिए|शुरू|yes|yas|yeah|yep|ok|okay|sure|agree|agri|begin|start|go ahead|haan|ha\b/i;
 const NO = /नहीं|नही|ना\b|मत|no\b|nahi|nahin|not now/i;
 
 export function readConsent(text: string): "yes" | "no" | "unclear" {

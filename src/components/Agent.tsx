@@ -578,7 +578,12 @@ export function useAgent() {
       stopRef.current = () => mic.current?.stopTurn();
       const blob = await mic.current.turn({ waitMs: 12000, maxMs: 40000 });
       stopRef.current = null;
-      if (!blob || cancelled.current) return null;
+      if (cancelled.current) return null;
+      const notHeard = () => speakOut(t("Sorry, I didn't catch that. Please tap me and say it again.", "माफ़ कीजिए, मैं सुन नहीं पाया। कृपया मुझे दबाकर फिर से बोलिए।"));
+      if (!blob) {
+        await notHeard();
+        return null;
+      }
       setMode("hearing");
       try {
         const r = await transcribe(blob, live.current.lang, live.current.seed);
@@ -586,6 +591,7 @@ export function useAgent() {
         if (r.text) setHeard(r.text);
         // A short beat with the final words on screen before Jugnu answers.
         await wait(500);
+        if (!r.text) await notHeard();
         return r.text || null;
       } catch (e) {
         setMode("error");
@@ -610,7 +616,7 @@ export function useAgent() {
     } finally {
       stopRef.current = null;
     }
-  }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [speakOut, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** A spoken conversation: listen, answer, listen again — until silence, or the officer ends it. */
   const converse = useCallback(async () => {

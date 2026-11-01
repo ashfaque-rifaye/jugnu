@@ -18,6 +18,12 @@ export function audio() {
   return { ctx, out: outAnalyser };
 }
 
+if (typeof window !== "undefined") {
+  const wake = () => ctx?.state === "suspended" && ctx.resume().catch(() => {});
+  window.addEventListener("pointerdown", wake, true);
+  window.addEventListener("keydown", wake, true);
+}
+
 const buf = new Uint8Array(512);
 /** 0–1 loudness of an analyser right now. */
 export function levelOf(a: AnalyserNode | null): number {
