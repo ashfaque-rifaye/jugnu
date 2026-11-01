@@ -4,7 +4,7 @@
 //   node demo/capture.mjs <scenario> [--probe]
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +27,8 @@ const out = join(TAKES, scenarioName);
 mkdirSync(join(out, "frames"), { recursive: true });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// A take that signs in starts as a first-time visitor.
+if (scenario.noRole) rmSync(join(TAKES, ".chrome"), { recursive: true, force: true });
 const browser = await puppeteer.launch({
   executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
   headless: "new",
@@ -50,10 +52,11 @@ const hung = () => [...open.entries()].filter(([, t]) => Date.now() - t > 4000).
 
 // Runs in the page before the app: settings, the microphone and speaker taps, the cursor and the action log.
 await page.evaluateOnNewDocument(
-  (theme) => {
-    localStorage.setItem("jugnu-role", JSON.stringify({ kind: "beo" }));
+  (theme, opts) => {
+    if (!opts.noRole && !localStorage.getItem("jugnu-role")) localStorage.setItem("jugnu-role", JSON.stringify({ kind: "beo" }));
     localStorage.setItem(theme, "light");
     localStorage.setItem("jugnu-guide", "off");
+    localStorage.setItem("jugnu-greet", opts.greet ? "on" : "off");
     localStorage.setItem("jugnu-voice", "Kore");
     localStorage.setItem("jugnu-welcomed", "1");
     window.__events = [];
@@ -150,6 +153,7 @@ await page.evaluateOnNewDocument(
     });
   },
   "jugnu-mode",
+  { noRole: !!scenario.noRole, greet: !!scenario.greet },
 );
 
 // ---------------------------------------------------------------- the screen
@@ -281,13 +285,15 @@ const api = {
     await wait(after);
   },
   scroll: async (px, ms = 1100) => {
-    const steps = Math.round(ms / 16);
+    // Goes by the clock, not by a count of steps: each wheel event can take longer than a frame.
+    const t0 = Date.now();
     let done = 0;
-    for (let i = 1; i <= steps; i++) {
-      const to = Math.round(px * ease(i / steps));
-      await page.mouse.wheel({ deltaY: to - done });
+    while (done !== px) {
+      const k = Math.min(1, (Date.now() - t0) / ms);
+      const to = Math.round(px * ease(k));
+      if (to !== done) await page.mouse.wheel({ deltaY: to - done });
       done = to;
-      await wait(16);
+      await wait(12);
     }
   },
   /** Speak a recorded line to the orb: tap it, play the voice into the microphone, let the agent work. */
@@ -394,6 +400,10 @@ async function idleOrListening(timeoutMs = 90000) {
   log("listen-timeout");
 }
 
+if (scenario.replay) {
+  const r = spawnSync("npx", ["tsx", "--env-file=.env", "demo/replay-actions.ts"], { cwd: ROOT, shell: true, encoding: "utf8" });
+  console.log((r.stdout || r.stderr).trim().split("\n").at(-1));
+}
 if (scenario.reset) {
   const r = spawnSync("npx", ["tsx", "--env-file=.env", "demo/reset.ts"], { cwd: ROOT, shell: true, encoding: "utf8" });
   console.log((r.stdout || r.stderr).trim().split("\n").at(-1));

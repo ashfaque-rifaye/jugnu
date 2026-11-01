@@ -234,7 +234,7 @@ function Console() {
         </button>
         {demo.available && (
           <button className="nav-item w-full" onClick={demo.start}>
-            <Play size={18} aria-hidden /> <span className="flex-1 text-left">{t("Play the term", "सत्र चलाकर देखें")}</span>
+            <Play size={18} aria-hidden /> <span className="flex-1 text-left">{t("See a sample term", "नमूना सत्र देखें")}</span>
           </button>
         )}
         {TOOLS.map((x) => navLink(x, "tools"))}
@@ -400,8 +400,8 @@ function Console() {
                     <Play size={16} />
                   </span>
                   <span className="flex-1">
-                    <span className="block text-sm font-semibold">{t("Play the term", "सत्र चलाकर देखें")}</span>
-                    <span className="block text-xs text-[var(--color-ink-3)]">{t("14 days of field work in 40 seconds", "14 दिन का काम 40 सेकंड में")}</span>
+                    <span className="block text-sm font-semibold">{t("See a sample term", "नमूना सत्र देखें")}</span>
+                    <span className="block text-xs text-[var(--color-ink-3)]">{t("A whole term in 40 seconds, on sample data", "पूरा सत्र 40 सेकंड में, नमूना डेटा पर")}</span>
                   </span>
                   <ChevronRight size={16} className="text-[var(--color-ink-3)]" />
                 </button>
@@ -573,7 +573,7 @@ function useTourSteps(): TourStep[] {
       {
         target: "guide",
         title: ["Replay any time", "कभी भी दोबारा"],
-        body: ["Open this guide again from here. To watch a whole term in 40 seconds, press “Play the term” on Today.", "यह गाइड यहाँ से फिर खोलें। पूरा सत्र 40 सेकंड में देखने के लिए ‘आज’ पर “सत्र चलाकर देखें” दबाएँ।"],
+        body: ["Open this guide again from here. To watch a sample term in 40 seconds, press “See a sample term” on Today.", "यह गाइड यहाँ से फिर खोलें। पूरा सत्र 40 सेकंड में देखने के लिए ‘आज’ पर “सत्र चलाकर देखें” दबाएँ।"],
       },
     );
     return steps;
@@ -604,7 +604,7 @@ function LiveIndicator() {
       }
     >
       <span className="live-dot" style={{ color: tone }} />
-      <span style={{ color: tone }}>{demoEvents.length ? t("Playback", "प्लेबैक") : connecting ? t("Connecting", "जुड़ रहे") : ok ? t("Live", "लाइव") : t("Offline", "ऑफ़लाइन")}</span>
+      <span style={{ color: tone }}>{demoEvents.length ? t("Sample term", "नमूना सत्र") : connecting ? t("Connecting", "जुड़ रहे") : ok ? t("Live", "लाइव") : t("Offline", "ऑफ़लाइन")}</span>
       {ok && !demoEvents.length && <span className="hidden tabular-nums text-[var(--color-ink-3)] sm:inline">{ago}s</span>}
     </span>
   );

@@ -120,8 +120,8 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.42, ease: EASE }} className="mt-5 flex flex-wrap gap-2">
               {demo.available && !headSchool && (
-                <button className="btn btn-primary" onClick={demo.start} data-tour="play">
-                  <Play size={16} /> {t("Play the term", "सत्र चलाकर देखें")}
+                <button className="btn btn-primary" onClick={demo.start} data-tour="play" title={t("A 40-second sample of how a whole term runs in this block: visits, voice notes and follow-up calls. It uses sample data, and nothing is saved.", "40 सेकंड में दिखाता है कि इस ब्लॉक में पूरा सत्र कैसे चलता है: दौरे, वॉइस नोट और फ़ॉलो-अप कॉल। यह नमूना डेटा है, कुछ भी सेव नहीं होता।")}>
+                  <Play size={16} /> {t("See a sample term", "नमूना सत्र देखें")}
                 </button>
               )}
               <button className="btn btn-glass" onClick={() => window.dispatchEvent(new CustomEvent("jugnu:ask", { detail: "brief" }))}>
@@ -144,7 +144,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               <div className={cx("text-white", hi)}>
                 <div className="label !text-white/60">{t("Start here", "यहीं से शुरू करें")}</div>
                 <div className="mt-1 text-lg font-semibold">{t("Nothing waiting for you", "आपके लिए कुछ बाकी नहीं")}</div>
-                <p className="mt-1 text-sm text-white/70">{t("Play the term to watch confirmation visits, visits and calls arrive.", "जाँच, दौरे और कॉल आते देखने के लिए सत्र चलाएँ।")}</p>
+                <p className="mt-1 text-sm text-white/70">{t("See a sample term to watch confirmation visits, visits and calls arrive.", "जाँच, दौरे और कॉल आते देखने के लिए सत्र चलाएँ।")}</p>
               </div>
             )}
           </motion.div>
@@ -379,7 +379,7 @@ function TermRings({ onPlay }: { onPlay?: () => void }) {
       </p>
       {onPlay && c.calls === 0 && (
         <button className="btn btn-glass mt-3 w-full justify-center" onClick={onPlay}>
-          <Play size={15} /> {t("Watch the rings fill — play the term", "घेरे भरते देखें — सत्र चलाएँ")}
+          <Play size={15} /> {t("See how a term unfolds: a 40-second sample", "देखें सत्र कैसे चलता है: 40 सेकंड का नमूना")}
         </button>
       )}
     </Card>

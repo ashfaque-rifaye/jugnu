@@ -626,6 +626,8 @@ h3,
     -webkit-tap-highlight-color: transparent;
     transition: transform 0.25s ease;
   }
+  /* lifts off whatever is behind it, light or dark */
+  .dock-orb canvas { filter: drop-shadow(0 4px 10px rgb(30 90 90 / 0.2)); }
   .dock-orb:hover { transform: scale(1.06); }
   .dock-orb:active { transform: scale(0.94); }
   .dock-mini {

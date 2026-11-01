@@ -172,7 +172,7 @@ function Player({ run, onPause, onSkip, onReplay, onClose, onResults }: { run: R
             {done ? <Check size={15} strokeWidth={3} /> : <span className="font-display text-xs font-bold">{`${run.beat + 1}/${total}`}</span>}
           </span>
           <span className={cx("whitespace-nowrap text-[13px] font-semibold", lang === "hi" && "font-deva")}>
-            {done ? t("Playback · term complete", "प्लेबैक · सत्र पूरा") : `${t(beat.day[0], beat.day[1])} · ${t(beat.title[0], beat.title[1])}`}
+            {done ? t("Sample term · complete", "नमूना सत्र · पूरा") : `${t(beat.day[0], beat.day[1])} · ${t(beat.title[0], beat.title[1])}`}
           </span>
           {done && (
             <button className="rounded-full p-1.5 text-[var(--color-ink-2)] hover:bg-[var(--hover)]" onClick={onReplay} aria-label={t("Play again", "फिर चलाएँ")}>
@@ -206,7 +206,7 @@ function Player({ run, onPause, onSkip, onReplay, onClose, onResults }: { run: R
           <div className={cx("min-w-0 flex-1", lang === "hi" && "font-deva")}>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-ink-3)]">
               <span className="inline-flex items-center gap-1.5 text-[var(--tone-teal)]">
-                <span className="live-dot !h-1.5 !w-1.5" /> {t("Playback · simulated term", "प्लेबैक · सिम्युलेटेड सत्र")}
+                <span className="live-dot !h-1.5 !w-1.5" /> {t("Sample term · sample data, nothing saved", "नमूना सत्र · नमूना डेटा, कुछ सेव नहीं")}
               </span>
               <span>·</span>
               <span>{done ? t("Term complete", "सत्र पूरा") : t(beat.day[0], beat.day[1])}</span>

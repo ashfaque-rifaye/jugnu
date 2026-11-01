@@ -189,8 +189,10 @@ function drawCaption(c, t) {
   g.restore();
 }
 // In the empty part of the app's top bar, clear of the chat panel.
-const CHIP_RIGHT = 1390;
+// (Left of the chat panel and of the sign-in page's own links, when those are on screen.)
+const chipRight = (text) => (text === "Chat agent" || text === "Choose your role" || text === "The real call" ? 1390 : 1880);
 function drawChip(text, a) {
+  const CHIP_RIGHT = chipRight(text);
   if (!text || a <= 0) return;
   g.save();
   g.globalAlpha = a;
@@ -406,12 +408,175 @@ function drawEnd(s, t) {
 
 // ---------------------------------------------------------------- one frame
 const FULL = { x: 0, y: 0, w: 1920, h: 1080 };
+// Takes recorded before the orb changed show the app's current orb in its place.
+const OLD_ORB = new Set(["dry1", "plan", "call-failed-no-balance", "line"]);
+const src = await (await fetch("/src/components/Orb.tsx")).text();
+const orbFrag = /const FRAG = `([\s\S]*?)`;/.exec(src)[1];
+const orbCanvas = document.createElement("canvas");
+orbCanvas.width = orbCanvas.height = 240;
+const ogl = orbCanvas.getContext("webgl", { premultipliedAlpha: true, alpha: true, preserveDrawingBuffer: true });
+{
+  const p = ogl.createProgram();
+  for (const [ty, s] of [[ogl.VERTEX_SHADER, "attribute vec2 q;void main(){gl_Position=vec4(q,0.,1.);}"], [ogl.FRAGMENT_SHADER, orbFrag]]) {
+    const sh = ogl.createShader(ty);
+    ogl.shaderSource(sh, s);
+    ogl.compileShader(sh);
+    ogl.attachShader(p, sh);
+  }
+  ogl.linkProgram(p);
+  ogl.useProgram(p);
+  ogl.bindBuffer(ogl.ARRAY_BUFFER, ogl.createBuffer());
+  ogl.bufferData(ogl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), ogl.STATIC_DRAW);
+  const l = ogl.getAttribLocation(p, "q");
+  ogl.enableVertexAttribArray(l);
+  ogl.vertexAttribPointer(l, 2, ogl.FLOAT, false, 0, 0);
+  ogl.uniform2f(ogl.getUniformLocation(p, "uRes"), 240, 240);
+  ogl.uniform3fv(ogl.getUniformLocation(p, "uC"), [0.99, 0.8, 0.1, 0.55, 0.85, 0.15, 0.1, 0.78, 0.7, 0.2, 0.6, 0.97]);
+  ogl.clearColor(0, 0, 0, 0);
+  window.__orbU = { t: ogl.getUniformLocation(p, "uT"), a: ogl.getUniformLocation(p, "uAmp") };
+}
+function drawOrbOver(t, box, alpha) {
+  const k = box.w / 1600;
+  const cx = box.x + 1550 * k;
+  const cy = box.y + 850 * k;
+  ogl.uniform1f(window.__orbU.t, t);
+  ogl.uniform1f(window.__orbU.a, 0);
+  ogl.clear(ogl.COLOR_BUFFER_BIT);
+  ogl.drawArrays(ogl.TRIANGLE_STRIP, 0, 4);
+  g.save();
+  g.globalAlpha = alpha;
+  // Soften the older orb underneath, then place the current one.
+  const under = g.createRadialGradient(cx, cy, 20 * k, cx, cy, 40 * k);
+  under.addColorStop(0, "rgba(247,250,246,1)");
+  under.addColorStop(0.75, "rgba(247,250,246,.95)");
+  under.addColorStop(1, "rgba(247,250,246,0)");
+  g.fillStyle = under;
+  g.beginPath();
+  g.arc(cx, cy, 40 * k, 0, 7);
+  g.fill();
+  const size = 82 * k;
+  g.drawImage(orbCanvas, cx - size / 2, cy - size / 2, size, size);
+  g.restore();
+}
+function drawPatch(shot, srcAt, img, box, alpha) {
+  if (!shot.patch || srcAt > shot.patch.until || !img) return;
+  const k = img.width / 1600;
+  const K = box.w / 1600;
+  g.save();
+  g.globalAlpha = alpha;
+  for (const [x, y, w, h] of shot.patch.rects) g.drawImage(img, x * k, y * k, w * k, h * k, box.x + x * K, box.y + y * K, w * K, h * K);
+  g.restore();
+}
+/** How the note reaches a teacher on WhatsApp. A simulation, and marked as one. */
+function drawWhatsApp(s, t) {
+  const k = t - s.start;
+  const out = 1 - prog(k, s.dur - OVERLAP, s.dur);
+  const inn = easeOut(prog(k, 0, 0.4));
+  g.save();
+  g.globalAlpha = inn * out;
+  g.drawImage(back, 0, 0);
+  // The words beside it
+  g.fillStyle = INK;
+  g.font = `700 60px ${FONT.display}`;
+  g.fillText("Reaches every teacher", 130, 372);
+  g.fillText("on WhatsApp", 130, 444);
+  g.font = `500 28px ${FONT.sans}`;
+  g.fillStyle = INK2;
+  g.fillText("A 60-second voice note from a nearby teacher,", 130, 512);
+  g.fillText("in the teacher's own language.", 130, 552);
+  g.fillText("Their reply moves the task on the shared board.", 130, 592);
+  g.fillStyle = "#fef3c7";
+  rounded(130, 632, 610, 56, 28);
+  g.fill();
+  g.strokeStyle = "#f59e0b";
+  g.lineWidth = 2;
+  g.stroke();
+  g.fillStyle = "#92400e";
+  g.font = `600 24px ${FONT.sans}`;
+  g.fillText("Simulated: built, connection in progress", 160, 668);
+  // The phone
+  const W2 = 410;
+  const H2 = 860;
+  const rise = spring(prog(k, 0.05, 1.1));
+  const px = 1230;
+  const py = 110 + (1 - rise) * 800;
+  g.shadowColor = "rgba(15,23,42,.35)";
+  g.shadowBlur = 50;
+  g.shadowOffsetY = 22;
+  g.fillStyle = "#0b0f14";
+  rounded(px, py, W2, H2, 56);
+  g.fill();
+  g.shadowColor = "transparent";
+  g.save();
+  rounded(px + 12, py + 12, W2 - 24, H2 - 24, 46);
+  g.clip();
+  g.fillStyle = "#ece5dd";
+  g.fillRect(px, py, W2, H2);
+  g.fillStyle = "#075e54";
+  g.fillRect(px, py, W2, 118);
+  g.fillStyle = "#fff";
+  g.font = `600 23px ${FONT.sans}`;
+  g.fillText("Kailash Kurmi", px + 40, py + 76);
+  g.font = `400 16px ${FONT.sans}`;
+  g.fillStyle = "rgba(255,255,255,.85)";
+  g.fillText("Teacher, GPS Pipariya Sunar", px + 40, py + 100);
+  const bubble = (x, y, w, h, fill, at) => {
+    const a = easeOut(prog(k, at, at + 0.35));
+    if (!a) return 0;
+    g.globalAlpha = a * inn * out;
+    g.fillStyle = fill;
+    rounded(x, y + (1 - a) * 14, w, h, 14);
+    g.fill();
+    return a;
+  };
+  // The voice note
+  const vy = py + 150;
+  if (bubble(px + 28, vy, 320, 96, "#fff", 0.9)) {
+    g.fillStyle = "#075e54";
+    g.beginPath();
+    g.moveTo(px + 50, vy + 32);
+    g.lineTo(px + 50, vy + 64);
+    g.lineTo(px + 76, vy + 48);
+    g.closePath();
+    g.fill();
+    const played = clamp((k - 1.2) / 2.6);
+    for (let i = 0; i < 26; i++) {
+      const h = 8 + 24 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6));
+      g.fillStyle = i / 26 < played ? "#075e54" : "#b6c2bd";
+      g.fillRect(px + 92 + i * 9, vy + 48 - h / 2, 5, h);
+    }
+    g.fillStyle = INK2;
+    g.font = `400 15px ${FONT.sans}`;
+    g.fillText("Voice note · 0:58", px + 92, vy + 86);
+  }
+  // Its words
+  if (bubble(px + 28, vy + 110, 320, 150, "#fff", 1.5)) {
+    g.fillStyle = INK;
+    g.font = `400 18px ${FONT.sans}`;
+    ["“Every day for the first 45", "minutes, we group children by", "level, not class. Devendra Singh", "ji will bring you to see it.”"].forEach((l, i) => g.fillText(l, px + 44, vy + 146 + i * 27));
+  }
+  // The teacher's reply
+  if (bubble(px + 92, vy + 276, 280, 62, "#dcf8c6", 2.8)) {
+    g.fillStyle = INK;
+    g.font = `400 18px ${FONT.sans}`;
+    g.fillText("Tried it today, it's working 👍", px + 108, vy + 314);
+  }
+  // The board moves
+  if (bubble(px + 36, vy + 356, 338, 52, "rgba(7,94,84,.92)", 3.8)) {
+    g.fillStyle = "#fff";
+    g.font = `600 17px ${FONT.sans}`;
+    g.fillText("✓ Board updated: Trying it", px + 70, vy + 389);
+  }
+  g.restore();
+  g.restore();
+}
 const SPLIT = { x: 44, y: 150, w: 1364, h: 767 };
 async function draw(i) {
   const t = i / FPS;
   const live = edit.shots.filter((s) => t >= s.start && t <= s.start + s.dur);
   const screens = live.filter((s) => s.kind === "screen");
   const images = await Promise.all(screens.map((s) => bitmap(frameAt(s.take, sourceAt(s, t - s.start)))));
+  const patches = await Promise.all(screens.map((s) => (s.patch && sourceAt(s, t - s.start) <= s.patch.until ? bitmap(s.patch.img) : null)));
   const phoneShot = screens.find((s) => s.phone);
   let phoneImg = null;
   if (phoneShot && edit.phone) {
@@ -443,6 +608,8 @@ async function draw(i) {
     };
     const box = { x: base.x + (base.w * (1 - scale)) / 2, y: base.y + (base.h * (1 - scale)) / 2, w: base.w * scale, h: base.h * scale };
     drawWindow(images[n], box, fade, 18 * split);
+    drawPatch(s, sourceAt(s, k), patches[n], box, fade);
+    if (OLD_ORB.has(s.take)) drawOrbOver(t, box, fade);
     if (s.flow?.length) drawFlow(s, k, fade);
     if (s.phone) {
       const rise = spring(prog(k, 0.5, 1.9));
@@ -453,6 +620,7 @@ async function draw(i) {
     drawChip(s.chapter, fade * clamp((k - 0.2) / 0.3));
   });
   for (const s of live) if (s.kind === "arch") drawArch(s, t);
+  for (const s of live) if (s.kind === "whatsapp") drawWhatsApp(s, t);
   for (const s of live) if (s.kind === "end") drawEnd(s, t);
   for (const c of edit.caps) if (t >= c.t0 && t <= c.t1 + 0.2) drawCaption(c, t);
 }

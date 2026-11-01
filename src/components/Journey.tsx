@@ -69,7 +69,7 @@ export function useJourneySteps(): Step[] {
       tour,
       { key: "bright", label: ["Open a school doing well", "अच्छा कर रहा स्कूल खोलें"], sub: [story ? `${story.bright.teacher}, ${story.bright.name}` : "A school beating its context", story ? `${story.bright.teacher}, ${story.bright.name}` : "हालात से आगे स्कूल"], done: seen.has("seen:bright"), to: story ? `/schools/${story.bright.id}` : "/schools?status=bright" },
       { key: "practices", label: ["See what works here", "देखें यहाँ जो तरीके काम करते हैं"], sub: ["Methods only schools doing well use", "सिर्फ़ अच्छे स्कूलों के तरीके"], done: seen.has("seen:/practices"), to: "/practices" },
-      { key: "demo", label: ["Play the term", "सत्र चलाकर देखें"], sub: ["14 days of field work in 40 seconds", "14 दिन का काम 40 सेकंड में"], done: seen.has("demo"), run: "demo" },
+      { key: "demo", label: ["See a sample term", "नमूना सत्र देखें"], sub: ["How a whole term runs, in 40 seconds, on sample data", "पूरा सत्र कैसे चलता है, 40 सेकंड में, नमूना डेटा पर"], done: seen.has("demo"), run: "demo" },
       { key: "results", label: ["See if it worked", "देखें, असर हुआ या नहीं"], sub: ["Group 1 against group 2", "समूह 1 बनाम समूह 2"], done: seen.has("seen:/results"), to: "/results" },
     ];
   }, [role, state, events, followUps, seen]);

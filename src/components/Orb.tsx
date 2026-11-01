@@ -1,28 +1,28 @@
-// Jugnu's voice orb: a breathing, turning sphere of glowing mesh lines that the voice ripples and
-// bends, in firefly light, with a few fireflies drifting around it. Its colour tells the state — warm amber at rest, lime and teal while it
-// listens, cool blue with gold while it thinks (and it turns faster), bright gold and coral while
-// it speaks. One fragment shader on a quad; plain WebGL, no libraries.
+// Jugnu's voice orb: a clear soap bubble with colour sliding over its skin. It reads on white and on black,
+// swells with the voice, and its colours tell the state: Jugnu's yellow, lime and teal at rest, green while it
+// listens, blue while it thinks, warm while it speaks. One fragment shader on a quad; plain WebGL, no libraries.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Mode } from "./Agent";
 
 type RGB = [number, number, number];
-const REST: [RGB, RGB] = [[1, 0.7, 0.25], [0.95, 0.45, 0.2]];
-const LISTEN: [RGB, RGB] = [[0.6, 1, 0.4], [0.25, 0.9, 0.75]];
-const THINK: [RGB, RGB] = [[0.35, 0.75, 1], [1, 0.72, 0.3]];
-const SPEAK: [RGB, RGB] = [[1, 0.85, 0.42], [1, 0.5, 0.3]];
-const PALETTE: Record<Mode, [RGB, RGB]> = {
+type Colours = [RGB, RGB, RGB, RGB];
+const REST: Colours = [[0.99, 0.8, 0.1], [0.55, 0.85, 0.15], [0.1, 0.78, 0.7], [0.2, 0.6, 0.97]];
+const LISTEN: Colours = [[0.55, 0.9, 0.2], [0.2, 0.82, 0.4], [0.1, 0.78, 0.7], [0.4, 0.88, 0.3]];
+const THINK: Colours = [[0.2, 0.6, 0.97], [0.42, 0.42, 0.98], [0.1, 0.72, 0.85], [0.3, 0.5, 0.98]];
+const SPEAK: Colours = [[0.99, 0.78, 0.1], [0.98, 0.52, 0.2], [0.6, 0.85, 0.15], [0.1, 0.78, 0.7]];
+const PALETTE: Record<Mode, Colours> = {
   off: REST,
   listening: LISTEN,
   hearing: THINK,
   thinking: THINK,
   working: THINK,
   speaking: SPEAK,
-  error: [[1, 0.35, 0.35], [1, 0.6, 0.3]],
+  error: [[0.95, 0.3, 0.3], [0.98, 0.5, 0.3], [0.9, 0.25, 0.4], [0.98, 0.45, 0.35]],
 };
 
 const FRAG = `
 precision highp float;
-uniform float uT, uAmp, uD, uW; uniform vec2 uRes; uniform vec3 uC1, uC2;
+uniform float uT, uAmp; uniform vec2 uRes; uniform vec3 uC[4];
 vec3 m3(vec3 x){return x-floor(x/289.)*289.;}
 vec4 m4(vec4 x){return x-floor(x/289.)*289.;}
 vec4 pm(vec4 x){return m4((x*34.+1.)*x);}
@@ -44,41 +44,42 @@ float sn(vec3 v){
   vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.); m=m*m;
   return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }
-mat2 rot(float a){return mat2(cos(a),-sin(a),sin(a),cos(a));}
+vec3 pal(float x){
+  x=fract(x)*4.;
+  if(x<1.)return mix(uC[0],uC[1],x);
+  if(x<2.)return mix(uC[1],uC[2],x-1.);
+  if(x<3.)return mix(uC[2],uC[3],x-2.);
+  return mix(uC[3],uC[0],x-3.);
+}
 void main(){
   vec2 uv=(gl_FragCoord.xy*2.-uRes)/uRes.y;
-  float r=length(uv); vec3 c=vec3(0.); float t=uT;
+  float r=length(uv); float t=uT;
   // it breathes at rest and swells with the voice
-  float R=.6+sin(t*1.4)*.025+uAmp*.07;
-  float rr=r-sn(vec3(uv*1.8,t*.6))*(.035+uAmp*.12);
-  c+=mix(uC1,uC2,.5)*exp(-r*r*6.)*(.16+uAmp*.4);
-  if(rr<R){
-    float z=sqrt(1.-rr*rr/(R*R));
+  float R=.72+sin(t*1.3)*.008+uAmp*.08;
+  vec3 c=vec3(0.); float al=0.;
+  if(r<R){
+    float z=sqrt(1.-r*r/(R*R));
     vec3 n=vec3(uv/R,z);
-    n.xz=rot(t*.35)*n.xz; n.yz=rot(sin(t*.23)*.5)*n.yz;
-    float d=sn(n*2.2+t*.45)*(.06+uAmp*.22);
-    float la=acos(clamp(n.y,-1.,1.))*uD+d*8.;
-    float lo=atan(n.z,n.x)*uD+d*8.;
-    float ln=max(smoothstep(uW,1.,abs(fract(la)*2.-1.)),smoothstep(uW,1.,abs(fract(lo)*2.-1.)));
-    // a band of brighter light flowing over the mesh
-    float band=smoothstep(.55,1.,sin(n.y*5.+t*1.6+d*10.))*.7;
-    vec3 col=mix(uC1,uC2,.5+.5*sin(n.y*2.+t*.5));
-    c+=col*ln*(.35+.9*pow(1.-z,1.2)+uAmp+band)+col*.05;
-  } else {
-    // a soft aura instead of a hard rim
-    c+=uC1*exp(-(rr-R)*10.)*(.16+uAmp*.35);
+    float fr=pow(1.-z,1.5);
+    // the colours of a thin film: they follow the skin's thickness, drifting with time and the voice
+    float film=fr*.9+(.42+uAmp*.3)*sn(n*.8+vec3(0.,t*.16,t*.1))+t*.03;
+    vec3 col=pal(film);
+    // clear in the middle, colourful at the rim: on a dark page the middle lightens instead of going muddy
+    float aa=.3+.7*smoothstep(.02,.9,fr);
+    col=mix(col,vec3(1.),.22*(1.-fr));
+    // two soft window reflections
+    float s1=exp(-pow(length(uv-vec2(-.26,.32)*R/.72)/.17,2.))*.7;
+    float s2=exp(-pow(length(uv-vec2(.3,-.34)*R/.72)/.09,2.))*.35;
+    aa*=smoothstep(R,R-.025,r);
+    float sp=(s1+s2)*smoothstep(R,R-.03,r);
+    al=clamp(aa+sp*(1.-aa),0.,1.);
+    c=col*aa*(1.-sp)+vec3(1.)*sp;
   }
-  // fireflies drifting around it, twinkling
-  for(int i=0;i<12;i++){
-    float fi=float(i);
-    float a=t*(.22+.06*fi)*(mod(fi,2.)*2.-1.)+fi*2.399;
-    float rad=R+.08+.2*fract(sin(fi*12.9898)*43758.5);
-    vec2 p=vec2(cos(a),sin(a)*.85)*rad+vec2(sin(t*.9+fi),cos(t*.7+fi*1.3))*.03;
-    float tw=.35+.65*pow(.5+.5*sin(t*2.6+fi*1.7),2.);
-    c+=mix(uC1,vec3(1.,.95,.75),.55)*exp(-length(uv-p)*60.)*tw*(1.+uAmp);
-  }
-  c*=smoothstep(1.,.86,r);
-  gl_FragColor=vec4(c,min(1.,max(c.r,max(c.g,c.b))));
+  // a faint halo of the same colours
+  float g=exp(-max(0.,r-R)*(11.-uAmp*4.))*(.3+uAmp*.35)*step(R,r)*smoothstep(.99,.8,r);
+  c+=pal(atan(uv.y,uv.x)/6.2832+t*.05)*g;
+  al=max(al,g);
+  gl_FragColor=vec4(min(c,vec3(1.)),al);
 }`;
 
 /** The orb. `level` is read every frame (0–1): the microphone while listening, the voice while speaking. */
@@ -116,11 +117,8 @@ export function Orb({ mode, level, size, fallback }: { mode: Mode; level: () => 
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const U = (n: string) => gl.getUniformLocation(prog, n);
-    const [uT, uAmp, uRes, uC1, uC2] = ["uT", "uAmp", "uRes", "uC1", "uC2"].map(U);
+    const [uT, uAmp, uRes, uC] = ["uT", "uAmp", "uRes", "uC"].map(U);
     gl.uniform2f(uRes, c.width, c.height);
-    // Fewer, bolder lines on a small orb so the mesh still reads.
-    gl.uniform1f(U("uD"), size < 120 ? 3.5 : 12);
-    gl.uniform1f(U("uW"), size < 120 ? 0.72 : 0.9);
     const cols = PALETTE[modeRef.current].map((x) => [...x]);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let amp = 0;
@@ -130,20 +128,19 @@ export function Orb({ mode, level, size, fallback }: { mode: Mode; level: () => 
     const draw = (now: number) => {
       const m = modeRef.current;
       const busy = m === "thinking" || m === "working" || m === "hearing";
-      // Thinking turns the sphere faster; reduced motion slows everything.
+      // Thinking moves the colours faster; reduced motion slows everything.
       t += Math.min(0.05, (now - last) / 1000) * (busy ? 2.5 : 1) * (reduced ? 0.25 : 1);
       last = now;
-      const target = m === "listening" || m === "speaking" ? 0.08 + Math.min(0.85, levelRef.current() * 1.2) : busy ? 0.2 + Math.sin(t * 3) * 0.06 : 0.04;
+      const target = m === "listening" || m === "speaking" ? 0.08 + Math.min(0.85, levelRef.current() * 1.2) : busy ? 0.2 + Math.sin(t * 3) * 0.06 : 0;
       amp += (target - amp) * 0.15;
       const goal = PALETTE[m];
-      for (let k = 0; k < 2; k++) for (let j = 0; j < 3; j++) cols[k][j] += (goal[k][j] - cols[k][j]) * 0.06;
+      for (let k = 0; k < 4; k++) for (let j = 0; j < 3; j++) cols[k][j] += (goal[k][j] - cols[k][j]) * 0.06;
       gl.viewport(0, 0, c.width, c.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(uT, t);
       gl.uniform1f(uAmp, amp);
-      gl.uniform3fv(uC1, cols[0]);
-      gl.uniform3fv(uC2, cols[1]);
+      gl.uniform3fv(uC, cols.flat());
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       raf = requestAnimationFrame(draw);
     };

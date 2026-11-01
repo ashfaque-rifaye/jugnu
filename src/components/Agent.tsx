@@ -196,6 +196,8 @@ export interface Line {
   shown: number;
   tools: { name: string; ok: boolean; note?: string }[];
   brief?: boolean;
+  /** The hello when the console opens: shows ways to start. */
+  greet?: boolean;
 }
 
 type ApiMessage = { role: "user" | "assistant"; content: unknown };
@@ -688,6 +690,25 @@ export function useAgent() {
     }
   }, [speakOut, status.claude]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Say hello once a session, out loud where the browser allows it (it does after the first tap). */
+  const greet = useCallback(async () => {
+    if (busy.current || live.current.mode !== "off" || isHushed()) return;
+    busy.current = true;
+    cancelled.current = false;
+    try {
+      const text = t("Namaste! I'm Jugnu. I can brief you, find a school, or make a plan. What can I do for you today?", "नमस्ते! मैं जुगनू हूँ। मैं ब्रीफ़ कर सकता हूँ, स्कूल खोज सकता हूँ या योजना बना सकता हूँ। आज आपके लिए क्या करूँ?");
+      const canPlay = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? false;
+      const mark = { greet: true, tools: [{ name: "guide", ok: true }] };
+      if (canPlay && live.current.voice) {
+        audio();
+        await speakOut(text, mark);
+      } else add({ who: "jugnu", text, shown: text.length, ...mark });
+    } finally {
+      busy.current = false;
+      setMode((m) => (m === "speaking" ? "off" : m));
+    }
+  }, [speakOut, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const setGuideOn = (on: boolean) => {
     setGuideOnState(on);
     try {
@@ -743,6 +764,7 @@ export function useAgent() {
     stop,
     hangUp,
     brief: startBrief,
+    greet,
     guideOn,
     setGuideOn,
     listenOnce,
@@ -816,6 +838,27 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
   const active = a.mode !== "off" || a.handsFree;
   const canTalk = a.cloud || canListen();
   const lastJ = useMemo(() => [...a.lines].reverse().find((l) => l.who === "jugnu"), [a.lines]);
+  // Jugnu greets whoever opens the console, once a session.
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (pathname === "/") return;
+    let said = false;
+    try {
+      said = sessionStorage.getItem("jugnu-greeted") === "1" || localStorage.getItem("jugnu-greet") === "off";
+    } catch {
+      /* say hello anyway */
+    }
+    if (said) return;
+    const id = setTimeout(() => {
+      try {
+        sessionStorage.setItem("jugnu-greeted", "1");
+      } catch {
+        /* ignore */
+      }
+      void a.greet();
+    }, 900);
+    return () => clearTimeout(id);
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [a.lines, open]);
@@ -859,9 +902,9 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
     if (guideLine == null) return;
     setLinger(true);
     setHidden(false);
-    const id = setTimeout(() => setLinger(false), 14000);
+    const id = setTimeout(() => setLinger(false), lastJ?.greet ? 30000 : 14000);
     return () => clearTimeout(id);
-  }, [guideLine]);
+  }, [guideLine]); // eslint-disable-line react-hooks/exhaustive-deps
   const lastYou = useMemo(() => [...a.lines].reverse().find((l) => l.who === "you"), [a.lines]);
   const youLast = !!lastYou && (!lastJ || lastYou.id > lastJ.id);
   const ears = a.mode === "listening" || a.mode === "hearing";
@@ -1014,7 +1057,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                   <X size={12} />
                 </button>
               </div>
-              {bubble.text && (
+              {(bubble.text || bubble.rest) && (
                 <p className={bubble.who === "you" ? "italic text-[var(--color-ink-2)]" : ""}>
                   {bubble.who === "you" ? `“${bubble.text}”` : bubble.text}
                   {bubble.rest && <span className="text-[var(--color-ink-3)] opacity-60">{bubble.rest}</span>}
@@ -1027,6 +1070,19 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                 </div>
               )}
               {(a.mode === "thinking" || a.mode === "working") && <Steps tools={a.steps} />}
+              {bubble.who === "jugnu" && lastJ?.greet && !a.handsFree && a.mode === "off" && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <button className="btn btn-primary !px-3 !py-1.5 text-xs" onClick={() => (audio(), a.converse())}>
+                    <Mic size={13} /> {t("Talk to me", "मुझसे बात करें")}
+                  </button>
+                  <button className="btn btn-glass !px-3 !py-1.5 text-xs" onClick={a.brief}>
+                    <Newspaper size={13} /> {t("Brief me", "ब्रीफ़ करो")}
+                  </button>
+                  <button className="btn btn-glass !px-3 !py-1.5 text-xs" onClick={onOpen}>
+                    <MessageCircle size={13} /> {t("Chat", "चैट")}
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1046,12 +1102,12 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             <MessageCircle size={16} />
           </button>
           <button
-            className="dock-orb relative grid h-[60px] w-[60px] place-items-center rounded-full"
+            className="dock-orb relative grid h-[62px] w-[62px] place-items-center rounded-full"
             onClick={onOrb}
             aria-label={a.handsFree ? t("Stop talking to Jugnu", "जुगनू से बात बंद करें") : a.mode === "speaking" ? t("Cut in", "बीच में बोलें") : t("Talk to Jugnu", "जुगनू से बात करें")}
             title={t(...MODE_LABEL[a.handsFree && a.mode === "off" ? "listening" : a.mode])}
           >
-            <Orb mode={a.mode} level={a.levelNow} size={72} fallback={<Swarm mode={a.mode} level={a.levelNow} size={60} />} />
+            <Orb mode={a.mode} level={a.levelNow} size={82} fallback={<Swarm mode={a.mode} level={a.levelNow} size={62} />} />
           </button>
         </div>
       </div>
