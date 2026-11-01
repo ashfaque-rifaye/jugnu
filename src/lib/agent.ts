@@ -169,22 +169,67 @@ export function readScreen(): string {
   });
 }
 
-export function clickByLabel(label: string): string {
+// Jugnu's pointer: a firefly glides to whatever the agent is about to touch and lights it up,
+// so people can follow the work. It is skipped for anyone who asked for reduced motion.
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const calm = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let pointerAt: { x: number; y: number } | null = null;
+
+export async function pointTo(el: Element, hold = 450) {
+  (el as HTMLElement).scrollIntoView({ block: "center", behavior: calm() ? "auto" : "smooth" });
+  if (calm()) return;
+  await pause(450);
+  const r = el.getBoundingClientRect();
+  const to = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  const fly = document.createElement("div");
+  fly.setAttribute("data-agent", "");
+  fly.style.cssText = `position:fixed;left:0;top:0;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:radial-gradient(circle,#fff 0,#ffd56b 45%,rgba(255,180,40,.1) 100%);box-shadow:0 0 22px 8px rgba(255,190,60,.75);pointer-events:none;z-index:2147483600;transform:translate(${(pointerAt ??= { x: innerWidth - 60, y: innerHeight - 60 }).x}px,${pointerAt.y}px);transition:transform .6s cubic-bezier(.22,.9,.3,1)`;
+  const ring = document.createElement("div");
+  ring.setAttribute("data-agent", "");
+  ring.style.cssText = `position:fixed;left:${r.left - 6}px;top:${r.top - 6}px;width:${r.width + 12}px;height:${r.height + 12}px;border-radius:14px;border:2px solid #f5a524;box-shadow:0 0 0 5px rgba(245,165,36,.22),0 0 26px rgba(245,165,36,.45);pointer-events:none;z-index:2147483599;opacity:0;transition:opacity .25s`;
+  document.body.append(ring, fly);
+  fly.getBoundingClientRect();
+  fly.style.transform = `translate(${to.x}px,${to.y}px)`;
+  pointerAt = to;
+  await pause(520);
+  ring.style.opacity = "1";
+  await pause(hold);
+  setTimeout(() => {
+    ring.style.opacity = "0";
+    fly.style.opacity = "0";
+    setTimeout(() => (ring.remove(), fly.remove()), 300);
+  }, 700);
+}
+
+/** Light up the smallest thing on screen that shows these words. */
+export async function pointAtText(text: string): Promise<string> {
+  const k = lc(text);
+  const hit = [...document.querySelectorAll("main h1, main h2, main h3, main a, main button, main li, main tr, main td, main p, main span, main div")]
+    .filter((e) => visible(e) && lc((e as HTMLElement).innerText ?? "").includes(k))
+    .sort((a, b) => (a as HTMLElement).innerText.length - (b as HTMLElement).innerText.length)[0];
+  if (!hit) return `Nothing on screen shows "${text}".`;
+  // A row or card reads better than the word inside it.
+  const whole = hit.closest("tr, li, a, button, [class*=glass]");
+  await pointTo(whole && (whole as HTMLElement).getBoundingClientRect().height < 220 ? whole : hit, 1400);
+  return `Lit up "${lc((hit as HTMLElement).innerText).slice(0, 60)}".`;
+}
+
+export async function clickByLabel(label: string): Promise<string> {
   const k = lc(label);
   const els = [...document.querySelectorAll("button, a[href], [role=button], [role=tab], summary, label")].filter(visible);
   const el = els.find((e) => labelOf(e) === k) ?? els.find((e) => labelOf(e).startsWith(k)) ?? els.find((e) => labelOf(e).includes(k));
   if (!el) return `No button or link labelled "${label}" on screen.`;
-  (el as HTMLElement).scrollIntoView({ block: "center", behavior: "smooth" });
+  await pointTo(el);
   (el as HTMLElement).click();
   return `Clicked "${labelOf(el).slice(0, 60)}".`;
 }
 
-export function fillField(field: string, value: string): string {
+export async function fillField(field: string, value: string): Promise<string> {
   const k = lc(field);
   const els = [...document.querySelectorAll("input, textarea, select")].filter(visible) as (HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement)[];
   const el = els.find((e) => fieldLabel(e) === k) ?? els.find((e) => fieldLabel(e).includes(k)) ?? (els.length === 1 ? els[0] : undefined);
   if (!el) return `No field like "${field}" on screen.`;
-  el.scrollIntoView({ block: "center", behavior: "smooth" });
+  await pointTo(el, 200);
   el.focus();
   if (el instanceof HTMLSelectElement) {
     const opt = [...el.options].find((o) => lc(o.text).includes(lc(value)) || o.value === value);
@@ -195,8 +240,17 @@ export function fillField(field: string, value: string): string {
   }
   // React keeps its own copy of the value: set it through the native setter so onChange fires.
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-  Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(el, value);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
+  const setValue = (v: string) => {
+    Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(el, v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  // Words appear as if typed, a few letters at a time, in about a second at most.
+  const step = calm() ? value.length : Math.max(1, Math.ceil(value.length / 40));
+  for (let i = step; i < value.length; i += step) {
+    setValue(value.slice(0, i));
+    await pause(25);
+  }
+  setValue(value);
   return `Typed into ${fieldLabel(el) || "the field"}.`;
 }
 
@@ -237,6 +291,7 @@ export function parseCommand(text: string, schools: School[], blocks: string[]):
 export const TOOL_LABEL: Record<string, [string, string]> = {
   guide: ["Page guide", "पेज गाइड"],
   go_to: ["Opened the page", "पेज खोला"],
+  point_at: ["Pointed it out", "दिखाया"],
   open_school: ["Opened the school", "स्कूल खोला"],
   show_on_map: ["Showed it on the map", "नक्शे पर दिखाया"],
   switch_block: ["Switched block", "ब्लॉक बदला"],

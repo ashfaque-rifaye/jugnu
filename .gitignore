@@ -29,3 +29,6 @@ video/out/
 # private records of the conversation: local only, never in git
 CONVERSATION-HISTORY.md
 PROJECT-HISTORY.md
+
+# demo takes and voice recordings (large, local)
+demo/voice/

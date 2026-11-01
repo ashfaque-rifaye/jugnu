@@ -123,6 +123,21 @@ export function openingLines(row: InterviewRow): NextTurn[] {
   ];
 }
 
+/** A phone call opens by asking which language the teacher is comfortable in; the interview then runs in that one. */
+export const LANGUAGE_ASK = {
+  en: "Hello, this is Jugnu, calling from the Block Education Office. Which language are you comfortable in, Hindi or English?",
+  hi: "नमस्ते, मैं जुगनू हूँ। आप किस भाषा में बात करना चाहेंगे, हिंदी या अंग्रेज़ी?",
+};
+
+export function readLanguage(text: string): Lang | null {
+  const en = /english|इंग्लिश|अंग्रेज़ी|अंग्रेजी|अंग्रेज|angrezi/i.test(text);
+  const hi = /hindi|हिंदी|हिन्दी/i.test(text);
+  return en === hi ? null : en ? "en" : "hi";
+}
+
+// Turns about the call itself, not about the classroom: the interviewer and the coder never see them.
+const HOUSEKEEPING = new Set(["language", "language_reply", "intro", "consent", "consent_reply"]);
+
 const YES = /हाँ|हां|हा\b|जी|ठीक|बिल्कुल|ज़रूर|जरूर|चलिए|शुरू|yes|yeah|ok|okay|sure|haan|ha\b/i;
 const NO = /नहीं|नही|ना\b|मत|no\b|nahi|nahin|not now/i;
 
@@ -136,6 +151,13 @@ export function readConsent(text: string): "yes" | "no" | "unclear" {
 export async function start(row: InterviewRow): Promise<TurnRow[]> {
   const turns = await turnsOf(row.id);
   if (turns.length) return turns;
+  if (row.channel === "phone") {
+    await db.batch([
+      turn(row.id, { speaker: "jugnu", text: `${LANGUAGE_ASK.en} ${LANGUAGE_ASK.hi}`, text_en: LANGUAGE_ASK.en, kind: "language", source: "script" }),
+      setStatus(row.id, "in_progress"),
+    ]);
+    return turnsOf(row.id);
+  }
   const [intro, consent] = openingLines(row);
   await db.batch([
     turn(row.id, { speaker: "jugnu", text: intro.say, text_en: intro.say_en, kind: "intro", source: "script" }),
@@ -156,7 +178,28 @@ export interface AnswerResult {
 export async function answer(row: InterviewRow, raw: string, meta: { source?: "asr" | "typed"; confidence?: number | null; deadlineMs?: number } = {}): Promise<AnswerResult> {
   if (row.status === "completed" || row.status === "declined") return { reply: closingTurn(row.language), source: "script", status: row.status };
   const text = cleanAndLog(raw.trim(), "interview");
-  const lastJugnu = [...(await start(row))].reverse().find((t) => t.speaker === "jugnu");
+  const sofar = await start(row);
+  const lastJugnu = [...sofar].reverse().find((t) => t.speaker === "jugnu");
+
+  if (lastJugnu?.kind === "language") {
+    const chosen = readLanguage(text);
+    const heard: NewTurn[] = text.length >= 2 ? [{ speaker: "teacher", text, kind: "language_reply", source: meta.source ?? "typed", confidence: meta.confidence ?? null }] : [];
+    // Ask twice at most; after that the call carries on in the language it was placed in.
+    if (!chosen && sofar.filter((t) => t.kind === "language").length < 2) {
+      await addTurns(row.id, ...heard, { speaker: "jugnu", text: `${LANGUAGE_ASK.en} ${LANGUAGE_ASK.hi}`, text_en: LANGUAGE_ASK.en, kind: "language", source: "script" });
+      return { reply: { say: `${LANGUAGE_ASK.en} ${LANGUAGE_ASK.hi}`, say_en: LANGUAGE_ASK.en, kind: "clarify", topic: "language", done: false }, source: "script", status: row.status };
+    }
+    row = { ...row, language: chosen ?? row.language };
+    const [intro, consent] = openingLines(row);
+    await db.batch([
+      { sql: `UPDATE interviews SET language = ? WHERE id = ?`, args: [row.language, row.id] },
+      ...heard.map((h) => turn(row.id, h)),
+      turn(row.id, { speaker: "jugnu", text: intro.say, text_en: intro.say_en, kind: "intro", source: "script" }),
+      turn(row.id, { speaker: "jugnu", text: consent.say, text_en: consent.say_en, kind: "consent", source: "script" }),
+      touch(row.id),
+    ]);
+    return { reply: { say: `${intro.say} ${consent.say}`, say_en: `${intro.say_en} ${consent.say_en}`, kind: "question", topic: null, done: false }, source: "script", status: "in_progress" };
+  }
 
   // Silence or noise: ask again, don't store an empty answer.
   if (!text || text.length < 2) {
@@ -189,7 +232,7 @@ export async function answer(row: InterviewRow, raw: string, meta: { source?: "a
   }
 
   const convo: LiveTurn[] = (await turnsOf(row.id))
-    .filter((t) => t.kind !== "intro" && t.kind !== "consent" && t.kind !== "consent_reply")
+    .filter((t) => !HOUSEKEEPING.has(t.kind ?? ""))
     .map((t) => ({ speaker: t.speaker, text: t.text, text_en: t.text_en, kind: t.kind, topic: t.topic }));
   const next = await nextTurn(convo, { lang: row.language, ref: row.id, group: row.grp, deadlineMs: meta.deadlineMs });
   const said = turn(row.id, { speaker: "jugnu", text: next.value.say, text_en: next.value.say_en, kind: next.value.kind, topic: next.value.topic, source: next.source });
@@ -201,7 +244,7 @@ export async function answer(row: InterviewRow, raw: string, meta: { source?: "a
 /** Code a transcript into practices and store the codings (replacing earlier ones). */
 export async function codeAndStore(id: string) {
   const turns: Turn[] = (await turnsOf(id))
-    .filter((t) => t.kind !== "intro" && t.kind !== "consent" && t.kind !== "consent_reply")
+    .filter((t) => !HOUSEKEEPING.has(t.kind ?? ""))
     .map((t) => ({ speaker: t.speaker, text: t.text, textEn: t.text_en ?? undefined }));
   const res = await codeTranscript(turns, id);
   await db.batch([

@@ -9,12 +9,13 @@
 //
 // Nothing here is simulated: without provider credentials the phone line is simply off.
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, Server } from "node:http";
 import { Router, urlencoded } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 import { requireOfficer } from "./auth";
 import { db } from "./db";
-import { answer, createInterview, getByCallSid, getById, getByToken, start, type InterviewRow } from "./interviews";
+import { answer, createInterview, getByCallSid, getById, getByToken, LANGUAGE_ASK, start, type InterviewRow } from "./interviews";
 import { pcmToWav, synthesize, transcribe, voiceConfigured } from "./voice";
 
 export type Provider = "exotel" | "plivo";
@@ -209,6 +210,8 @@ class CallSession {
   private admit: ReturnType<typeof setTimeout>;
   /** For the one-line summary logged when the stream closes. */
   private stats = { opened: Date.now(), frames: 0, loud: 0, peak: 0, turns: 0 };
+  /** Only with RECORD_CALLS=1, for the team's own demo call: both sides, kept on this computer. */
+  private tape = process.env.RECORD_CALLS === "1" ? { heard: [] as Buffer[], spoken: [] as { at: number; text: string; pcm: Buffer }[], t0: 0 } : null;
 
   constructor(
     private ws: WebSocket,
@@ -220,6 +223,7 @@ class CallSession {
     ws.on("close", (code) => {
       this.closed = true;
       clearTimeout(this.admit);
+      this.saveTape();
       const s = this.stats;
       if (this.row) console.log(`[${provider}] stream closed (${code}) after ${Math.round((Date.now() - s.opened) / 1000)} s: ${s.frames} audio frames in, ${s.loud} above the speech level, loudest ${Math.round(s.peak)}, ${s.turns} turns`);
     });
@@ -248,7 +252,8 @@ class CallSession {
       if (ev.callSid && !this.row.call_sid) await db.run("UPDATE interviews SET call_sid = ? WHERE id = ?", ev.callSid, this.row.id);
       await db.run("UPDATE interviews SET call_status = 'in-call', updated_at = datetime('now') WHERE id = ?", this.row.id);
       const opening = await start(this.row);
-      await this.say(opening.map((t) => t.text).join(" "));
+      if (opening.at(-1)?.kind === "language") await this.askLanguage();
+      else await this.say(opening.map((t) => t.text).join(" "));
       return;
     }
     if (ev.type === "stop") {
@@ -256,6 +261,10 @@ class CallSession {
       return;
     }
     if (ev.type !== "media" || !this.row) return;
+    if (this.tape) {
+      this.tape.t0 ||= Date.now();
+      this.tape.heard.push(ev.pcm);
+    }
     const level = rms(ev.pcm);
     this.stats.frames++;
     this.stats.peak = Math.max(this.stats.peak, level);
@@ -312,7 +321,8 @@ class CallSession {
       const result = await answer(this.row, text, { source: "asr", deadlineMs: 15000 });
       this.stats.turns++;
       this.row = (await getById(this.row.id)) ?? this.row;
-      await this.say(result.reply.say);
+      if (result.reply.topic === "language") await this.askLanguage();
+      else await this.say(result.reply.say);
       if (result.status === "completed" || result.status === "declined") {
         setTimeout(() => this.ws.close(), 500);
       }
@@ -324,11 +334,12 @@ class CallSession {
   }
 
   /** Speak a line down the phone: 8 kHz PCM in ~200 ms frames, then wait for it to play out. */
-  private async say(text: string) {
+  private async say(text: string, pre?: Promise<Buffer>) {
     if (!this.row || this.closed || !text.trim()) return;
     this.speaking = true;
     try {
-      const pcm = await synthesize(text, this.row.language, undefined, "pcm8k");
+      const pcm = await (pre ?? synthesize(text, this.row.language, undefined, "pcm8k"));
+      if (this.tape) this.tape.spoken.push({ at: Date.now(), text, pcm });
       this.ws.send(this.framing.clear(this.streamId));
       const frame = 3200;
       for (let i = 0; i < pcm.length && !this.closed; i += frame) this.ws.send(this.framing.media(this.streamId, pcm.subarray(i, i + frame)));
@@ -339,6 +350,34 @@ class CallSession {
       this.speaking = false;
       this.reset();
     }
+  }
+
+  /** The language question, each half in its own voice, played as one so an early answer has no gap to fall into. */
+  private async askLanguage() {
+    const both = Promise.all([synthesize(LANGUAGE_ASK.en, "en", undefined, "pcm8k"), synthesize(LANGUAGE_ASK.hi, "hi", undefined, "pcm8k")]);
+    await this.say(`${LANGUAGE_ASK.en} ${LANGUAGE_ASK.hi}`, both.then(([en, hi]) => Buffer.concat([en, Buffer.alloc(BYTES_PER_MS * 400), hi])));
+  }
+
+  /** Mix both sides into one WAV, with the times of what Jugnu said, for the demo film's edit. */
+  private saveTape() {
+    const tape = this.tape;
+    if (!tape || !this.row || !tape.t0) return;
+    this.tape = null;
+    const heard = Buffer.concat(tape.heard);
+    const end = Math.max(heard.length, ...tape.spoken.map((s) => Math.round(((s.at - tape.t0) * BYTES_PER_MS) / 2) * 2 + s.pcm.length));
+    const mix = Buffer.alloc(end);
+    heard.copy(mix);
+    for (const s of tape.spoken) {
+      const from = Math.max(0, Math.round(((s.at - tape.t0) * BYTES_PER_MS) / 2) * 2);
+      for (let i = 0; i + 1 < s.pcm.length && from + i + 1 < end; i += 2) {
+        mix.writeInt16LE(Math.max(-32768, Math.min(32767, mix.readInt16LE(from + i) + s.pcm.readInt16LE(i))), from + i);
+      }
+    }
+    const dir = "data/runtime/calls";
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(`${dir}/${this.row.id}.wav`, pcmToWav(mix, SAMPLE_RATE));
+    writeFileSync(`${dir}/${this.row.id}.json`, JSON.stringify({ started: new Date(tape.t0).toISOString(), spoken: tape.spoken.map((s) => ({ atMs: s.at - tape.t0, ms: s.pcm.length / BYTES_PER_MS, text: s.text })) }, null, 1));
+    console.log(`[${this.provider}] call saved to ${dir}/${this.row.id}.wav`);
   }
 }
 

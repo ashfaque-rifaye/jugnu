@@ -9,7 +9,7 @@ import { Check, Compass, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, S
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DAMOH } from "../engine/district";
-import { briefingFacts, buildBriefing, clickByLabel, fillField, findSchool, HUSH_EVENT, isHushed, parseCommand, readScreen, TOOL_LABEL } from "../lib/agent";
+import { briefingFacts, buildBriefing, clickByLabel, fillField, findSchool, HUSH_EVENT, isHushed, parseCommand, pointAtText, pointTo, readScreen, TOOL_LABEL } from "../lib/agent";
 import { postJSON, useStatus } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
 import { useRole } from "../lib/role";
@@ -218,6 +218,7 @@ const PAGE_PATH: Record<string, string> = {
   results: "/results",
   practices: "/practices",
   interviews: "/interviews",
+  calls: "/interviews?tab=phone",
   district: "/district",
   ai: "/ai",
   method: "/method",
@@ -261,6 +262,8 @@ export function useAgent() {
   const [handsFree, setHandsFree] = useState(false);
   const [heard, setHeard] = useState("");
   const [engine, setEngine] = useState<string | null>(null);
+  // What the agent has done so far this turn, shown as it happens.
+  const [steps, setSteps] = useState<Line["tools"]>([]);
   const fake = useRef(0);
   const mic = useRef<MicHandle | null>(null);
   const history = useRef<ApiMessage[]>([]);
@@ -357,6 +360,8 @@ export function useAgent() {
         case "go_to": {
           const path = PAGE_PATH[String(input.page)];
           if (!path) return fail(`Unknown page ${input.page}`);
+          const link = [...document.querySelectorAll(`a[href="${path.split("?")[0]}"]`)].find((a) => a.getBoundingClientRect().width > 0 && !a.closest("[data-agent]"));
+          if (link) await pointTo(link, 150);
           navigate(path);
           await wait(450);
           return { ok: true, out: `Opened ${input.page}.` };
@@ -383,13 +388,17 @@ export function useAgent() {
           return { ok: true, out: `Searching schools for "${input.query}".` };
         case "read_screen":
           return { ok: true, out: readScreen() };
+        case "point_at": {
+          const out = await pointAtText(String(input.text ?? ""));
+          return { ok: out.startsWith("Lit"), out };
+        }
         case "click": {
-          const out = clickByLabel(String(input.label ?? ""));
+          const out = await clickByLabel(String(input.label ?? ""));
           await wait(400);
           return { ok: out.startsWith("Clicked"), out };
         }
         case "fill": {
-          const out = fillField(String(input.field ?? ""), String(input.value ?? ""));
+          const out = await fillField(String(input.field ?? ""), String(input.value ?? ""));
           return { ok: !out.startsWith("No ") && !out.includes("not an option"), out };
         }
         case "set_preference":
@@ -470,6 +479,7 @@ export function useAgent() {
       add({ who: "you", text: q, shown: q.length, tools: [] });
       setMode("thinking");
       const tools: Line["tools"] = [];
+      setSteps([]);
       try {
         const intent = parseCommand(q, live.current.state.block.schools, DAMOH.map((b) => b.block));
         if (intent && "brief" in intent) {
@@ -489,12 +499,13 @@ export function useAgent() {
           };
           const base = st.block.source === "imported" ? { block: st.block } : { seed: sd, track: !!st.track };
           let messages: ApiMessage[] = [...history.current.slice(-16), { role: "user", content: q }];
-          for (let round = 0; round < 6 && !cancelled.current; round++) {
+          for (let round = 0; round < 10 && !cancelled.current; round++) {
             // The context stays the same for the whole turn (Claude's reasoning is tied to it); tool results report page changes.
             const turn = await postJSON<Turn>("/api/agent", { ...base, messages, context: ctx });
             if (turn.source === "offline") break;
             messages = turn.messages;
             for (const n of turn.looked ?? []) tools.push({ name: n, ok: true });
+            setSteps([...tools]);
             if (!turn.calls.length) {
               said = turn.say;
               break;
@@ -503,7 +514,9 @@ export function useAgent() {
             const results: unknown[] = [...turn.results];
             for (const c of turn.calls) {
               const r = await runTool(c.name, c.input);
-              tools.push({ name: c.name, ok: r.ok });
+              const about = c.input.name ?? c.input.page ?? c.input.label ?? c.input.text ?? c.input.field ?? c.input.query;
+              tools.push({ name: c.name, ok: r.ok, note: typeof about === "string" ? about.slice(0, 40) : undefined });
+              setSteps([...tools]);
               results.push({ type: "tool_result", tool_use_id: c.id, content: r.out, ...(r.ok ? {} : { is_error: true }) });
             }
             messages = [...messages, { role: "user", content: results }];
@@ -722,6 +735,7 @@ export function useAgent() {
     engine,
     handsFree,
     heard,
+    steps,
     levelNow,
     send,
     converse,
@@ -771,6 +785,26 @@ function Chips({ tools, dark }: { tools: Line["tools"]; dark?: boolean }) {
           </span>
         ))}
     </div>
+  );
+}
+
+/** The agent's work so far this turn: each step ticks in as it finishes. */
+function Steps({ tools }: { tools: Line["tools"] }) {
+  const t = useT();
+  const shown = tools.filter((x) => x.name !== "read_screen").slice(-4);
+  if (!shown.length) return null;
+  return (
+    <ul className="mt-2 space-y-1 border-t border-[var(--line)] pt-2 text-xs not-italic text-[var(--color-ink-2)]">
+      {shown.map((x, i) => (
+        <motion.li key={`${x.name}${i}${tools.length > 4 ? tools.length : ""}`} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-1.5">
+          {x.ok ? <Check size={12} className="shrink-0 text-[var(--st-bright)]" /> : <X size={12} className="shrink-0 text-rose-400" />}
+          <span className="truncate">
+            {TOOL_LABEL[x.name] ? t(...TOOL_LABEL[x.name]) : x.name}
+            {x.note ? ` · ${x.note}` : ""}
+          </span>
+        </motion.li>
+      ))}
+    </ul>
   );
 }
 
@@ -911,8 +945,11 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                 ),
               )}
               {(a.mode === "thinking" || a.mode === "working" || a.mode === "hearing") && (
-                <div className="flex items-center gap-2 text-xs text-[var(--color-ink-3)]">
-                  <Loader2 size={13} className="animate-spin" /> {t(...MODE_LABEL[a.mode])}…
+                <div className="text-xs text-[var(--color-ink-3)]">
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={13} className="animate-spin" /> {t(...MODE_LABEL[a.mode])}…
+                  </div>
+                  {a.mode !== "hearing" && <Steps tools={a.steps} />}
                 </div>
               )}
             </div>
@@ -989,6 +1026,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
                   {bubble.note}
                 </div>
               )}
+              {(a.mode === "thinking" || a.mode === "working") && <Steps tools={a.steps} />}
             </motion.div>
           )}
         </AnimatePresence>

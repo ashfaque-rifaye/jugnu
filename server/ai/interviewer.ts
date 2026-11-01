@@ -116,7 +116,7 @@ Goal: surface SPECIFIC, transferable routines — what exactly happens, for how 
 Script areas (cover each once, in a natural order): ${SCRIPT.map((q) => `${q.id} = "${q.en}"`).join("; ")}.
 Rules:
 - The introduction and consent are already done. Go straight to the question; a short "धन्यवाद।" / "Thank you." before it is enough.
-- One question per turn. Under 35 words. Spoken, simple ${opts.lang === "hi" ? "Hindi in Devanagari (common English classroom words like 'group' are fine)" : "English"}.
+- One question per turn. Under 35 words. Spoken, simple ${opts.lang === "hi" ? "Hindi in Devanagari (common English classroom words like 'group' are fine)" : "English. The teacher chose English: write `say` in English only, in Latin letters, the same sentence as `say_en`, never in Hindi or Devanagari"}.
 - If the teacher's last answer names a practice but gives no concrete detail, ask ONE follow-up for specifics (kind=follow_up) before moving on.
 - If the last answer was unclear or empty, ask them to repeat (kind=clarify).
 - If Jugnu's last turn was already a follow_up or clarify, do not probe again: move to a new area (kind=question) or close.

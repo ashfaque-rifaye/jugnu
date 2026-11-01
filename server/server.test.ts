@@ -62,6 +62,40 @@ describe("interviewer", () => {
 });
 
 describe("interview service (offline)", () => {
+  it("opens a phone call by asking the language, then runs the interview in that one", async () => {
+    const row = await svc.createInterview({ channel: "phone", teacherName: "Asha", language: "hi" });
+    const opening = await svc.start(row);
+    expect(opening.map((t) => t.kind)).toEqual(["language"]);
+    expect(opening[0].text).toContain("Hindi or English");
+
+    const unclear = await svc.answer((await svc.getById(row.id))!, "the line is bad");
+    expect(unclear.reply.topic).toBe("language");
+
+    const chosen = await svc.answer((await svc.getById(row.id))!, "English please");
+    expect(chosen.reply.say).toContain("Shall we begin");
+    const after = (await svc.getById(row.id))!;
+    expect(after.language).toBe("en");
+    expect((await svc.turnsOf(row.id)).slice(-2).map((t) => t.kind)).toEqual(["intro", "consent"]);
+
+    const go = await svc.answer(after, "yes");
+    expect((await svc.getById(row.id))!.consent).toBe(1);
+    expect(go.reply.kind).toBe("question");
+    expect(go.reply.say).not.toMatch(/[\u0900-\u097F]/);
+  });
+
+  it("reads the language a teacher names, in either script, and carries on after two tries", async () => {
+    expect(svc.readLanguage("इंग्लिश में")).toBe("en");
+    expect(svc.readLanguage("अंग्रेज़ी")).toBe("en");
+    expect(svc.readLanguage("हिंदी")).toBe("hi");
+    expect(svc.readLanguage("Hindi")).toBe("hi");
+    expect(svc.readLanguage("Hindi or English")).toBeNull();
+    const row = await svc.createInterview({ channel: "phone", language: "hi" });
+    await svc.answer(row, "");
+    const second = await svc.answer((await svc.getById(row.id))!, "");
+    expect(second.reply.say).toContain("क्या हम शुरू करें");
+    expect((await svc.getById(row.id))!.language).toBe("hi");
+  });
+
   it("asks for consent, runs the script, finishes, and codes grounded practices", async () => {
     const row = await svc.createInterview({ teacherName: "Sunita", schoolName: "GPS Test", group: "bright" });
     const opening = await svc.start(row);

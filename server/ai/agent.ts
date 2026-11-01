@@ -22,13 +22,16 @@ import { officerTools } from "./officer";
 const wanted = process.env.AGENT_MODEL || "claude-sonnet-5-5";
 export const AGENT_MODEL = wanted in PRICES ? wanted : "claude-haiku-5-5";
 
-export const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "practices", "interviews", "district", "ai", "method", "about", "home"] as const;
+export const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "practices", "interviews", "calls", "district", "ai", "method", "about", "home"] as const;
+
+/** The block keeps no teachers' numbers; the team's demo sets one so a call can be placed by the school's name alone. */
+const numberOnFile = () => (process.env.DEMO_TEACHER_PHONE ?? "").trim();
 
 /** Tools the browser runs. Kept small: the agent can see the screen (read_screen) and act on it. */
 export const UI_TOOLS: BetaToolUnion[] = [
   {
     name: "go_to",
-    description: "Open a page of the console. today = the officer's day; schools = list; map = schools on the real map; plan = who learns from whom; approvals = items waiting for sign-off; results = did it work; district = all 7 blocks.",
+    description: "Open a page of the console. today = the officer's day; schools = list; map = schools on the real map; plan = who learns from whom; approvals = items waiting for sign-off; results = did it work; practices = methods that work; interviews = what teachers said; calls = the phone line with live call transcripts; district = all 7 blocks.",
     input_schema: { type: "object", properties: { page: { type: "string", enum: [...PAGES] } }, required: ["page"] },
   },
   {
@@ -50,6 +53,11 @@ export const UI_TOOLS: BetaToolUnion[] = [
     name: "search",
     description: "Search the school list for a village, school, teacher or cluster and show the results.",
     input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+  },
+  {
+    name: "point_at",
+    description: "Scroll to something on screen and light it up, by words it shows (a school, a method, a heading, a row). Use it while you talk about it, so the officer sees what you mean.",
+    input_schema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
   },
   {
     name: "read_screen",
@@ -183,18 +191,19 @@ export function writeTools(st: PipelineState, ctx: AgentContext) {
     }),
     betaZodTool({
       name: "dial_teacher",
-      description: "Place a real phone call to a teacher right now through Jugnu's phone line (the AI interviewer talks to them in Hindi or English). Only with a number the officer gave in this conversation; never invent one.",
-      inputSchema: z.object({ school: z.string(), to: z.string().describe("Phone number with country code"), language: z.enum(["hi", "en"]).default("hi") }),
-      run: async ({ school, to, language }) => {
+      description: `Place a real phone call to a teacher right now through Jugnu's phone line. The call opens by asking whether they prefer Hindi or English, then the AI interviewer talks to them. ${numberOnFile() ? "This block has the teacher's number on file: leave `to` out unless the officer gives another." : "Only with a number the officer gave in this conversation; never invent one."}`,
+      inputSchema: z.object({ school: z.string(), to: z.string().optional().describe("Phone number with country code"), language: z.enum(["hi", "en"]).default("hi") }),
+      run: async ({ school, to: given, language }) => {
+        const to = given ?? numberOnFile();
         const miss = need();
         if (miss) return miss;
         const s = byName(school);
         if (!s) return `No school called "${school}" in this block.`;
         if (!phoneOk(to)) return "That phone number does not look right — ask for it again with the country code.";
         try {
-          const call = await placeCall({ to, teacherName: s.teacher, schoolName: s.name, schoolId: s.id, group: "live", language });
+          const call = await placeCall({ to, teacherName: s.teacher, schoolName: s.name, schoolId: s.id, group: st.bright.includes(s.id) ? "bright" : "live", language });
           await writeEvent(block!, "note", s.id, { text: `Jugnu is calling ${s.teacher} (${s.name}) now via ${call.provider}; interview ${call.interview?.id ?? "?"}.` }, ACTOR);
-          return `Calling ${s.teacher} at ${s.name} now (${call.provider}). The transcript will appear under Interviews when the call ends.`;
+          return `Calling ${s.teacher} at ${s.name} now (${call.provider}). Open the calls page: the conversation appears there as it happens.`;
         } catch (e) {
           const err = e as CallError;
           return `Could not place the call: ${err.message}`;
@@ -292,8 +301,9 @@ How to work:
 - Look numbers and names up with the block tools; never guess. Name schools exactly as the tools return them.
 - "What does X do that similar schools don't?" → contrast_pairs. "What if we send N CRPs / spread this method to …?" → what_if; give the expected value with its range and name the biggest assumption (planning figure or group 1 measurement).
 - Do things on screen with the UI tools when asked ("open", "show", "go to", "fill", "mark", "record"). Use read_screen before click or fill.
+- Work where the officer can see it. Before you change or talk about something, open the page it lives on, and use point_at to light it up. After you call a teacher, open the calls page.
 - Write to the shared log (record) only when the officer clearly asked for it; repeat back what you recorded.
-- You can also act: move_action moves a step on the plan board, schedule_followup puts a reminder, visit check or follow-up call on Jugnu's clock, escalate_to_beo opens a BEO review, dial_teacher places a real phone call, send_whatsapp sends a voice note, check-in or message on WhatsApp, list_followups shows what is pending. Act when asked plainly ("schedule", "escalate", "call", "mark done"); confirm first only for a phone call with no number given. Say what you did in one sentence.
+- You can also act: move_action moves a step on the plan board, schedule_followup puts a reminder, visit check or follow-up call on Jugnu's clock, escalate_to_beo opens a BEO review, dial_teacher places a real phone call, send_whatsapp sends a voice note, check-in or message on WhatsApp, list_followups shows what is pending. Act when asked plainly ("schedule", "escalate", "call", "mark done"); confirm first only for a phone call when dial_teacher says it needs a number. Say what you did in one sentence.
 - Replies are read aloud: ${ctx.lang === "hi" ? "answer in simple Hindi (Devanagari)" : "answer in plain English"} — but if the officer speaks another language (Tamil, Marathi, …) answer in theirs, in its own script. Numbers as digits.
 - Never shame or rank teachers; a suspicious score means "revisit respectfully".
 - Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.

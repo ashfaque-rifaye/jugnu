@@ -38,7 +38,7 @@ export default function DistrictPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t(`${DISTRICT.name}, ${DISTRICT.state} · real block profiles, ${DISTRICT.source}`, `${DISTRICT.name}, मध्य प्रदेश · असली ब्लॉक आँकड़े, UDISE+ 2025-26`)}
+        eyebrow={t(`${DISTRICT.name}, ${DISTRICT.state} · ${DISTRICT.source}`, `${DISTRICT.name}, मध्य प्रदेश · असली ब्लॉक आँकड़े, UDISE+ 2025-26`)}
         title={t("District", "ज़िला")}
         sub={t(
           "Each of Damoh's 7 blocks holds its real government schools from UDISE+ — names, locations, clusters, enrolment and teachers — and its real tribal share and women teachers. Learning results are simulated, because UDISE+ does not publish them. Open a block to work in it.",
@@ -49,7 +49,7 @@ export default function DistrictPage() {
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label={t("Schools (all, UDISE+)", "स्कूल (सभी, UDISE+)")} value={fmt(sum((b) => b.profile.schools))} hint={t(`${num(sum((b) => b.schools))} real government schools`, `${num(sum((b) => b.schools))} असली सरकारी स्कूल`)} />
         <Stat label={t("Children enrolled", "नामांकित बच्चे")} value={fmt(sum((b) => b.profile.enrolment))} hint={t(`${num(sum((b) => b.profile.teachers))} teachers`, `${num(sum((b) => b.profile.teachers))} शिक्षक`)} />
-        <Stat label={t("Confirmed: doing wells", "जाँचे गए अच्छे स्कूल")} value={d ? sum((b) => b.verified) : "…"} tone="var(--st-bright)" hint={t(`${d ? sum((b) => b.inflation) : "…"} flagged as possibly inflated`, `${d ? sum((b) => b.inflation) : "…"} पर बढ़ा-चढ़ाकर लिखने का शक`)} />
+        <Stat label={t("Confirmed doing well", "जाँचे गए अच्छे स्कूल")} value={d ? sum((b) => b.verified) : "…"} tone="var(--st-bright)" hint={t(`${d ? sum((b) => b.inflation) : "…"} worth a second visit`, `${d ? sum((b) => b.inflation) : "…"} पर बढ़ा-चढ़ाकर लिखने का शक`)} />
         <Stat label={t("Schools that need support", "जिन्हें मदद चाहिए")} value={d ? sum((b) => b.struggling) : "…"} hint={t("below what their context predicts", "हालात से अपेक्षित से नीचे")} />
       </div>
 
@@ -193,12 +193,8 @@ function DistrictMap({ d, seed, onOpen }: { d: DistrictSummary | null; seed: num
               <circle r={3.5} fill="var(--color-ink)" />
               <text y={-9} textAnchor="middle" className="fill-[var(--color-ink)] text-[13px] font-semibold" style={{ paintOrder: "stroke", stroke: "var(--bg)", strokeWidth: 3 }}>
                 {name}
+                {b ? ` · ${b.verified} ★` : ""}
               </text>
-              {b && (
-                <text y={18} textAnchor="middle" className="fill-[var(--color-ink-2)] text-xs" style={{ paintOrder: "stroke", stroke: "var(--bg)", strokeWidth: 3 }}>
-                  {b.schools} {t("schools", "स्कूल")} · {b.verified} ★
-                </text>
-              )}
             </g>
           );
         })}

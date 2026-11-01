@@ -1,5 +1,6 @@
 import { ExternalLink, Globe2, Loader2, Phone, Send, ShieldCheck, Trash2 } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/kit";
 import { InviteCard, type PilotRow } from "../components/Invite";
 import { Glass, SectionTitle, cx } from "../components/ui";
@@ -12,7 +13,13 @@ type Tab = "pilot" | "phone";
 
 export default function AskPage() {
   const t = useT();
-  const [tab, setTab] = useState<Tab>("pilot");
+  const [params] = useSearchParams();
+  const asked = params.get("tab") === "phone" ? "phone" : null;
+  const [tab, setTab] = useState<Tab>(asked ?? "pilot");
+  // The agent opens the phone line by address, sometimes while this page is already up.
+  useEffect(() => {
+    if (asked) setTab(asked);
+  }, [asked]);
   return (
     <div className="space-y-4">
       <PageHeader
@@ -284,6 +291,11 @@ function PhoneLine() {
   const [open, setOpen] = useState<string | null>(null);
 
   const calls = useMemo(() => (rows ?? []).filter((r) => r.channel === "phone"), [rows]);
+  // A call on the line opens by itself, so its words can be followed as they are spoken.
+  const liveCall = calls.find((r) => r.call_status === "dialing" || r.call_status === "in-call")?.id;
+  useEffect(() => {
+    if (liveCall) setOpen(liveCall);
+  }, [liveCall]);
   const ready = !!tel?.active && !!tel?.publicUrl && !!tel?.voice;
   const from = tel?.active ? tel.providers[tel.active].from : null;
 
@@ -310,7 +322,7 @@ function PhoneLine() {
           <SectionTitle
             eyebrow={ready ? t("Line open", "लाइन खुली") : t("Line closed", "लाइन बंद")}
             title={t("Dial a teacher", "शिक्षक को फ़ोन करें")}
-            sub={t("A real call on any basic phone. Jugnu speaks Hindi, listens, and has the same 12-minute conversation.", "किसी भी साधारण फ़ोन पर असली कॉल। जुगनू हिंदी में बोलता है, सुनता है, और वही 12 मिनट की बातचीत करता है।")}
+            sub={t("A real call on any basic phone. Jugnu asks which language the teacher prefers, Hindi or English, then has the same 12-minute conversation.", "किसी भी साधारण फ़ोन पर असली कॉल। जुगनू हिंदी में बोलता है, सुनता है, और वही 12 मिनट की बातचीत करता है।")}
           />
           <form className="space-y-3" onSubmit={dial}>
             <label className="block">
@@ -345,7 +357,7 @@ function PhoneLine() {
         </Glass>
         <Glass className="p-4 text-xs text-[var(--color-ink-2)]">
           <ul className="space-y-1.5">
-            <li>{t("It asks first: “Shall we begin? Say yes or no.” A no keeps nothing.", "पहले पूछता है: “क्या हम शुरू करें? हाँ या ना बोलिए।” ना कहने पर कुछ नहीं रखा जाता।")}</li>
+            <li>{t("It asks the language first, then: “Shall we begin? Say yes or no.” A no keeps nothing.", "पहले पूछता है: “क्या हम शुरू करें? हाँ या ना बोलिए।” ना कहने पर कुछ नहीं रखा जाता।")}</li>
             <li>{t("The phone number is never kept, only a one-way code.", "फ़ोन नंबर कभी नहीं रखा जाता, केवल एक कोड।")}</li>
             {from && <li>{t(`Calls come from ${from}.`, `कॉल ${from} से आती है।`)}</li>}
           </ul>
