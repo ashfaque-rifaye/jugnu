@@ -63,8 +63,11 @@ await flow("App is up", "Everyone", async (step) => {
   const h = await call("GET", "/api/ai/health");
   answeredBy = h.data.claude?.ok ? "claude" : h.data.gemini?.ok ? "gemini" : "offline";
   aiNotes.push(`AI tasks are answered by: ${answeredBy}${answeredBy === "claude" ? "" : ` (Claude: ${h.data.claude?.detail?.slice(0, 80)})`}`);
-  step("Google voice speaks", h.data.speaking?.ok, h.data.speaking?.detail);
-  step("Google voice listens", h.data.listening?.ok, h.data.listening?.detail);
+  // Without Google credentials (as in CI) the app uses the browser's voice and typing.
+  if (s.data.voice) {
+    step("Google voice speaks", h.data.speaking?.ok, h.data.speaking?.detail);
+    step("Google voice listens", h.data.listening?.ok, h.data.listening?.detail);
+  }
   step("Storage is permanent", s.data.storage !== "temporary", s.data.storage);
   for (const p of ["/", "/today", "/schools", "/interviews", "/practices", "/plan", "/results", "/review", "/testing", "/ai", "/method", "/about", "/talk"]) {
     const r = await fetch(base + p);

@@ -228,8 +228,9 @@ app.post("/api/agent/page", requireOfficer, rateLimit("agent", 200, 600000), asy
 
 // ---------------------------------------------------------------- voice: speech in, speech out
 app.post("/api/voice/stt", requireOfficer, rateLimit("voice", 240, 600000), express.raw({ type: () => true, limit: "8mb" }), async (req, res) => {
-  const audio = req.body as Buffer;
-  if (!Buffer.isBuffer(audio) || audio.length < 800) return res.json({ text: "", language: null, engine: null });
+  if (!Buffer.isBuffer(req.body)) return res.json({ text: "", language: null, engine: null });
+  const audio: Buffer = req.body;
+  if (audio.length < 800) return res.json({ text: "", language: null, engine: null });
   const seed = Number(req.query.seed);
   const st = Number.isFinite(seed) ? pipelineFor({ seed }) : null;
   const hints = st ? [...new Set(st.block.schools.flatMap((s) => [s.name, s.nameHi ?? "", s.clusterName, s.teacher].filter(Boolean)))] : [];
@@ -262,7 +263,7 @@ app.get("/api/ai/health", requireOfficer, async (_req, res) => res.json(await ai
 // Totals only (no prompts or answers), so `npm run credits` can read the deployed app's spend.
 app.get("/api/ai/credits", async (_req, res) => res.json(await creditReport()));
 
-app.get("/api/ai/eval", (_req, res) => {
+app.get("/api/ai/eval", rateLimit("read", 240, 60000), (_req, res) => {
   const f = path.resolve("data/eval/results.json");
   res.json(fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf-8")) : null);
 });

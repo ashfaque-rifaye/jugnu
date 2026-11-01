@@ -83,6 +83,6 @@ testing.get("/summary", requireOfficer, async (_req, res) => {
 const CHANGES = path.resolve("data/changes.json");
 
 /** "You said → we changed": the refinement log shown in the app and the deck. */
-testing.get("/changes", (_req, res) => {
+testing.get("/changes", rateLimit("read", 240, 60000), (_req, res) => {
   res.json(fs.existsSync(CHANGES) ? JSON.parse(fs.readFileSync(CHANGES, "utf-8")) : []);
 });
