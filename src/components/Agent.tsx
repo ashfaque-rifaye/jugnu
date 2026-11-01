@@ -272,6 +272,28 @@ function useAgent() {
   const mic = useRef<MicHandle | null>(null);
   const history = useRef<ApiMessage[]>([]);
   const busy = useRef(false);
+  // Jugnu speaking up on its own (greeting, page guide, an offer of help) gives way the moment someone asks something.
+  const speakingUp = useRef<symbol | null>(null);
+  const nextAsk = useRef<string | null>(null);
+  const startSpeakingUp = () => {
+    const me = Symbol("speaking up");
+    speakingUp.current = me;
+    busy.current = true;
+    cancelled.current = false;
+    return me;
+  };
+  const endSpeakingUp = (me: symbol) => {
+    if (speakingUp.current !== me) return;
+    speakingUp.current = null;
+    busy.current = false;
+    setMode((m) => (m === "speaking" ? "off" : m));
+  };
+  const takeOver = () => {
+    speakingUp.current = null;
+    hush.current = true;
+    stopPlayback();
+    stopSpeaking();
+  };
   const stopRef = useRef<(() => void) | null>(null);
   const cancelled = useRef(false);
   const hush = useRef(false);
@@ -472,14 +494,18 @@ function useAgent() {
   }, [speakOut, status.claude, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The officer said or typed something: answer it, doing whatever it takes on screen. */
+  const sendNext = useRef<(text: string) => Promise<void>>(async () => {});
   const send = useCallback(
     async (text: string) => {
       const q = text.trim();
-      if (!q || busy.current) return;
+      if (!q) return;
+      if (busy.current && !speakingUp.current) {
+        nextAsk.current = q;
+        return;
+      }
+      takeOver();
       busy.current = true;
       cancelled.current = false;
-      stopPlayback();
-      stopSpeaking();
       add({ who: "you", text: q, shown: q.length, tools: [] });
       setMode("thinking");
       const tools: Line["tools"] = [];
@@ -557,10 +583,14 @@ function useAgent() {
       } finally {
         busy.current = false;
         setMode("off");
+        const next = nextAsk.current;
+        nextAsk.current = null;
+        if (next) void sendNext.current(next);
       }
     },
     [brief, runTool, speakOut, status.claude, t],
   );
+  sendNext.current = send;
 
   /** Hear one turn with Google speech. */
   const listenOnce = useCallback(async (): Promise<string | null> => {
@@ -690,15 +720,13 @@ function useAgent() {
         const lines = pending.current;
         pending.current = [];
         if ((e.target as Element | null)?.closest?.(".dock-orb") || busy.current || live.current.mode !== "off" || isHushed()) return;
-        busy.current = true;
-        cancelled.current = false;
+        const me = startSpeakingUp();
         audio();
         setLines((ls) => ls.filter((l) => !lines.some((x) => x.id === l.id)));
         try {
-          for (const x of lines) if (!cancelled.current) await speakOut(x.text, x.extra);
+          for (const x of lines) if (!cancelled.current && speakingUp.current === me) await speakOut(x.text, x.extra);
         } finally {
-          busy.current = false;
-          setMode((m) => (m === "speaking" ? "off" : m));
+          endSpeakingUp(me);
         }
       };
       window.addEventListener("pointerdown", onTap, true);
@@ -710,33 +738,29 @@ function useAgent() {
   /** A spoken word of help for the page just opened: what it is for, and the one thing to do here now. */
   const guide = useCallback(async (page: string) => {
     if (busy.current || live.current.mode !== "off" || isHushed()) return;
-    busy.current = true;
-    cancelled.current = false;
+    const me = startSpeakingUp();
     try {
       const { state: st, events: ev, lang: l } = live.current;
       const res = await postJSON<{ text: string }>("/api/agent/page", { page, screen: readScreen().slice(0, 3800), facts: briefingFacts(st, ev).slice(0, 14), lang: l }).catch(() => null);
-      if (!res?.text || cancelled.current || live.current.mode !== "off" || isHushed()) return;
+      if (!res?.text || speakingUp.current !== me || cancelled.current || live.current.mode !== "off" || isHushed()) return;
       if (pageOf(window.location.pathname, window.location.search) !== page) return; // they have moved on
       await sayAloud(res.text, { tools: [{ name: "guide", ok: true }] });
       history.current.push({ role: "user", content: `(I opened the ${page} page.)` }, { role: "assistant", content: `${res.text}
 [page guide]` });
     } finally {
-      busy.current = false;
-      setMode((m) => (m === "speaking" ? "off" : m));
+      endSpeakingUp(me);
     }
   }, [speakOut, status.claude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Say hello once a session, out loud where the browser allows it (it does after the first tap). */
   const greet = useCallback(async () => {
     if (busy.current || live.current.mode !== "off" || isHushed()) return;
-    busy.current = true;
-    cancelled.current = false;
+    const me = startSpeakingUp();
     try {
       const text = t("Namaste! I'm Jugnu. I can brief you, find a school, or make a plan. What can I do for you today?", "नमस्ते! मैं जुगनू हूँ। मैं ब्रीफ़ कर सकता हूँ, स्कूल खोज सकता हूँ या योजना बना सकता हूँ। आज आपके लिए क्या करूँ?");
       await sayAloud(text, { greet: true, tools: [{ name: "guide", ok: true }] });
     } finally {
-      busy.current = false;
-      setMode((m) => (m === "speaking" ? "off" : m));
+      endSpeakingUp(me);
     }
   }, [sayAloud, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -781,11 +805,9 @@ function useAgent() {
       id = window.setTimeout(() => {
         if (document.hidden || live.current.mode !== "off" || busy.current || isHushed()) return restart();
         nudged.add(page);
-        busy.current = true;
-        cancelled.current = false;
+        const me = startSpeakingUp();
         void sayAloud(t("Need a hand here? Tap me and ask, or say Brief me.", "यहाँ कोई मदद चाहिए? मुझे दबाकर पूछिए, या बोलिए, ब्रीफ़ कीजिए।"), { tools: [{ name: "guide", ok: true }] }).finally(() => {
-          busy.current = false;
-          setMode((m) => (m === "speaking" ? "off" : m));
+          endSpeakingUp(me);
         });
       }, IDLE_MS);
     };
@@ -799,7 +821,8 @@ function useAgent() {
   }, [location.pathname, location.search, guideOn, sayAloud, t]);
 
   const startBrief = useCallback(async () => {
-    if (busy.current) return;
+    if (busy.current && !speakingUp.current) return;
+    takeOver();
     busy.current = true;
     cancelled.current = false;
     audio();
