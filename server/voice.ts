@@ -5,7 +5,8 @@
 // All language-model work (understanding, answering, agent tools) is Claude — see ../claude.ts.
 // TODO(bhashini): add Sarvam / Bhashini as an alternative engine behind transcribe() and synthesize()
 // (same Heard / Buffer contracts), chosen by a SPEECH_PROVIDER env.
-import { GoogleAuth } from "google-auth-library";
+import { getVercelOidcTokenSync } from "@vercel/functions/oidc";
+import { ExternalAccountClient, GoogleAuth } from "google-auth-library";
 import { createHash } from "node:crypto";
 
 const KEY = () => process.env.GOOGLE_CLOUD_API_KEY;
@@ -23,9 +24,28 @@ export const VOICES = ["Aoede", "Leda", "Kore", "Zephyr", "Charon", "Puck", "Oru
 let auth: GoogleAuth | null = null;
 let adcOk: boolean | null = null;
 
-/** Google credentials for Chirp 3: a service-account JSON in GOOGLE_SERVICE_ACCOUNT_JSON, or the machine's own gcloud login. */
+/** On Vercel, the site's own identity token is exchanged for a short-lived Google one, acting as Jugnu's service account. No key is stored. */
+function vercelIdentity() {
+  const audience = process.env.GOOGLE_WIF_AUDIENCE;
+  const account = process.env.GOOGLE_SERVICE_ACCOUNT;
+  if (!audience || !account) return null;
+  return ExternalAccountClient.fromJSON({
+    type: "external_account",
+    audience,
+    subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
+    token_url: "https://sts.googleapis.com/v1/token",
+    service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${account}:generateAccessToken`,
+    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    subject_token_supplier: { getSubjectToken: async () => getVercelOidcTokenSync() },
+  });
+}
+let identity: ReturnType<typeof vercelIdentity> = null;
+
+/** Google credentials for Chirp 3 and Gemini: Vercel's identity on the live site, a service-account JSON on another host, or the machine's own gcloud login. */
 export async function googleClient() {
   if (adcOk === false) return null;
+  identity ??= vercelIdentity();
+  if (identity) return identity;
   // On a hosted server only an explicit service account counts (no gcloud login there).
   if (process.env.VERCEL && !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) return null;
   try {

@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto";
 import { googleClient, googleProject } from "../voice";
 
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+// Takes over when the main model is slow or rate-limited.
+const GEMINI_STEADY = "gemini-3.8-flash";
 
 type Json = Record<string, unknown>;
 interface Part {
@@ -50,18 +52,20 @@ function toContents(messages: Message[]) {
 async function generate(system: string, contents: unknown[], tools: { name: string; description?: string; input_schema?: unknown }[], maxTokens: number): Promise<{ parts: Part[]; finish: string | null }> {
   const client = await googleClient();
   if (!client) throw new Error("Gemini needs a Google service account on this server");
-  const r = await client.request<{ candidates?: { content?: { parts?: Part[] }; finishReason?: string }[] }>({
-    url: `https://aiplatform.googleapis.com/v1/projects/${googleProject()}/locations/global/publishers/google/models/${GEMINI_MODEL}:generateContent`,
-    method: "POST",
-    headers: { "x-goog-user-project": googleProject() },
-    data: {
-      systemInstruction: { parts: [{ text: system }] },
-      contents,
-      ...(tools.length ? { tools: [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description ?? "", parametersJsonSchema: t.input_schema })) }] } : {}),
-      generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingLevel: "LOW" } },
-    },
-    timeout: 30000,
-  });
+  const ask = (model: string, thinkingConfig: Json, timeout: number) =>
+    client.request<{ candidates?: { content?: { parts?: Part[] }; finishReason?: string }[] }>({
+      url: `https://aiplatform.googleapis.com/v1/projects/${googleProject()}/locations/global/publishers/google/models/${model}:generateContent`,
+      method: "POST",
+      headers: { "x-goog-user-project": googleProject() },
+      data: {
+        systemInstruction: { parts: [{ text: system }] },
+        contents,
+        ...(tools.length ? { tools: [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description ?? "", parametersJsonSchema: t.input_schema })) }] } : {}),
+        generationConfig: { maxOutputTokens: maxTokens, thinkingConfig },
+      },
+      timeout,
+    });
+  const r = await ask(GEMINI_MODEL, { thinkingLevel: "LOW" }, 20000).catch(() => ask(GEMINI_STEADY, { thinkingLevel: "LOW" }, 20000));
   const c = r.data.candidates?.[0];
   return { parts: (c?.content?.parts ?? []).filter((p) => !p.thought), finish: c?.finishReason ?? null };
 }

@@ -216,7 +216,7 @@ browser's own voices and typed answers. Keys go in `.env` locally, or in the hos
 | Service | Model or product | Used for | Key (`.env`) | Without it |
 |---|---|---|---|---|
 | **Anthropic Claude** | Claude Haiku 5.5 (structured tasks); Claude Sonnet 5.5 (assistant agent) | The ten AI tasks in §3 | `ANTHROPIC_API_KEY`; optional `CLAUDE_MODEL`, `AGENT_MODEL` (only these two models are allowed), `CREDIT_BUDGET_USD` | Offline engine for every task |
-| **Google Cloud Speech-to-Text** | Chirp 3 | Hearing teachers and officers on every screen | `GOOGLE_SERVICE_ACCOUNT_JSON` on a host (`npm run speech:setup` sets it up on Vercel), or a `gcloud` login on your machine; falls back to `GOOGLE_CLOUD_API_KEY` | Typing |
+| **Google Cloud Speech-to-Text** | Chirp 3 | Hearing teachers and officers on every screen | On Vercel, the site's own identity with no stored key (`npm run speech:setup`); `GOOGLE_SERVICE_ACCOUNT_JSON` on another host; a `gcloud` login on your machine; falls back to `GOOGLE_CLOUD_API_KEY` | Typing |
 | **Google Cloud Text-to-Speech** | Chirp 3 HD voices | Jugnu's voice on every screen, on calls and in voice notes | `GOOGLE_CLOUD_API_KEY` | Browser voices; phone calls need it |
 
 Not AI, and also optional:
