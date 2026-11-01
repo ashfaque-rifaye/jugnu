@@ -422,9 +422,26 @@ Write ${lang === "hi" ? "in simple spoken Hindi (Devanagari), the way an Indian 
 /** The page guide is short and frequent, so it uses Haiku. */
 const GUIDE_MODEL = "claude-haiku-5-5";
 
+/** The page guide's own words, for when Claude is not available: what the page is for, and what to do first. */
+const PAGE_HELP: Record<string, [string, string]> = {
+  today: ["This is your day at a glance. Start with the first task at the top, and tap me if you need help.", "यह आपके आज के काम हैं। सबसे ऊपर वाले काम से शुरू कीजिए, और मदद चाहिए तो मुझे दबाइए।"],
+  schools: ["Here is every school, against what we would expect from it. Try the filters, or tap a school to see what to do there.", "यहाँ हर स्कूल दिख रहा है, और उससे कितनी उम्मीद थी। फ़िल्टर आज़माइए, या किसी स्कूल को दबाकर देखिए कि वहाँ क्या करना है।"],
+  map: ["This map shows where each school is. Tap a school to see how it is doing.", "इस नक्शे पर हर स्कूल दिख रहा है। किसी स्कूल को दबाकर देखिए कि वह कैसा चल रहा है।"],
+  "school page": ["This is one school's full picture. Open What to do to see the next step for this school.", "यह एक स्कूल की पूरी जानकारी है। अगला कदम जानने के लिए क्या करना है खोलिए।"],
+  interviews: ["Here you can talk to teachers, by a link or a real phone call. Their answers show what really happens in class.", "यहाँ आप शिक्षकों से बात कर सकते हैं, लिंक से या फ़ोन कॉल से। उनके जवाब बताते हैं कि कक्षा में असल में क्या होता है।"],
+  calls: ["Here you can place a real phone call to a teacher, and follow the conversation as it happens.", "यहाँ से आप शिक्षक को फ़ोन कर सकते हैं, और बातचीत को साथ-साथ देख सकते हैं।"],
+  practices: ["These are the methods that schools doing well in this block use and similar schools don't. Open one to see how to start tomorrow.", "ये वे तरीके हैं जो इस ब्लॉक के अच्छे स्कूल अपनाते हैं। किसी एक को खोलकर देखिए कि कल से कैसे शुरू करें।"],
+  plan: ["This shows how each method reaches schools and children, and who does what. Check what is stuck first.", "यहाँ दिखता है कि हर तरीका स्कूलों और बच्चों तक कैसे पहुँचता है, और कौन क्या करेगा। पहले देखिए कि क्या अटका है।"],
+  approvals: ["Nothing written by AI reaches a teacher until a person says yes. Listen to a draft, then approve it or send it back.", "AI का लिखा कुछ भी आपकी हाँ के बिना शिक्षक तक नहीं जाता। ड्राफ़्ट सुनिए, फिर मंज़ूर कीजिए या वापस भेजिए।"],
+  results: ["Here you can check whether a method was tried, and whether it helped. Start with the teachers not called yet.", "यहाँ देखिए कि तरीका अपनाया गया या नहीं, और उससे फ़ायदा हुआ या नहीं। उन शिक्षकों से शुरू कीजिए जिन्हें अभी कॉल नहीं हुई।"],
+  district: ["This is all of Damoh district, block by block. Open a block to work in it.", "यह पूरा दमोह ज़िला है, ब्लॉक के हिसाब से। किसी ब्लॉक को खोलकर उसमें काम कीजिए।"],
+  ai: ["This page shows how Jugnu checks everything the AI says. You can try it yourself.", "यहाँ दिखता है कि जुगनू AI की हर बात की जाँच कैसे करता है। आप ख़ुद भी आज़मा सकते हैं।"],
+};
+const pageHelp = (page: string, lang: "en" | "hi") => PAGE_HELP[page]?.[lang === "hi" ? 1 : 0] ?? "";
+
 /** A spoken word of help when the officer opens a page: what it is for, and the one thing worth doing here now. */
 export async function agentPageGuide(page: string, screen: string, facts: string[], lang: "en" | "hi"): Promise<{ text: string; source: "claude" | "offline" }> {
-  if (!claudeAvailable()) return { text: "", source: "offline" };
+  if (!claudeAvailable()) return { text: pageHelp(page, lang), source: "offline" };
   const started = Date.now();
   try {
     const res = await getClient().messages.create(
@@ -444,6 +461,6 @@ ${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like co
     return { text, source: "claude" };
   } catch (e) {
     await trace("guide", { i: 0, o: 0 }, false, describeError(e), started, [], GUIDE_MODEL);
-    return { text: "", source: "offline" };
+    return { text: pageHelp(page, lang), source: "offline" };
   }
 }

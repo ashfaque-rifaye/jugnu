@@ -246,6 +246,8 @@ function pageOf(path: string, search: string) {
   return hit ? hit[0] : path.replace(/^\//, "").split("/")[0] || "home";
 }
 const guided = new Set<string>();
+const nudged = new Set<string>();
+const IDLE_MS = 45000;
 
 export function useAgent() {
   const t = useT();
@@ -275,8 +277,8 @@ export function useAgent() {
   const hush = useRef(false);
   const nextId = useRef(1);
   // Live values for async loops (the conversation outlives a render).
-  const live = useRef({ state, events, allActions, lang, voice, voiceName, location, seed, role, cloud: status.voice, mode });
-  live.current = { state, events, allActions, lang, voice, voiceName, location, seed, role, cloud: status.voice, mode };
+  const live = useRef({ state, events, allActions, lang, voice, voiceName, location, seed, role, cloud: status.voice || !status.checked, mode });
+  live.current = { state, events, allActions, lang, voice, voiceName, location, seed, role, cloud: status.voice || !status.checked, mode };
   const speechLang = () => (live.current.lang === "hi" ? "hi-IN" : "en-IN");
 
   const setVoiceName = (v: string) => {
@@ -666,9 +668,48 @@ export function useAgent() {
     return () => window.removeEventListener(HUSH_EVENT, onHush);
   }, [stop]);
 
+  /**
+   * Say a line aloud. Browsers only play sound after the person has tapped something: until then the
+   * words stay on screen, and are spoken at the first tap (unless that tap is on the orb, to talk).
+   */
+  const pending = useRef<{ text: string; extra: Partial<Line>; id: number }[]>([]);
+  const sayAloud = useCallback(
+    async (text: string, extra: Partial<Line>) => {
+      const canPlay = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? false;
+      if (canPlay && live.current.voice) {
+        audio();
+        return speakOut(text, extra);
+      }
+      const id = add({ who: "jugnu", text, shown: text.length, tools: [], ...extra });
+      if (!live.current.voice) return;
+      pending.current = [...pending.current.filter((x) => x.extra.greet), { text, extra, id }];
+      if (pending.current.length > 1) return;
+      const onTap = async (e: Event) => {
+        window.removeEventListener("pointerdown", onTap, true);
+        window.removeEventListener("keydown", onTap, true);
+        const lines = pending.current;
+        pending.current = [];
+        if ((e.target as Element | null)?.closest?.(".dock-orb") || busy.current || live.current.mode !== "off" || isHushed()) return;
+        busy.current = true;
+        cancelled.current = false;
+        audio();
+        setLines((ls) => ls.filter((l) => !lines.some((x) => x.id === l.id)));
+        try {
+          for (const x of lines) if (!cancelled.current) await speakOut(x.text, x.extra);
+        } finally {
+          busy.current = false;
+          setMode((m) => (m === "speaking" ? "off" : m));
+        }
+      };
+      window.addEventListener("pointerdown", onTap, true);
+      window.addEventListener("keydown", onTap, true);
+    },
+    [speakOut], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   /** A spoken word of help for the page just opened: what it is for, and the one thing to do here now. */
   const guide = useCallback(async (page: string) => {
-    if (busy.current || live.current.mode !== "off" || !status.claude || isHushed()) return;
+    if (busy.current || live.current.mode !== "off" || isHushed()) return;
     busy.current = true;
     cancelled.current = false;
     try {
@@ -676,12 +717,7 @@ export function useAgent() {
       const res = await postJSON<{ text: string }>("/api/agent/page", { page, screen: readScreen().slice(0, 3800), facts: briefingFacts(st, ev).slice(0, 14), lang: l }).catch(() => null);
       if (!res?.text || cancelled.current || live.current.mode !== "off" || isHushed()) return;
       if (pageOf(window.location.pathname, window.location.search) !== page) return; // they have moved on
-      // Browsers only play sound after the person has tapped something; until then the guide is a bubble.
-      const canPlay = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? false;
-      if (canPlay) {
-        audio();
-        await speakOut(res.text, { tools: [{ name: "guide", ok: true }] });
-      } else add({ who: "jugnu", text: res.text, shown: res.text.length, tools: [{ name: "guide", ok: true }] });
+      await sayAloud(res.text, { tools: [{ name: "guide", ok: true }] });
       history.current.push({ role: "user", content: `(I opened the ${page} page.)` }, { role: "assistant", content: `${res.text}
 [page guide]` });
     } finally {
@@ -697,17 +733,12 @@ export function useAgent() {
     cancelled.current = false;
     try {
       const text = t("Namaste! I'm Jugnu. I can brief you, find a school, or make a plan. What can I do for you today?", "नमस्ते! मैं जुगनू हूँ। मैं ब्रीफ़ कर सकता हूँ, स्कूल खोज सकता हूँ या योजना बना सकता हूँ। आज आपके लिए क्या करूँ?");
-      const canPlay = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? false;
-      const mark = { greet: true, tools: [{ name: "guide", ok: true }] };
-      if (canPlay && live.current.voice) {
-        audio();
-        await speakOut(text, mark);
-      } else add({ who: "jugnu", text, shown: text.length, ...mark });
+      await sayAloud(text, { greet: true, tools: [{ name: "guide", ok: true }] });
     } finally {
       busy.current = false;
       setMode((m) => (m === "speaking" ? "off" : m));
     }
-  }, [speakOut, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sayAloud, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setGuideOn = (on: boolean) => {
     setGuideOnState(on);
@@ -724,13 +755,48 @@ export function useAgent() {
     const page = pageOf(location.pathname, location.search);
     const key = `${page}|${lang}`;
     if (page === "home" || guided.has(key)) return;
-    const id = setTimeout(() => {
-      if (live.current.mode !== "off" || busy.current || guided.has(key) || isHushed()) return;
+    let id = 0;
+    const attempt = () => {
+      if (guided.has(key) || isHushed()) return;
+      // Jugnu may still be speaking, such as the greeting: wait for it to finish, then guide.
+      if (live.current.mode !== "off" || busy.current) {
+        id = window.setTimeout(attempt, 1000);
+        return;
+      }
       guided.add(key);
       void guide(page);
-    }, 1800);
+    };
+    id = window.setTimeout(attempt, 1800);
     return () => clearTimeout(id);
   }, [location.pathname, location.search, lang, guideOn, guide]);
+
+  // Someone who has gone quiet on a page may be stuck: offer help out loud, once per page.
+  useEffect(() => {
+    if (!guideOn) return;
+    const page = pageOf(location.pathname, location.search);
+    if (page === "home" || nudged.has(page)) return;
+    let id = 0;
+    const restart = () => {
+      clearTimeout(id);
+      id = window.setTimeout(() => {
+        if (document.hidden || live.current.mode !== "off" || busy.current || isHushed()) return restart();
+        nudged.add(page);
+        busy.current = true;
+        cancelled.current = false;
+        void sayAloud(t("Need a hand here? Tap me and ask, or say Brief me.", "यहाँ कोई मदद चाहिए? मुझे दबाकर पूछिए, या बोलिए, ब्रीफ़ कीजिए।"), { tools: [{ name: "guide", ok: true }] }).finally(() => {
+          busy.current = false;
+          setMode((m) => (m === "speaking" ? "off" : m));
+        });
+      }, IDLE_MS);
+    };
+    restart();
+    const events = ["pointerdown", "keydown", "scroll"];
+    events.forEach((e) => window.addEventListener(e, restart, { passive: true, capture: true }));
+    return () => {
+      clearTimeout(id);
+      events.forEach((e) => window.removeEventListener(e, restart, { capture: true }));
+    };
+  }, [location.pathname, location.search, guideOn, sayAloud, t]);
 
   const startBrief = useCallback(async () => {
     if (busy.current) return;
@@ -752,7 +818,7 @@ export function useAgent() {
     setVoice,
     voiceName,
     setVoiceName,
-    cloud: status.voice,
+    cloud: status.voice || !status.checked,
     engine,
     handsFree,
     heard,
