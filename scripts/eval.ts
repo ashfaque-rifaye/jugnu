@@ -161,6 +161,9 @@ function evalInterviewer() {
 
 const round = (x: number) => Math.round(x * 100) / 100;
 
+const { creditReport } = await import("../server/ai/run");
+const spentBefore = await creditReport();
+
 const coders = [await evalCoder("keyword")];
 if ((claudeAvailable() || geminiAvailable()) && !process.argv.includes("--offline")) coders.push(await evalCoder("model"));
 // A model that didn't run this time keeps its last score, so the page still shows both.
@@ -173,12 +176,12 @@ const results = { ranAt: new Date().toISOString(), coding: coders, guardrails: e
 fs.mkdirSync(path.resolve("data/eval"), { recursive: true });
 fs.writeFileSync(resultsFile, JSON.stringify(results, null, 2));
 
-// The eval runs on an in-memory database, so keep its Claude spend where `npm run credits` finds it.
-const { creditReport } = await import("../server/ai/run");
+// Keep this run's own Claude spend where `npm run credits` finds it.
 const spend = await creditReport();
-if (spend.calls > 0) {
+const usd = spend.spent - spentBefore.spent;
+if (usd > 0) {
   fs.mkdirSync(path.resolve("data/runtime"), { recursive: true });
-  fs.appendFileSync(path.resolve("data/runtime/eval-spend.jsonl"), JSON.stringify({ at: results.ranAt, usd: spend.spent, calls: spend.calls }) + "\n");
+  fs.appendFileSync(path.resolve("data/runtime/eval-spend.jsonl"), JSON.stringify({ at: results.ranAt, usd, calls: spend.calls - spentBefore.calls }) + "\n");
 }
 
 console.log("\nTranscript coding (" + gold.items.length + " labelled answers)");
