@@ -47,7 +47,7 @@ export function LivingMap(props: LivingMapProps) {
   return <StatusMap {...props} />;
 }
 
-export function StatusMap({ schools, status, selected, onSelect, links = [], highlight, height = 420, className }: MapProps) {
+function StatusMap({ schools, status, selected, onSelect, links = [], highlight, height = 420, className }: MapProps) {
   const t = useT();
   const W = 760;
   const H = height;

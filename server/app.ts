@@ -157,7 +157,7 @@ app.post("/api/evidence/photo", requireOfficer, rateLimit("photo", 40, 600000), 
   if (!PHOTO_TYPES.includes(mediaType)) return res.status(415).json({ error: "Use a JPEG, PNG or WebP photo" });
   const result = await checkPhoto({ image: m?.[2] ?? body.data.image, mediaType, practice: body.data.practice, ref: body.data.schoolId });
   const v = result.value;
-  if (body.data.block && result.source === "claude" && !v.child_faces) {
+  if (body.data.block && result.source !== "offline" && !v.child_faces) {
     const label = PRACTICES[body.data.practice].label;
     const verdict = { yes: "visible", partly: "partly visible", no: "not visible", cannot_tell: "could not be judged" }[v.visible];
     try {

@@ -82,7 +82,7 @@ export async function codedForBlock() {
   const coded = await db.all<{ interview_id: string; practice: string | null; new_name: string | null; quote: string; specificity: number; coder: string }>(
     `SELECT c.interview_id, c.practice, c.new_name, c.quote, c.specificity, c.coder FROM codings c JOIN interviews i ON i.id = c.interview_id WHERE c.grounded = 1 AND i.status = 'completed' AND i.school_id IS NOT NULL ORDER BY c.id`,
   );
-  return rows.map((r) => ({ ...r, codings: coded.filter((c) => c.interview_id === r.id).map(({ interview_id: _, ...c }) => c) }));
+  return rows.map((r) => ({ ...r, codings: coded.filter((c) => c.interview_id === r.id).map(({ practice, new_name, quote, specificity, coder }) => ({ practice, new_name, quote, specificity, coder })) }));
 }
 
 type NewTurn = { speaker: "jugnu" | "teacher"; text: string; text_en?: string | null; kind?: string | null; topic?: string | null; source?: string | null; confidence?: number | null };
@@ -172,7 +172,7 @@ export async function start(row: InterviewRow): Promise<TurnRow[]> {
 
 export interface AnswerResult {
   reply: NextTurn;
-  source: "claude" | "offline" | "script";
+  source: "claude" | "gemini" | "offline" | "script";
   status: InterviewRow["status"];
   warning?: string;
 }

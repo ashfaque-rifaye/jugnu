@@ -232,7 +232,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
     for (const s of located) b.extend([s.lon!, s.lat!]);
     m.fitBounds(b, { padding: 36, duration: 0 });
     fly({ kind: "fit", points: located.map((s) => [s.lat!, s.lon!]) });
-  }, [block, styleRev, located, fly]);
+  }, [block, ready, styleRev, located, fly]);
 
   // ---- schools and cluster names
   useEffect(() => {
@@ -273,7 +273,7 @@ export default function RealMap({ schools, status, selected, onSelect, links = [
         return [{ type: "Feature" as const, properties: { label: `${trip(a, b).km} km` }, geometry: { type: "LineString" as const, coordinates: [[a.lon!, a.lat], [b.lon!, b.lat]] } }];
       }),
     });
-  }, [links, linksOn, byId, styleRev]);
+  }, [links, linksOn, byId, ready, styleRev]);
 
   // ---- measuring
   const measured: { a: School; b: School; trip: Trip } | null = useMemo(() => {

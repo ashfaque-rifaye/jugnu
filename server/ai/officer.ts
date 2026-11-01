@@ -7,9 +7,10 @@ import { z } from "zod";
 import { contrastPairs, whatIf } from "../../src/engine/insights";
 import { PRACTICE_IDS, PRACTICES, type PracticeId } from "../../src/engine/practices";
 import type { PipelineState } from "../../src/engine/pipeline";
-import { claudeAvailable, describeError, getClient, MODEL } from "../claude";
+import { claudeUsable, describeError, getClient, MODEL, noteClaudeError } from "../claude";
 import { db, now } from "../db";
 import type { Check } from "./guardrails";
+import { GEMINI_MODEL, geminiAvailable, geminiJson, geminiStep, type Block } from "./gemini";
 import { SAFETY } from "./interviewer";
 
 export interface OfficerAnswer {
@@ -240,6 +241,34 @@ export function guardAnswer(out: OfficerAnswer, st: PipelineState, toolCalls: nu
   return { value: { ...out, schools: kept }, checks, accept: toolCalls > 0 };
 }
 
+type RunnableTool = { name: string; description?: string; input_schema?: unknown; parse: (x: unknown) => unknown; run: (x: never) => unknown };
+
+/** Gemini looks things up with the officer's tools, then writes the answer in the schema from what they returned. */
+async function geminiAnswer(question: string, st: PipelineState, system: string, used: string[]) {
+  const server = officerTools(st) as unknown as RunnableTool[];
+  const convo: { role: "user" | "assistant"; content: string | Block[] }[] = [{ role: "user", content: question }];
+  const found: string[] = [];
+  for (let step = 0; step < 6; step++) {
+    const blocks = await geminiStep(system, convo, server);
+    convo.push({ role: "assistant", content: blocks });
+    const uses = blocks.filter((b) => b.type === "tool_use");
+    if (!uses.length) break;
+    const results = await Promise.all(
+      uses.map(async (u): Promise<Block> => {
+        used.push(u.name ?? "");
+        const tool = server.find((t) => t.name === u.name);
+        const out = tool ? await tool.run(tool.parse(u.input) as never) : `Unknown tool ${u.name}`;
+        const text = typeof out === "string" ? out : JSON.stringify(out);
+        found.push(`${u.name}: ${text}`);
+        return { type: "tool_result", tool_use_id: u.id, content: text };
+      }),
+    );
+    convo.push({ role: "user", content: results });
+  }
+  const { output } = await geminiJson({ system, content: `Question: ${question}\n\nWhat the lookups returned:\n${found.join("\n").slice(0, 30000)}\n\nAnswer from these results only.`, schema: AnswerSchema, maxTokens: 4000 });
+  return guardAnswer(output, st, used.length);
+}
+
 export async function askOfficer(question: string, st: PipelineState) {
   const started = Date.now();
   const log = (source: string, model: string | null, usage: { i: number; o: number } | null, checks: Check[], ok: boolean, error: string | null) =>
@@ -249,11 +278,29 @@ export async function askOfficer(question: string, st: PipelineState) {
         question.slice(0, 80), source, model, Date.now() - started, usage?.i ?? null, usage?.o ?? null, JSON.stringify(checks), ok ? 1 : 0, error, now(),
       )
       .catch((e) => console.error("ai_calls trace failed:", e));
-  if (!claudeAvailable()) {
-    await log("offline", null, null, [], true, null);
-    return { source: "offline" as const, ...offlineAnswer(question, st), checks: [] as Check[], tools: [] as string[] };
-  }
+  const system = `${SAFETY}
+You brief a Block Education Officer about their block. Look things up with the tools before answering; never guess numbers or names.
+Name schools exactly as the tools return them. Recommend one concrete next step with an owner. If the data cannot answer, say which check would.
+Never shame or rank teachers; a score that looks too high means "revisit respectfully".`;
   const tools: string[] = [];
+  // The same question with Gemini: the same tools and the same guardrails, then the rule-based answer.
+  const backup = async (why: string | null) => {
+    if (!geminiAvailable()) {
+      await log("offline", null, null, [], true, why);
+      return { source: "offline" as const, ...offlineAnswer(question, st), checks: [] as Check[], tools, ...(why ? { warning: why } : {}) };
+    }
+    try {
+      const { value, checks, accept } = await geminiAnswer(question, st, system, tools);
+      await log("gemini", GEMINI_MODEL, null, checks, accept, accept ? why : "rejected by guardrails");
+      if (accept) return { source: "gemini" as const, ...value, checks, tools };
+      return { source: "offline" as const, ...offlineAnswer(question, st), checks, tools, warning: "The model answered without looking anything up — used the offline engine" };
+    } catch (error) {
+      const msg = describeError(error);
+      await log("gemini", GEMINI_MODEL, null, [], false, msg);
+      return { source: "offline" as const, ...offlineAnswer(question, st), checks: [] as Check[], tools, warning: why ?? msg };
+    }
+  };
+  if (!claudeUsable()) return backup(null);
   try {
     const runner = getClient().beta.messages.toolRunner(
       {
@@ -262,10 +309,7 @@ export async function askOfficer(question: string, st: PipelineState) {
         max_iterations: 8,
         thinking: { type: "adaptive" },
         output_config: { effort: "low", format: betaZodOutputFormat(AnswerSchema) },
-        system: `${SAFETY}
-You brief a Block Education Officer about their block. Look things up with the tools before answering; never guess numbers or names.
-Name schools exactly as the tools return them. Recommend one concrete next step with an owner. If the data cannot answer, say which check would.
-Never shame or rank teachers; a score that looks too high means "revisit respectfully".`,
+        system,
         messages: [{ role: "user", content: question }],
         tools: officerTools(st),
       },
@@ -290,8 +334,9 @@ Never shame or rank teachers; a score that looks too high means "revisit respect
     if (!accept) return { source: "offline" as const, ...offlineAnswer(question, st), checks, tools, warning: "Claude answered without looking anything up — used the offline answer" };
     return { source: "claude" as const, ...value, checks, tools };
   } catch (error) {
+    noteClaudeError(error);
     const msg = describeError(error);
     await log("claude", null, null, [], false, msg);
-    return { source: "offline" as const, ...offlineAnswer(question, st), checks: [] as Check[], tools, warning: msg };
+    return backup(msg);
   }
 }

@@ -10,14 +10,16 @@
     "build": "tsc && vite build",
     "start": "cross-env NODE_ENV=production NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx server/index.ts",
     "test": "vitest run",
+    "lint": "oxlint --deny-warnings src server scripts vite.config.ts",
     "typecheck": "tsc",
+    "check": "npm run lint && npm run typecheck && npm test",
     "smoke": "node scripts/smoke.mjs",
+    "eval": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/eval.ts",
+    "ai:check": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/ai-check.ts",
+    "credits": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/credits.ts",
     "env:push": "node scripts/push-env.mjs",
     "speech:setup": "node scripts/setup-speech.mjs",
     "phone:deploy": "node scripts/deploy-phone.mjs",
-    "ai:check": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/ai-check.ts",
-    "credits": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/credits.ts",
-    "eval": "cross-env NODE_OPTIONS=--disable-warning=ExperimentalWarning tsx scripts/eval.ts",
     "build:vercel": "node scripts/vercel-build.mjs",
     "deploy:vercel": "node scripts/vercel-build.mjs && vercel deploy --prebuilt --prod"
   },
@@ -37,18 +39,18 @@
     "google-auth-library": "11.2.0",
     "lucide-react": "^1.48.0",
     "maplibre-gl": "6.14.0",
-    "postprocessing": "^6.39.5",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4",
     "tsx": "^4.23.15",
     "ws": "^8.22.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/express": "^5.0.6",
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^26.6.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
@@ -57,6 +59,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
+    "oxlint": "^1.90.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
@@ -64,5 +67,8 @@
   },
   "engines": {
     "node": ">=22.13"
+  },
+  "overrides": {
+    "zod": "$zod"
   }
 }

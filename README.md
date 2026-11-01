@@ -1,16 +1,49 @@
 # Jugnu (जुगनू) — finds the fireflies
 
+[![CI](https://github.com/ashfaque-rifaye/jugnu/actions/workflows/ci.yml/badge.svg)](https://github.com/ashfaque-rifaye/jugnu/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ashfaque-rifaye/jugnu/actions/workflows/codeql.yml/badge.svg)](https://github.com/ashfaque-rifaye/jugnu/actions/workflows/codeql.yml)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+
 **The answer to a block's learning gap is often already in the block.**
 AI for Foundational Learning Hackathon · Challenge 4 (Data to Action) · Build stage · Team ShikshaSaathi AI.
 
-**Live demo:** https://jugnu-nine.vercel.app · no login or passcode: press **Open Jugnu** and choose a role.
-Sample inputs are in the submitted presentation. To run it yourself, see [Run it](#run-it).
+**Live demo:** https://jugnu-nine.vercel.app · To run it yourself, see [Run it](#run-it).
 
 Dashboards tell a Block Education Officer (BEO) *where* learning is low. Jugnu finds the few
 government schools where children read and count far better than their circumstances predict,
 **talks to their teachers** in Hindi (a web voice call or an ordinary phone call) to learn exactly
 what they do, keeps only what separates them from similar schools, spreads it **teacher to teacher**
 as owned actions, and checks whether it worked.
+
+## For evaluators
+
+**Test credentials: none are needed for any role.** Press **Open Jugnu** on the home page and choose:
+
+| Role | How to enter |
+|---|---|
+| Block Education Officer | Choose the role |
+| Cluster coordinator (CRP) | Choose the role, then any cluster |
+| School head or correspondent | Choose the role, then any school |
+| Teacher | Open [`/talk`](https://jugnu-nine.vercel.app/talk) |
+| Guest | Sees what an officer sees |
+
+**Five sample inputs:**
+
+1. **Ask Jugnu (officer):** "Which schools need help with maths, and who nearby can show them?"
+2. **Teacher interview (`/talk`, type or speak):** "Every morning, for forty minutes, I group children by reading level, not by class. Each group has its own cards."
+3. **Confirmation visit (Today → Open):** children checked 15, read the paragraph 11, did the subtraction 9.
+4. **Day-14 follow-up (Check progress → Record the call):** "Started the reading groups, but we have no level cards yet, and the headmaster wants the syllabus finished first."
+5. **A whole term (Today):** press **See a sample term**, then open Check progress. Nothing is saved.
+
+**What the hosted demo does, and what it leaves out:**
+
+| Works on the hosted demo | Off on the hosted demo, and why |
+|---|---|
+| All roles and screens, 1,365 real schools, confirmation visits, approvals, rollouts, exports | **Placing real phone calls:** the site is public with no login, so anyone could dial any number at the team's cost, and calls need a separate always-on server ([docs/PHONE-SERVER.md](docs/PHONE-SERVER.md)). The Phone line tab is read-only here. Real calls have been made through this code; the demo video shows one |
+| Voice on every screen (Google Chirp 3), web interviews on any phone, the voice and chat assistant | **Sending on WhatsApp:** the code is built, and needs a Meta business account |
+| All ten AI tasks, each with its guardrails and an offline fallback | |
+
+School names and counts are real. Learning results and teacher names are simulated, and labelled in the app ([§7](#7-data-what-is-real-and-what-is-simulated)).
 
 ---
 
@@ -26,7 +59,6 @@ or a spreadsheet they already have) and gets back one clear next step, not a das
 | **CRP** (cluster resource person) | Console on a phone (`/today`, school pages) | A 15-child confirmation visit, a classroom photo, a visit marked done or stuck | Which schools to check and in what order, distances and motorbike time, whether the photo shows the practice |
 | **BEO** (block officer) | Console (`/today`), or simply asks Jugnu by voice | Questions in Hindi or English ("which schools are stuck?"), approvals of AI drafts, their own district spreadsheet | Owned actions (to do / scheduled / done / stuck), a plan board to export to Excel, calendar invites for peer visits, and a spoken briefing |
 | **Evaluators** | `/ai` | — | Where AI is used, the live trace of every AI call, and the evaluation |
-| **Testers** | `/testing` | Consented sessions, task comments, Hindi/English SUS | Results and the "you said → we changed" log |
 
 **Designed for the constraints of a block:** voice first and Hindi first (the console has a Hindi
 switch, and the assistant speaks and listens in both languages); basic phones reached by a real call;
@@ -53,7 +85,7 @@ flowchart LR
     S["Share<br/>fit, nearest demonstrator, rollout"]
     T["Track<br/>diff-in-diff at next assessment"]
   end
-  subgraph AI["AI layer — server/ai (Claude + guardrails + offline fallback)"]
+  subgraph AI["AI layer — server/ai (Claude, then Gemini + guardrails + offline fallback)"]
     I["Interviewer"]
     K["Transcript coder"]
     W["Card + voice-note writer"]
@@ -86,7 +118,7 @@ flowchart LR
 | Component | What it does | How it connects | Code |
 |---|---|---|---|
 | **Statistics engine** | Find (robust regression on context: multigrade, size, attendance, home language, pupils per teacher), Confirm (jump checks + a binomial test on the confirmation visit), Contrast (Beta-Binomial), Share (fit, nearest demonstrator by road, this term's schools then next term's), Track (difference-in-differences, bootstrap intervals), plus contrast pairs and a what-if simulator | Runs identically in the browser and on the server, so every screen and every AI prompt sees the same numbers | `src/engine/` |
-| **Guarded AI layer** | Ten Claude tasks, each in the same five layers: input → Claude (structured output, deadline) → deterministic guardrails → value, or the offline engine | Every call is traced in `ai_calls` and shown on `/ai` | `server/ai/run.ts`, `server/ai/guardrails.ts` |
+| **Guarded AI layer** | Ten AI tasks, each in the same five layers: input → Claude, then Gemini (structured output, deadline) → deterministic guardrails → value, or the offline engine | Every call is traced in `ai_calls` and shown on `/ai` | `server/ai/run.ts`, `server/ai/model.ts`, `server/ai/gemini.ts`, `server/ai/guardrails.ts` |
 | **Interview service** | Consent, the adaptive interview, turns, coding, erasure on request | Same service behind the web talk page and the phone call | `server/interviews.ts`, `src/pages/Talk.tsx` |
 | **Voice** | Google Chirp 3 speech-to-text (with the block's school and teacher names as hints) and Chirp 3 HD voices | Used by the talk page, the phone audio bridge, WhatsApp voice notes and the assistant | `server/voice.ts` |
 | **Phone line** | Real outbound calls; the provider streams audio over a WebSocket and Jugnu speaks and listens on it. A stream is admitted only for a call Jugnu is dialling | Plivo live on an Indian number; Exotel also wired. Needs a long-running host (`docs/PHONE-SERVER.md`), not Vercel | `server/telephony.ts` |
@@ -94,7 +126,7 @@ flowchart LR
 | **Jugnu's clock** | Reminders, visit checks, day-14 calls (WhatsApp if the phone line is off), escalation to the BEO | Ticks every minute on a long-running server, daily via Vercel Cron | `server/scheduler.ts` |
 | **Shared event log** | One append-only log of everything people and Jugnu record: confirmation visits, field visits, notes, action status | Every open screen updates within seconds; the activity feed reads it in plain words | `server/events.ts`, `server/db.ts` (SQLite or Turso) |
 | **Human review queue** | AI drafts (practice cards, voice notes) reach teachers only after a CRP or BEO approves or edits them | Approval unlocks the voice note and WhatsApp sending | `server/reviews.ts`, `src/pages/Review.tsx` |
-| **Officer console + assistant** | Today, schools, interviews, practices, plan, results, approvals, district map (Google 3D), Ask Jugnu; a voice orb that briefs, answers and works the console through tools | Reads the engine and the log; writes only through the log | `src/pages/`, `server/ai/agent.ts` |
+| **Officer console + assistant** | Today, schools, interviews, methods, plan, results, approvals, district map, Ask Jugnu; a voice orb that briefs, answers and works the console through tools | Reads the engine and the log; writes only through the log | `src/pages/`, `server/ai/agent.ts` |
 | **Exports** | Plan board as CSV (Excel-ready, Hindi intact, live statuses) and calendar invites for peer visits | No new software for the block office | `server/exports.ts` |
 
 ### One practice, end to end
@@ -109,7 +141,7 @@ flowchart LR
 4. **Contrast.** The coder maps code-mixed answers to practices with verbatim quotes; the engine keeps
    only practices common in schools doing well and rare in similar schools (for example, grouping children
    by reading level for part of the day).
-5. **Share.** Claude drafts a practice card and a 60-second voice note in the demonstrator's words; a
+5. **Share.** The AI drafts a practice card and a 60-second voice note in the demonstrator's words; a
    CRP approves it; the struggling school two villages away gets the voice note on WhatsApp and a peer
    visit with a calendar invite.
 6. **Follow up.** At day 14 Jugnu calls or asks on WhatsApp; the reader classifies the answer as
@@ -121,13 +153,13 @@ flowchart LR
 ## 3. Where AI is used (read the code here)
 
 ```
-input ──► Claude (structured output, deadline) ──► deterministic guardrails ──► value
-                     │ unavailable / slow / declined / fails a check
-                     └──────────────► offline engine ──────────────────────► value
+input ──► Claude ──(no answer)──► Gemini ──► deterministic guardrails ──► value
+          structured output, deadline   │ too slow / declined / fails a check
+                                        └──────► offline engine ─────────► value
 every call ──► ai_calls trace (task, model, latency, tokens, each check passed/failed)
 ```
 
-| Task | File | What Claude does | Guardrails | Offline fallback |
+| Task | File | What the model does | Guardrails | Offline fallback |
 |---|---|---|---|---|
 | Adaptive interviewer | `server/ai/interviewer.ts` | next question; follows up on vague answers; mirrors the teacher's language | classroom routines only · short · right language · never repeats · can't close early | scripted interviewer |
 | Transcript coding | `server/ai/coder.ts` | maps code-mixed answers to the practice taxonomy; proposes new practices | quote must be **verbatim** · specificity counted only from the quote | keyword lexicon |
@@ -140,15 +172,25 @@ every call ──► ai_calls trace (task, model, latency, tokens, each check pa
 | Teacher coach | `server/ai/coach.ts` | answers a teacher's problem with a practice proven in their block | practice must be distinctive here · quote verbatim · teacher's language | keyword match |
 | Column mapper | `server/ai/mapper.ts` | maps a district's own spreadsheet headers onto Jugnu's columns | every column exists · none used twice · scales plausible | synonym table |
 
-Claude does what language models are good at (conversation, meaning in code-mixed Hindi, writing from
-evidence, tool use). Statistics does the counting. Models: Claude Haiku 5.5 for the structured tasks,
-Claude Sonnet 5.5 for the assistant. Speech is Google Chirp 3.
+Language models do what they are good at (conversation, meaning in code-mixed Hindi, writing from
+evidence, tool use). Statistics does the counting. Models: Claude Haiku 5.5 for the structured tasks and
+Claude Sonnet 5.5 for the assistant, with Gemini through Vertex AI (`gemini-3-flash-preview`, then
+`gemini-3.8-flash`) as the backup for every task. Both models pass through the same guardrails. Speech is Google Chirp 3.
+
+Scored against 30 hand-labelled answers (`npm run eval`, latest results in `data/eval/results.json`):
+
+| Transcript coder | Precision | Recall | F1 | Tricky answers | New methods found |
+|---|---|---|---|---|---|
+| Claude Haiku 5.5 | 1.00 | 1.00 | 1.00 | 15 of 15 | 2 of 2 |
+| Gemini 3 Flash | 1.00 | 0.95 | 0.98 | 14 of 15 | 2 of 2 |
+| Keyword lexicon (offline) | 1.00 | 0.27 | 0.43 | 9 of 15 | 0 of 2 |
 
 ---
 
 ## 4. Evaluation and testing
 
 ```bash
+npm run check   # lint, types and tests
 npm test        # 69 tests: engine on simulated blocks, guardrails, interview service (SQLite + Turso), telephony, WhatsApp, coach, exports, mapper
 npm run eval    # coding vs 30 hand-labelled answers + guardrails under attack + interviewer behaviour
 npm run smoke   # end-to-end interview against a running server (consent → 7 topics → coding)
@@ -157,12 +199,15 @@ node scripts/flows.mjs http://localhost:8788   # every user flow against a runni
 
 `npm run eval` attacks every guardrail with deliberately bad outputs (fabricated quotes, changed or
 dropped numbers, caste/religion/politics/pay/personal questions, wrong language, invented school
-names, phone/ID numbers) and counts false alarms on good outputs. With a Claude key it also scores
-the Claude coder against the keyword coder.
+names, phone/ID numbers) and counts false alarms on good outputs: 95 of 95 caught, none on good ones.
+This is a test set we wrote, not field data.
 
-**Field testing:** `/testing` records consented sessions with teachers, CRPs and BEOs (role tasks,
-think-aloud comments, a Hindi/English SUS) and the "you said → we changed" log.
-`docs/TESTING-KIT.md` explains how to run a session.
+**On every push,** GitHub Actions runs lint (`oxlint`), type checks (strict TypeScript), the tests, the guardrail
+evaluation, a dependency audit, a production build, all the user flows against a running server, a secret scan
+(`gitleaks`) and CodeQL security analysis. None of it needs a key: the flows run on the offline engine.
+
+**User inputs so far** are informal reviews and our own test runs and calls. Formal sessions with government teachers and
+officers come in the pilot; the app's Test lab (`/testing`) is ready to record them.
 
 ---
 
@@ -170,8 +215,8 @@ think-aloud comments, a Hindi/English SUS) and the "you said → we changed" log
 
 - **Real calls:** Jugnu dials through Plivo (or Exotel), asks Hindi or English first, and runs the
   interview over the provider's audio stream. Phone numbers are stored only as a salted hash.
-- **Claude down or slow:** every task degrades to the offline engine; on the phone Claude gets 8 s
-  per turn so the caller never waits.
+- **A model down or slow:** every task goes from Claude to Gemini to the offline engine, so quality drops
+  but work never stops. On the phone the models get 8 s per turn so the caller never waits.
 - **Low connectivity and cheap phones:** see §1. The app shell is cached by a service worker.
 - **Real data:** works on a district's own spreadsheet (Data & method → Import CSV), with the column
   mapper handling UDISE+ exports and Hindi headers.
@@ -198,13 +243,23 @@ transfers or personal life. Visit photos are never stored.
 
 ## 8. Roadmap and integration
 
-| When | What | Integrates with |
+We move to the next stage only when this term's schools beat next term's. The results decide, not the plan.
+
+| When | What | Goal |
 |---|---|---|
-| Pilot (one block, one term) | Run the loop in Tendukheda with real assessment results; 5–8 field sessions per role; tune questions and voice notes | State assessment exports and UDISE+ via the column mapper; WhatsApp and IVR the block already uses |
-| District | All 7 Damoh blocks; DIET faculty review AI drafts alongside CRPs | District EMIS; the BEO's existing review meetings (plan board CSV, calendar invites) |
-| State | Practices from schools doing well pooled across districts, with evidence by context (tribal, multigrade, language) | State command centres (VSK) as a data source and a destination for owned actions |
-| Speech | Sarvam / Bhashini as an alternative speech engine for more Indian languages | `transcribe()` / `synthesize()` in `server/voice.ts` — one swap point |
-| Calls at scale | Production numbers on Plivo or Exotel, a fixed public endpoint | `server/telephony.ts` already speaks both providers |
+| Next 3 months | Get ready in Tendukheda: district permission, real assessment results loaded, 5 to 8 real people per role try it | 186 schools on real results; about 12 visits and 15 teacher calls |
+| 3 to 9 months | One full term: the first group of schools tries one method, day-14 calls, offline saving for field visits | 31 schools start and 30 wait to compare, at the next assessment |
+| Year 2 | All 7 Damoh blocks, only if children learned more; DIET faculty review AI drafts; WhatsApp goes live | 1,365 schools; methods that work across blocks |
+| After that | State level: state command centres, more Indian languages, evidence by type of school | One state partner, if the district results hold up |
+
+| Existing system | How Jugnu connects | Today |
+|---|---|---|
+| UDISE+, state assessments | Spreadsheet import, with an AI column mapper for Hindi headers | Built |
+| State command centres (VSK) | Takes results in; returns owned actions and progress | Needs state access |
+| District EMIS, BEO review meetings | Plan board export and calendar invites | Built |
+| Phone networks (Plivo, Exotel) | Production numbers and an always-on server for calls at scale | Real calls made |
+| WhatsApp (Meta Cloud API) | Peer voice notes and day-14 check-ins; replies update the board | Built; needs a business account |
+| Bhashini, Sarvam | More Indian languages, through one swap point: `transcribe()` and `synthesize()` in `server/voice.ts` | Planned |
 
 ---
 
@@ -212,10 +267,13 @@ transfers or personal life. Visit photos are never stored.
 
 Every key is optional for running the app: with none set, it runs on the offline engine, the
 browser's own voices and typed answers. Keys go in `.env` locally, or in the host's environment. None are in this repository.
+The live site stores no Google key file: Vercel proves its identity to Google and acts as a service account limited to speech
+and Vertex AI (`npm run speech:setup`).
 
 | Service | Model or product | Used for | Key (`.env`) | Without it |
 |---|---|---|---|---|
-| **Anthropic Claude** | Claude Haiku 5.5 (structured tasks); Claude Sonnet 5.5 (assistant agent) | The ten AI tasks in §3 | `ANTHROPIC_API_KEY`; optional `CLAUDE_MODEL`, `AGENT_MODEL` (only these two models are allowed), `CREDIT_BUDGET_USD` | Offline engine for every task |
+| **Anthropic Claude** | Claude Haiku 5.5 (structured tasks); Claude Sonnet 5.5 (assistant agent) | The ten AI tasks in §3 | `ANTHROPIC_API_KEY`; optional `CLAUDE_MODEL`, `AGENT_MODEL` (only these two models are allowed), `CREDIT_BUDGET_USD` | Gemini, then the offline engine |
+| **Google Gemini on Vertex AI** | `gemini-3-flash-preview`, then `gemini-3.8-flash` | Backup for the ten AI tasks, the briefing and the page guide | The same Google credentials as Speech-to-Text below; optional `GEMINI_MODEL` | Offline engine for every task |
 | **Google Cloud Speech-to-Text** | Chirp 3 | Hearing teachers and officers on every screen | On Vercel, the site's own identity with no stored key (`npm run speech:setup`); `GOOGLE_SERVICE_ACCOUNT_JSON` on another host; a `gcloud` login on your machine; falls back to `GOOGLE_CLOUD_API_KEY` | Typing |
 | **Google Cloud Text-to-Speech** | Chirp 3 HD voices | Jugnu's voice on every screen, on calls and in voice notes | `GOOGLE_CLOUD_API_KEY` | Browser voices; phone calls need it |
 
@@ -227,10 +285,6 @@ Not AI, and also optional:
 | Meta WhatsApp Cloud API | Voice notes, check-ins and replies | `WHATSAPP_*` |
 | Google Maps | The 3D district map (its own map is used otherwise) | `VITE_GOOGLE_MAPS_KEY`, read at build time |
 | Turso | Hosted storage (local SQLite otherwise) | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` |
-
-Gemini through Vertex AI (`gemini-3-flash-preview`, or `GEMINI_MODEL`) is the backup for the voice and chat
-assistant, the briefing and the page guide when Claude does not answer. It uses the same Google credentials as
-Chirp 3; `npm run speech:setup` sets them up on Vercel.
 
 Nothing else is called while the app runs. The demo film and artwork were prepared beforehand with
 Google Veo 3.1, Lyria and Chirp 3 HD; the app does not use those at run time and needs no key for them.
@@ -252,7 +306,7 @@ The database is created at `data/runtime/jugnu.db` and the demo block is ready.
 
 ```bash
 npm run build && npm start   # production: one server on $PORT serving the app and the API
-npm run ai:check             # says whether Claude and speech are reachable with your keys
+npm run ai:check             # says whether Claude, Gemini and speech are reachable with your keys
 ```
 
 ### Required configuration
@@ -262,6 +316,7 @@ Nothing is required. These change behaviour, and all are described in `.env.exam
 - `TELEPHONY_PROVIDER`, provider keys, `PUBLIC_URL`, `PHONE_SALT`: the real phone line. The provider needs a
   public WebSocket, so run the API on a long-lived host or a tunnel. There is no phone simulator.
 - `DEMO_TEACHER_PHONE`: the only number the assistant may dial without being told one.
+- `JUGNU_OFFLINE=1`: stays on the offline engine even when this machine has Google credentials.
 - `WHATSAPP_*`, `CRON_SECRET`, `TURSO_*`, `JUGNU_DB`: WhatsApp, the daily clock on Vercel, and storage.
 
 ### Deploy
@@ -275,18 +330,22 @@ Nothing is required. These change behaviour, and all are described in `.env.exam
 ## Repository
 
 ```
-server/            Express API (app.ts), storage (db.ts), interviews, phone line, WhatsApp, scheduler, reviews, exports, testing
-server/ai/         run.ts (the five layers) · guardrails · interviewer · coder · writer · followup · officer · agent · vision · coach · mapper
-src/engine/        Find / Verify / Contrast / Spread / Track statistics, insights, the real Damoh schools and the simulator
-src/pages/         Home · Talk (teacher) · Today · Schools · School · Ask · Practices · Plan · Results · Review · District · Testing · AI · Method · About
-scripts/           eval.ts · smoke.mjs · flows.mjs · credits.ts
+.github/workflows/ CI: lint, types, tests, guardrail evaluation, audit, build, user flows, secret scan, CodeQL
+server/            Express API (app.ts), storage (db.ts), interviews, phone line, WhatsApp, scheduler, reviews, exports, voice
+server/ai/         run.ts (the five layers) · model.ts (Claude, then Gemini) · gemini · guardrails · interviewer · coder · writer · followup · officer · agent · vision · coach · mapper · health
+src/engine/        Find / Confirm / Contrast / Share / Track statistics, the real Damoh schools and the simulator
+src/pages/         Home · Talk (teacher) · Today · Schools · School · Ask · Practices · Plan · Results · Review · District · Testing · AI · About
+src/components/    The console, the assistant, maps, forms and the design kit
+scripts/           eval.ts · smoke.mjs · flows.mjs · ai-check.ts · credits.ts · and the deploy and setup scripts
 data/eval/         hand-labelled coding set and the latest evaluation results
-docs/TESTING-KIT.md   how to run field sessions and record "you said → we changed"
-docs/INTERNAL-TESTS.md   what the AI-run walkthroughs found (these are not user testing)
+data/udise/        UDISE+ 2025-26 block profiles for Damoh
+public/            icons, service worker, the background video and the film the app plays
 docs/DATA-AND-METHOD.md  the data and the statistics
+docs/INTERNAL-TESTS.md   what the AI-run walkthroughs found (these are not user testing)
+docs/PHONE-SERVER.md     running the phone line on its own server
 ```
 
-Built with Claude (Anthropic) by Team ShikshaSaathi AI: Ashfaque Rifaye, Patel Mishal, Umesh Kumar, Aryan Patel.
+Built by Team ShikshaSaathi AI: Ashfaque Rifaye, Patel Mishal, Umesh Kumar, Aryan Patel.
 
 ## Licence
 

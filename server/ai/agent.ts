@@ -8,7 +8,7 @@ import type { BetaMessageParam, BetaToolUnion } from "@anthropic-ai/sdk/resource
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import type { PipelineState } from "../../src/engine/pipeline";
-import { claudeAvailable, describeError, getClient, PRICES } from "../claude";
+import { claudeUsable, describeError, getClient, noteClaudeError, PRICES } from "../claude";
 import { db, now } from "../db";
 import { writeEvent } from "../eventlog";
 import { enqueue, enqueueForAction, listJobs } from "../scheduler";
@@ -21,15 +21,15 @@ import { officerTools } from "./officer";
 
 /** The voice/chat agent may use Sonnet 5.5 (better at multi-step screen work); default Sonnet, override with AGENT_MODEL. */
 const wanted = process.env.AGENT_MODEL || "claude-sonnet-5-5";
-export const AGENT_MODEL = wanted in PRICES ? wanted : "claude-haiku-5-5";
+const AGENT_MODEL = wanted in PRICES ? wanted : "claude-haiku-5-5";
 
-export const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "practices", "interviews", "calls", "district", "ai", "method", "about", "home"] as const;
+const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "practices", "interviews", "calls", "district", "ai", "method", "about", "home"] as const;
 
 /** The block keeps no teachers' numbers; the team's demo sets one so a call can be placed by the school's name alone. */
 const numberOnFile = () => (process.env.DEMO_TEACHER_PHONE ?? "").trim();
 
 /** Tools the browser runs. Kept small: the agent can see the screen (read_screen) and act on it. */
-export const UI_TOOLS: BetaToolUnion[] = [
+const UI_TOOLS: BetaToolUnion[] = [
   {
     name: "go_to",
     description: "Open a page of the console. today = the officer's day; schools = list; map = schools on the real map; plan = who learns from whom; approvals = items waiting for sign-off; results = did it work; practices = methods that work; interviews = what teachers said; calls = the phone line with live call transcripts; district = all 7 blocks.",
@@ -363,7 +363,7 @@ export async function agentTurn(messages: BetaMessageParam[], st: PipelineState,
     }), ...UI_TOOLS];
   // Tools and system prompt are the same on every step of a conversation: cache them.
   tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: { type: "ephemeral" } } as BetaToolUnion;
-  if (!claudeAvailable() || startedByGemini(messages as never)) return geminiTurn(messages, st, ctx, server, tools, started);
+  if (!claudeUsable() || startedByGemini(messages as never)) return geminiTurn(messages, st, ctx, server, tools, started);
   const used = { i: 0, o: 0 };
   const names: string[] = [];
   const firstUser = messages.find((m) => m.role === "user" && typeof m.content === "string")?.content as string | undefined;
@@ -404,6 +404,7 @@ export async function agentTurn(messages: BetaMessageParam[], st: PipelineState,
     await trace(firstUser ?? "turn", used, false, "too many steps", started, names);
     return { messages: convo, calls: [], results: [], looked: [], say: ctx.lang === "hi" ? "यह काम लंबा हो गया — थोड़ा छोटा करके पूछें?" : "That took too many steps — could you ask in a smaller piece?", source: "claude" };
   } catch (error) {
+    noteClaudeError(error);
     const msg = describeError(error);
     await trace(firstUser ?? "turn", used, false, msg, started, names);
     return geminiTurn(messages, st, ctx, server, tools, Date.now(), `Claude: ${msg}`.slice(0, 300));
@@ -435,7 +436,7 @@ export async function agentBrief(facts: string[], lang: "en" | "hi", name?: stri
     const lines = text.split(/\n+/).map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, "").trim()).filter(Boolean).slice(0, 8);
     return { lines, source: lines.length ? "gemini" : "offline" };
   };
-  if (!claudeAvailable()) return geminiLines();
+  if (!claudeUsable()) return geminiLines();
   const started = Date.now();
   try {
     const res = await getClient().messages.create(
@@ -454,6 +455,7 @@ export async function agentBrief(facts: string[], lang: "en" | "hi", name?: stri
     await trace("brief", { i: res.usage.input_tokens, o: res.usage.output_tokens }, true, null, started, []);
     return { lines, source: "claude" };
   } catch (e) {
+    noteClaudeError(e);
     await trace("brief", { i: 0, o: 0 }, false, describeError(e), started, []);
     return geminiLines();
   }
@@ -489,7 +491,7 @@ export async function agentPageGuide(page: string, screen: string, facts: string
     const said = await geminiText(guideSystem(page, lang), `On screen now:\n${screen.slice(0, 2500)}\n\nBlock facts:\n${facts.map((f) => `- ${f}`).join("\n")}`, 1500).catch(() => "");
     return said ? { text: wholeSentences(said, "max_tokens").replace(/\s+/g, " "), source: "gemini" } : { text: pageHelp(page, lang), source: "offline" };
   };
-  if (!claudeAvailable()) return backup();
+  if (!claudeUsable()) return backup();
   const started = Date.now();
   try {
     const res = await getClient().messages.create(
@@ -506,6 +508,7 @@ export async function agentPageGuide(page: string, screen: string, facts: string
     await trace("guide", { i: res.usage.input_tokens, o: res.usage.output_tokens }, true, null, started, [], GUIDE_MODEL);
     return { text, source: "claude" };
   } catch (e) {
+    noteClaudeError(e);
     await trace("guide", { i: 0, o: 0 }, false, describeError(e), started, [], GUIDE_MODEL);
     return backup();
   }

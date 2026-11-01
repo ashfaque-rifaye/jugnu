@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Client, ResultSet } from "@libsql/client/web";
 
-export type Arg = string | number | null;
+type Arg = string | number | null;
 export interface Stmt {
   sql: string;
   args?: Arg[];
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS turns (
   text_en      TEXT,
   kind         TEXT,                              -- consent | question | follow_up | clarify | closing | answer
   topic        TEXT,
-  source       TEXT,                              -- claude | offline | asr | typed
+  source       TEXT,                              -- claude | gemini | offline | asr | typed
   confidence   REAL,
   created_at   TEXT NOT NULL
 );
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS codings (
   quote        TEXT NOT NULL,
   specificity  INTEGER NOT NULL,
   grounded     INTEGER NOT NULL,
-  coder        TEXT NOT NULL,                     -- claude | offline
+  coder        TEXT NOT NULL,                     -- claude | gemini | offline
   note         TEXT,
   created_at   TEXT NOT NULL
 );
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS ai_calls (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   task          TEXT NOT NULL,
   ref           TEXT,
-  source        TEXT NOT NULL,                    -- claude | offline
+  source        TEXT NOT NULL,                    -- claude | gemini | offline
   model         TEXT,
   latency_ms    INTEGER,
   input_tokens  INTEGER,

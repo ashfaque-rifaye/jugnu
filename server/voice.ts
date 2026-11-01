@@ -8,6 +8,9 @@
 import { getVercelOidcTokenSync } from "@vercel/functions/oidc";
 import { ExternalAccountClient, GoogleAuth } from "google-auth-library";
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 const KEY = () => process.env.GOOGLE_CLOUD_API_KEY;
 const PROJECT = () => process.env.GOOGLE_CLOUD_PROJECT || "ai-pro-developer";
@@ -16,7 +19,7 @@ export const googleProject = PROJECT;
 export const voiceConfigured = () => Boolean(KEY());
 
 /** BCP-47 codes for the languages the console speaks; recognition also accepts these. */
-export const LOCALES: Record<string, string> = { en: "en-IN", hi: "hi-IN", ta: "ta-IN", te: "te-IN", mr: "mr-IN", bn: "bn-IN", gu: "gu-IN", kn: "kn-IN", ml: "ml-IN" };
+const LOCALES: Record<string, string> = { en: "en-IN", hi: "hi-IN", ta: "ta-IN", te: "te-IN", mr: "mr-IN", bn: "bn-IN", gu: "gu-IN", kn: "kn-IN", ml: "ml-IN" };
 
 /** Voices offered in the console (Chirp 3 HD). The first is the default. */
 export const VOICES = ["Aoede", "Leda", "Kore", "Zephyr", "Charon", "Puck", "Orus", "Fenrir"] as const;
@@ -41,13 +44,16 @@ function vercelIdentity() {
 }
 let identity: ReturnType<typeof vercelIdentity> = null;
 
+const gcloudLogin = () => process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(process.env.APPDATA ?? path.join(os.homedir(), ".config"), "gcloud", "application_default_credentials.json");
+/** Are there Google credentials to try? Answers at once: looking for them on a machine without any takes seconds. */
+export const googleReady = () =>
+  Boolean((process.env.GOOGLE_WIF_AUDIENCE && process.env.GOOGLE_SERVICE_ACCOUNT) || process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.K_SERVICE) || (!process.env.VERCEL && fs.existsSync(gcloudLogin()));
+
 /** Google credentials for Chirp 3 and Gemini: Vercel's identity on the live site, a service-account JSON on another host, or the machine's own gcloud login. */
 export async function googleClient() {
-  if (adcOk === false) return null;
+  if (adcOk === false || !googleReady()) return null;
   identity ??= vercelIdentity();
   if (identity) return identity;
-  // On a hosted server only an explicit service account counts (no gcloud login there).
-  if (process.env.VERCEL && !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) return null;
   try {
     const json = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
     auth ??= new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"], ...(json ? { credentials: JSON.parse(json) } : {}) });

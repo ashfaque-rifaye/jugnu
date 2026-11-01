@@ -122,7 +122,7 @@ export interface Interview {
   language: "hi" | "en";
   turns: Turn[];
   mentions: Mention[];
-  codedBy: "offline" | "claude";
+  codedBy: "offline" | "ai";
   minutes: number;
 }
 

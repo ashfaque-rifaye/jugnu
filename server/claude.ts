@@ -25,6 +25,14 @@ export function claudeAvailable(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
+let restingUntil = 0;
+/** After a spent budget or a bad key, don't ask Claude again for a while: every task would wait for the same no. */
+export function noteClaudeError(error: unknown) {
+  const closed = error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError || (error instanceof Error && /usage limits|credit balance/i.test(error.message));
+  if (closed) restingUntil = Date.now() + 10 * 60_000;
+}
+export const claudeUsable = () => claudeAvailable() && Date.now() >= restingUntil;
+
 export function getClient(): Anthropic {
   client ??= new Anthropic();
   return client;
@@ -32,7 +40,7 @@ export function getClient(): Anthropic {
 
 export class ClaudeRefusal extends Error {}
 
-export interface Usage {
+interface Usage {
   input_tokens: number;
   output_tokens: number;
 }
@@ -43,7 +51,7 @@ export interface ClaudeResult<T> {
   usage: Usage;
 }
 
-type Content = string | Anthropic.Beta.BetaContentBlockParam[];
+export type Content = string | Anthropic.Beta.BetaContentBlockParam[];
 
 
 /**

@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { cx } from "./ui";
 
-export function useVideoAvailable(src?: string) {
+function useVideoAvailable(src?: string) {
   const [ok, setOk] = useState<boolean | null>(null);
   useEffect(() => {
     if (!src) return setOk(false);
@@ -18,7 +18,7 @@ export function useVideoAvailable(src?: string) {
   return ok;
 }
 
-export function BackgroundVideo({ src, className, opacity = 0.62 }: { src: string; className?: string; opacity?: number }) {
+function BackgroundVideo({ src, className, opacity = 0.62 }: { src: string; className?: string; opacity?: number }) {
   const ok = useVideoAvailable(src);
   if (!ok) return null;
   return <video className={cx("hero-video", className)} style={{ opacity }} src={src} autoPlay muted loop playsInline preload="auto" aria-hidden />;

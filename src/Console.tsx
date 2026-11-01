@@ -748,7 +748,11 @@ function SchoolSearch({ onPick }: { onPick: (id: string) => void }) {
         onChange={(e) => (setQ(e.target.value), setOpen(true))}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && hits[0]) (onPick(hits[0].id), setQ(""), setOpen(false));
+          if (e.key === "Enter" && hits[0]) {
+            onPick(hits[0].id);
+            setQ("");
+            setOpen(false);
+          }
           if (e.key === "Escape") setOpen(false);
         }}
         placeholder={window.innerWidth < 768 ? t("Search", "खोजें") : t("Search school, village, teacher", "स्कूल, गाँव, शिक्षक खोजें")}

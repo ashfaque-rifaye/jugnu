@@ -14,13 +14,6 @@ function readSet(): Set<string> {
   }
 }
 let done = readSet();
-let welcomed = (() => {
-  try {
-    return localStorage.getItem(WELCOME) === "1";
-  } catch {
-    return false;
-  }
-})();
 
 const emit = () => listeners.forEach((l) => l());
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
@@ -37,20 +30,7 @@ export function markJourney(...keys: string[]) {
   emit();
 }
 
-export function resetJourney() {
-  done = new Set();
-  welcomed = false;
-  try {
-    localStorage.removeItem(KEY);
-    localStorage.removeItem(WELCOME);
-  } catch {
-    /* ignore */
-  }
-  emit();
-}
-
 export function setWelcomed(v = true) {
-  welcomed = v;
   try {
     if (v) localStorage.setItem(WELCOME, "1");
     else localStorage.removeItem(WELCOME);
@@ -65,11 +45,4 @@ export const useJourney = () =>
     subscribe,
     () => done,
     () => done,
-  );
-
-export const useWelcomed = () =>
-  useSyncExternalStore(
-    subscribe,
-    () => welcomed,
-    () => welcomed,
   );

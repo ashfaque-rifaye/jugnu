@@ -3,7 +3,7 @@
 // which source column fills each Jugnu field; guardrails make sure every named column exists and none
 // is used twice. Offline, a synonym table does the same for the common names.
 import { z } from "zod";
-import { askClaude } from "../claude";
+import { askAI } from "./model";
 import type { Check } from "./guardrails";
 import { runAI, type AIResult } from "./run";
 
@@ -54,8 +54,8 @@ export async function mapColumns(target: string[], headers: string[], sample: st
     task: "import.map_columns",
     timeoutMs: 25000,
     offline: () => offlineMap(target, headers),
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `You map the columns of an Indian school-data spreadsheet onto Jugnu's import format. For every Jugnu column give the ONE source column that holds it (copy its header exactly) or null. Never map two Jugnu columns to the same source column. Only map when the sample values fit.
 Jugnu columns and units: school_id (UDISE code or any unique id), school_name, village, cluster, crp (cluster coordinator's name), x_km / y_km (km east / north of the block HQ — longitude/latitude are NOT km, leave null), enrolment, grade3_tested, pupil_teacher_ratio, multigrade (0/1), library_in_use (0/1), attendance (share 0–1), home_language_mismatch (share 0–1), teacher, reading_<cycle> / numeracy_<cycle> (% of Grade 3 at level, 0–100). When a share is given as 0–100, set multiply_by 0.01. When a % column is given as 0–1, set multiply_by 100.`,
         content: `Jugnu columns: ${target.join(", ")}\nSource headers: ${JSON.stringify(headers)}\nSample rows:\n${sample.slice(0, 3).map((r) => JSON.stringify(r)).join("\n")}`,

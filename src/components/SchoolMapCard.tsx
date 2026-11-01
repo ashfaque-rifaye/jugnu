@@ -78,7 +78,7 @@ export function SchoolMapCard({
   const prev = s.attendanceByCycle[last - 1];
   const name = lang === "hi" && s.nameHi ? s.nameHi : s.name;
 
-  const TripRow = ({ to, label, icon: Icon }: { to: School; label: string; icon: typeof Sparkles }) => {
+  const tripRow = (to: School, label: string, Icon: typeof Sparkles) => {
     const tr = trip(s, to);
     return (
       <div className="card-inset p-2.5">
@@ -177,8 +177,8 @@ export function SchoolMapCard({
           </div>
         )}
 
-        {mentorSchool && <TripRow to={mentorSchool} label={t("Learns from", "इनसे सीखता है")} icon={Users} />}
-        {bright && status !== "bright" && bright.school.id !== mentorSchool?.id && <TripRow to={bright.school} label={t("Nearest school doing well", "सबसे पास का अच्छा स्कूल")} icon={Sparkles} />}
+        {mentorSchool && tripRow(mentorSchool, t("Learns from", "इनसे सीखता है"), Users)}
+        {bright && status !== "bright" && bright.school.id !== mentorSchool?.id && tripRow(bright.school, t("Nearest school doing well", "सबसे पास का अच्छा स्कूल"), Sparkles)}
         {status === "bright" && learners.length > 0 && (
           <div className="card-inset p-2.5 text-sm">
             <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-3)]">{t("Teaches nearby schools", "पास के स्कूलों को सिखाता है")}</div>

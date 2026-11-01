@@ -1,11 +1,11 @@
-// VERIFY, with a photo: during a spot check the CRP photographs what a practice leaves behind — a
+// VERIFY, with a photo: during a confirmation visit the CRP photographs what a practice leaves behind — a
 // print-rich wall, level-group charts, number sticks on the desks — and Claude says whether the
 // practice is visible, listing only what it can actually see. The photo is never stored; only the
 // verdict reaches the block's log. People are never identified, and a photo that shows children's
 // faces is flagged so the CRP retakes it from behind or of the wall alone.
 import { z } from "zod";
 import { PRACTICES, type PracticeId } from "../../src/engine/practices";
-import { askClaude } from "../claude";
+import { askAI } from "./model";
 import type { Check } from "./guardrails";
 import { SAFETY } from "./interviewer";
 import { runAI, type AIResult } from "./run";
@@ -29,7 +29,7 @@ const Schema = z.object({
   child_faces: z.boolean().describe("True if any child's face is recognisable in the photo"),
 });
 
-export function offlinePhotoCheck(): PhotoCheck {
+function offlinePhotoCheck(): PhotoCheck {
   return {
     visible: "cannot_tell",
     seen: [],
@@ -46,8 +46,8 @@ export async function checkPhoto(args: { image: string; mediaType: PhotoType; pr
     ref: args.ref,
     timeoutMs: 30000,
     offline: offlinePhotoCheck,
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `${SAFETY}
 You look at one photo a cluster resource person took in a government primary school classroom during a confirmation visit, and judge whether a teaching method is visibly in use.
 - List only what you can actually see. Never guess at what is outside the frame or what happens on other days.

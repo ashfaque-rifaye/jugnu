@@ -106,7 +106,10 @@ function Overlay({ steps, i, setI, onEnd }: { steps: TourStep[]; i: number; setI
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape") onEnd(false);
-      if (e.key === "ArrowRight") (last ? onEnd(true) : setI(i + 1));
+      if (e.key === "ArrowRight") {
+        if (last) onEnd(true);
+        else setI(i + 1);
+      }
       if (e.key === "ArrowLeft" && i > 0) setI(i - 1);
     };
     window.addEventListener("keydown", key);

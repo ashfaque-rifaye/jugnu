@@ -5,10 +5,10 @@
 // always shown as an estimate.
 import type { School } from "./types";
 
-export const ROAD_FACTOR = 1.35;
-export const BIKE_KMH = 25;
+const ROAD_FACTOR = 1.35;
+const BIKE_KMH = 25;
 
-export function straightKm(a: Pick<School, "x" | "y" | "lat" | "lon">, b: Pick<School, "x" | "y" | "lat" | "lon">): number {
+function straightKm(a: Pick<School, "x" | "y" | "lat" | "lon">, b: Pick<School, "x" | "y" | "lat" | "lon">): number {
   if (a.lat != null && a.lon != null && b.lat != null && b.lon != null) {
     const R = 6371;
     const rad = Math.PI / 180;

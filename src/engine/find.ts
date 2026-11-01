@@ -33,8 +33,8 @@ function solve(A: number[][], b: number[]): number[] {
 
 function ols(X: number[][], y: number[], ridge = 1e-3) {
   const p = X[0].length;
-  const XtX = Array.from({ length: p }, () => new Array(p).fill(0));
-  const Xty = new Array(p).fill(0);
+  const XtX = Array.from({ length: p }, () => Array.from({ length: p }, () => 0));
+  const Xty = Array.from({ length: p }, () => 0);
   for (let i = 0; i < X.length; i++) {
     for (let a = 0; a < p; a++) {
       Xty[a] += X[i][a] * y[i];
@@ -140,5 +140,3 @@ export function matchComparisons(block: Block, find: FindResult, brightIds: stri
   }
   return [...chosen];
 }
-
-export const FIND_FEATURES = FEATURES.map((f) => f.label);

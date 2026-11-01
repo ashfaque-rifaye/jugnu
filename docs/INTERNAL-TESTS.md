@@ -2,7 +2,7 @@
 
 An AI agent (Claude) ran these walkthroughs in a real browser, acting as each role on the screen size that role would use. **They are not user testing.** No teacher, CRP or BEO took part, so this shows bugs and rough edges, not whether real people find Jugnu easy to use. They should be described that way in the submission.
 
-Claude itself was unavailable throughout (usage cap until 1 November), so every AI answer came from the backup rules.
+Claude itself was unavailable throughout, so every AI answer came from the backup rules.
 
 ## What was tested
 
@@ -10,14 +10,14 @@ Claude itself was unavailable throughout (usage cap until 1 November), so every 
 |---|---|---|---|
 | BEO | Computer, English | Ask about maths; find stuck actions; see why data may be inflated; read Results | All done; 4 problems fixed |
 | Teacher | Phone, Hindi | Interview by typing; voice note; practice card | Interview done; 3 problems fixed. The voice note was not played, and the card page was not opened after its link was fixed |
-| CRP | Phone, English | Find bright spots; invite a teacher; record a spot check; record a follow-up; review an AI draft | All reached; 5 problems fixed, including 1 serious. Saving a real spot check with counts was not tested |
+| CRP | Phone, English | Find schools doing well; invite a teacher; record a confirmation visit; record a follow-up; review an AI draft | All reached; 5 problems fixed, including 1 serious. Saving a real confirmation visit with counts was not tested |
 | First-time visitor | Small phone and computer | Welcome screen; guided tour | Done; 1 problem fixed |
 
 The full set of 11 automated flows also passed afterwards, using the backup. They include starting an interview, approving a draft and recording field work.
 
 ## Most important findings
 
-1. **Serious, fixed:** one tap on Save in the spot check form, with nothing entered, recorded 0 of 15 and flagged the school's data as over-reported.
+1. **Serious, fixed:** one tap on Save in the confirmation visit form, with nothing entered, recorded 0 of 15 and flagged the school's data as over-reported.
 2. **Fixed:** with Claude unavailable, Ask Jugnu replied "Opened schools" to "Which schools need help with maths, and who can show them?" It now names the schools and the nearest teacher who can show each one.
 3. **Fixed:** with Claude unavailable, the follow-up reader took "tried it, but short of time" to mean "uses the practice regularly".
 4. **Fixed:** the backup missed "जो बच्चा नहीं आया" ("the child who didn't come") as a catch-up practice, so that teacher's answer was lost.

@@ -41,10 +41,10 @@ const plivoConfigured = () => {
   return !!(p.id && p.token && p.from);
 };
 
-export const publicUrl = () => env("PUBLIC_URL").replace(/\/$/, "");
+const publicUrl = () => env("PUBLIC_URL").replace(/\/$/, "");
 
 /** The provider that will place the next call, or null when the phone line is off. */
-export function activeProvider(): Provider | null {
+function activeProvider(): Provider | null {
   const wanted = env("TELEPHONY_PROVIDER") as Provider | "";
   if (wanted === "plivo") return plivoConfigured() ? "plivo" : null;
   if (wanted === "exotel") return exotelConfigured() ? "exotel" : null;
@@ -79,7 +79,7 @@ export function normaliseIndianNumber(raw: string): string | null {
 }
 
 /** Webhook URLs carry a key derived from the provider secret, so nobody else can drive a call. */
-export function webhookKey(): string {
+function webhookKey(): string {
   const seed = exotel().token || plivo().token || env("PHONE_SALT") || "jugnu";
   return createHash("sha256").update(`webhook:${seed}`).digest("hex").slice(0, 20);
 }

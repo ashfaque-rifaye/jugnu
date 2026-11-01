@@ -7,8 +7,6 @@
 
 export type UdiseSchool = [udise: string, name: string, nameHi: string, lat: number, lon: number, cluster: number, enrolment: number, grade3: number, teachers: number, classTo: number];
 
-export const UDISE_SOURCE = { name: "UDISE+ via India Data Portal", retrieved: "2022-01-12", url: "https://indiadataportal.com/" } as const;
-
 export const UDISE: Record<string, { clusters: [string, string][]; schools: UdiseSchool[] }> = {
   Batiyagarh: {
     clusters: [["Fatehpur", "फतेहपुर"], ["Riyana", "रियाना"], ["Phutera Kala", "फुटेरा कला"], ["Ronsra", "रोंसरा"], ["Khaderi", "खदेरी"], ["Batiyagarh", "बटियागढ़"], ["Magron", "मगरौन"]],

@@ -16,7 +16,7 @@ export function normalize(s: string): string {
     .normalize("NFC")
     .toLowerCase()
     .replace(/[०-९]/g, (d) => String(DEVANAGARI_DIGITS.indexOf(d)))
-    .replace(/[“”"'‘’`.,!?;:()\[\]{}…।॥\-–—/\\|*_#]+/g, " ")
+    .replace(/[“”"'‘’`.,!?;:()[\]{}…।॥\-–—/\\|*_#]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -39,7 +39,7 @@ In the simulated block, ~9% of schools run 2 to 3 effective practices well, 6 re
 
 ## The AI tasks, layer by layer
 
-Every task runs the same five layers: input, model, deterministic checks, evaluation, output. If Claude is slow, unavailable, declines or fails a check, the offline rules answer instead. Every call is logged.
+Every task runs the same five layers: input, model, deterministic checks, evaluation, output. Claude answers first and Gemini through Vertex AI takes over when it does not. If no model answers in time, one declines, or the answer fails a check, the offline engine answers instead. Every call is logged.
 
 ### Adaptive interviewer (`interview.next`)
 
@@ -95,13 +95,13 @@ Every task runs the same five layers: input, model, deterministic checks, evalua
 - **Output:** Answer, schools, one next step with an owner
 - **Fallback:** Rule-based answers for common questions
 
-### Spot-check photo check (`verify.photo`)
+### Confirmation-visit photo check (`verify.photo`)
 
 - **Input:** A CRP's classroom photo + the practice being checked
 - **Processing:** Claude Haiku (vision): is the practice visible — yes / partly / no / cannot tell — and only what is seen
 - **Checks:** Never identifies people · flags recognisable children's faces for a retake · the photo is never stored, only the verdict
 - **Evaluation:** Agreement with the CRP's own judgement in pilot
-- **Output:** Verdict in the school's log next to the spot check
+- **Output:** Verdict in the school's log next to the confirmation visit
 - **Fallback:** \
 
 ### Teacher coach (`coach.answer`)

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { codeInterview } from "../../src/engine/interview";
 import { PRACTICE_IDS, PRACTICES, specificity, type PracticeId } from "../../src/engine/practices";
 import type { Turn } from "../../src/engine/types";
-import { askClaude } from "../claude";
+import { askAI } from "./model";
 import { groundQuote, normalize, type Check } from "./guardrails";
 import { SAFETY } from "./interviewer";
 import { runAI, type AIResult } from "./run";
@@ -77,8 +77,8 @@ export async function codeTranscript(turns: Turn[], ref?: string): Promise<AIRes
     ref,
     timeoutMs: 45000,
     offline: () => offlineCoding(turns),
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `${SAFETY}
 You code interview transcripts for a positive-deviance study of foundational learning.
 Code ONLY what the TEACHER said, never Jugnu's questions. Copy each quote verbatim (original language, no translation, no paraphrase).

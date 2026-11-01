@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { FOLLOW_UP, SCRIPT } from "../../src/engine/interview";
 import { PRACTICE_IDS, PRACTICES, specificity } from "../../src/engine/practices";
-import { askClaude } from "../claude";
+import { askAI } from "./model";
 import { checkLanguage, checkLength, checkSafeTopic, normalize, type Check } from "./guardrails";
 import { runAI, type AIResult } from "./run";
 
@@ -108,8 +108,8 @@ export async function nextTurn(turns: LiveTurn[], opts: { lang: Lang; ref?: stri
     ref: opts.ref,
     timeoutMs: opts.deadlineMs ?? 15000,
     offline: () => offlineNext(turns, opts.lang),
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `${SAFETY}
 You are "Jugnu", conducting a 12-minute ${opts.group === "bright" ? "appreciative interview with a teacher whose children learn unusually well for their context (positive-deviance inquiry)" : "interview with a teacher about daily classroom routines"}.
 Goal: surface SPECIFIC, transferable routines — what exactly happens, for how many minutes, with which materials, what children do, how often.

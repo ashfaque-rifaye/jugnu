@@ -108,7 +108,7 @@ const STATUS_STYLE: Record<Action["status"], { en: string; hi: string; color: st
   stuck: { en: "Stuck", hi: "अटका", color: "var(--tone-bad)" },
 };
 
-export function ActionStatus({ status }: { status: Action["status"] }) {
+function ActionStatus({ status }: { status: Action["status"] }) {
   const t = useT();
   const s = STATUS_STYLE[status];
   return (
@@ -233,7 +233,7 @@ export function FollowUpForm({ school, practice }: { school: School; practice: s
     setOwner(out.value.owner);
     setAi({ summary: out.value.summary_en, barrier: out.value.barrier, outcome: o });
     setHint(
-      `${out.source === "claude" ? "Claude" : t("Offline reader", "ऑफ़लाइन")}: ${out.value.summary_en}${out.value.barrier ? ` — ${out.value.barrier}${out.value.owner ? ` (${out.value.owner})` : ""}` : ""}`,
+      `${out.source === "offline" ? t("Offline reader", "ऑफ़लाइन") : t("AI reader", "एआई")}: ${out.value.summary_en}${out.value.barrier ? ` — ${out.value.barrier}${out.value.owner ? ` (${out.value.owner})` : ""}` : ""}`,
     );
   };
   const save = async () => {

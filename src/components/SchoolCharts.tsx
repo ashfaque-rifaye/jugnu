@@ -1,7 +1,7 @@
 // Reading a school's results: one colour scale for "share of children at their class level", darker
 // meaning more, so a class or subject that is behind stands out without reading every number.
 import { useState } from "react";
-import { blockScore, schoolOverall, schoolScore, SUBJECT_INFO, SUBJECTS, type Subject } from "../engine/subjects";
+import { blockScore, schoolScore, SUBJECT_INFO, SUBJECTS, type Subject } from "../engine/subjects";
 import { CYCLES, type School } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
 import { cx } from "./ui";
@@ -168,5 +168,3 @@ export function AgainstSimilar({ school, expected }: { school: School; expected:
     </div>
   );
 }
-
-export const overallOf = (s: School) => schoolOverall(s);

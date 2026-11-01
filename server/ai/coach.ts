@@ -1,12 +1,12 @@
 // Teacher coach: a teacher describes a classroom problem ("मेरे बच्चे मात्रा में अटकते हैं") and Jugnu
-// answers ONLY with practices proven in their own block — distinctive in bright spots against matched
+// answers ONLY with practices proven in their own block — distinctive in schools doing well against matched
 // comparison schools — quoting a bright-spot teacher's own words and naming the nearest school that
 // does it. Nothing generic, nothing invented: the quote must be one of the block's coded quotes.
 import { z } from "zod";
 import { trip } from "../../src/engine/geo";
 import type { PipelineState } from "../../src/engine/pipeline";
 import { PRACTICE_IDS, PRACTICES, type PracticeId } from "../../src/engine/practices";
-import { askClaude } from "../claude";
+import { askAI } from "./model";
 import { groundQuote, type Check } from "./guardrails";
 import { SAFETY } from "./interviewer";
 import { runAI, type AIResult } from "./run";
@@ -91,8 +91,8 @@ export async function askCoach(question: string, st: PipelineState, lang: "hi" |
     ref: schoolId ?? null,
     timeoutMs: 25000,
     offline: () => offlineCoach(question, st, lang, schoolId),
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `${SAFETY}
 You coach a government primary-school teacher in ${st.block.name}, ${st.block.district}. Answer in ${lang === "hi" ? "simple Hindi (Devanagari)" : "simple English"}.
 Use ONLY the methods below — they are proven in this block's own schools doing well against similar schools. If none fits the problem, set method to null and say so kindly; never suggest anything else.

@@ -9,7 +9,7 @@ export const BlockKey = z.string().min(1).max(80);
 export const EventKind = z.enum(["action", "spotcheck", "followup", "note", "weekly"]);
 export type EventKind = z.infer<typeof EventKind>;
 
-export const Payloads = {
+const Payloads = {
   action: z.object({ status: z.enum(["todo", "scheduled", "submitted", "done", "stuck"]), from: z.string().max(20).optional(), note: z.string().max(500).optional() }),
   // A school's weekly report, filed by its point of contact.
   weekly: z.object({

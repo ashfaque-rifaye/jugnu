@@ -28,13 +28,13 @@ export interface Job {
   done_at: string | null;
 }
 
-export const ACTOR = "Jugnu AI";
+const ACTOR = "Jugnu AI";
 
 const DAY = 86_400_000;
 const addDays = (days: number, from = Date.now()) => new Date(from + days * DAY).toISOString();
 
 /** `s001-call` → `s001`; action ids are `<schoolId>-<step>` throughout the engine. */
-export const schoolOf = (ref: string) => ref.replace(/-(note|visit|call|review)$/, "");
+const schoolOf = (ref: string) => ref.replace(/-(note|visit|call|review)$/, "");
 
 type Row = Omit<Job, "payload"> & { payload: string };
 const parse = (r: Row): Job => ({ ...r, payload: json(r.payload, {}) as Record<string, unknown> });
@@ -82,7 +82,7 @@ const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const who = (job: Job) => [job.payload.teacher, job.payload.school].filter(Boolean).join(", ") || job.school_id || job.ref;
 
 /** Run one job now. Each kind writes to the block's log so the console sees it. */
-export async function runJob(job: Job): Promise<string> {
+async function runJob(job: Job): Promise<string> {
   const school = job.school_id ?? schoolOf(job.ref);
   switch (job.kind) {
     case "reminder": {
@@ -192,7 +192,7 @@ export async function listJobs(block: string, status?: JobStatus): Promise<Job[]
   return rows.map(parse);
 }
 
-export async function skipJob(id: number): Promise<boolean> {
+async function skipJob(id: number): Promise<boolean> {
   const row = await db.get<{ id: number }>(`SELECT id FROM scheduled_jobs WHERE id = ? AND status = 'pending'`, id);
   if (!row) return false;
   await db.run(`UPDATE scheduled_jobs SET status = 'skipped', result = 'skipped by officer', done_at = ? WHERE id = ?`, now(), id);

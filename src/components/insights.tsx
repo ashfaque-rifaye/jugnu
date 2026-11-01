@@ -1,17 +1,12 @@
-// Panels for the newer loop tools, built from the console's own cards and fields: a bright spot beside
-// its closest match, the what-if estimate for a spread plan, the spot-check photo check, WhatsApp
-// sending, and the plan-board exports. (The teacher coach lives in Coach.tsx, for the light teacher page.)
-import { CalendarPlus, Camera, Download, GitCompare, Loader2, MessageCircle, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
-import { contrastPairs, whatIf } from "../engine/insights";
-import type { PipelineState } from "../engine/pipeline";
+// Panels built from the console's own cards and fields: the photo check on a confirmation visit,
+// WhatsApp sending and the plan-board exports. (The teacher coach lives in Coach.tsx, for the light teacher page.)
+import { CalendarPlus, Camera, Download, Loader2, MessageCircle } from "lucide-react";
+import { useState } from "react";
 import { PRACTICES, type PracticeId } from "../engine/practices";
 import { download, postJSON, useStatus } from "../lib/api";
 import { usePrefs, useT } from "../lib/prefs";
-import { Card, Field, fieldClass, Stat } from "./kit";
+import { Card, Field, fieldClass } from "./kit";
 import { cx } from "./ui";
-
-const pct = (x: number) => `${x > 0 ? "+" : ""}${x}`;
 const btn = "inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50";
 const primary = `${btn} bg-[var(--st-bright)] text-[var(--btn-ink)]`;
 const ghost = `${btn} border border-[var(--chip-line)] text-[var(--color-ink)] hover:bg-[var(--hover)]`;
@@ -19,91 +14,6 @@ const ghost = `${btn} border border-[var(--chip-line)] text-[var(--color-ink)] h
 function usePracticeLabel() {
   const { lang } = usePrefs();
   return (p: PracticeId) => (lang === "hi" ? PRACTICES[p].labelHi : PRACTICES[p].label);
-}
-
-/** Each verified bright spot beside the ordinary school most like it, with both teachers' words. */
-export function PairsCard({ state, limit = 4 }: { state: PipelineState; limit?: number }) {
-  const t = useT();
-  const label = usePracticeLabel();
-  const pairs = useMemo(() => contrastPairs(state), [state]);
-  const [open, setOpen] = useState(0);
-  if (!pairs.length) return null;
-  const name = (id: string) => state.block.schools.find((s) => s.id === id)?.name ?? id;
-  const p = pairs[Math.min(open, pairs.length - 1)];
-  return (
-    <Card title={t("A school doing well beside its closest match", "अच्छा स्कूल और उसके जैसा सामान्य स्कूल")} icon={GitCompare}>
-      <div className="mb-4 flex flex-wrap gap-2" role="tablist">
-        {pairs.slice(0, limit).map((x, i) => (
-          <button key={x.bright.schoolId} role="tab" aria-selected={i === open} onClick={() => setOpen(i)} className={cx("chip", i === open && "!border-[var(--st-bright)] !text-[var(--st-bright)]")}>
-            {name(x.bright.schoolId)}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Stat label={name(p.bright.schoolId)} value={`${pct(p.bright.aboveExpected.reading)} / ${pct(p.bright.aboveExpected.numeracy)}`} hint={t("points above expected · reading / maths", "अपेक्षा से ऊपर अंक · पढ़ना / गणित")} tone="var(--st-bright)" />
-        <Stat label={name(p.comparison.schoolId)} value={`${pct(p.comparison.aboveExpected.reading)} / ${pct(p.comparison.aboveExpected.numeracy)}`} hint={t(`${p.roadKm} km apart by road`, `सड़क से ${p.roadKm} किमी दूर`)} />
-      </div>
-      {p.alike.length > 0 && <p className="mt-3 text-xs text-[var(--color-ink-3)]">{t("Alike: ", "समानता: ")}{p.alike.join(" · ")}</p>}
-      <div className="mt-4 space-y-3">
-        {p.practices.map((x) => (
-          <div key={x.practice} className="card-inset p-3.5">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-              {label(x.practice)}
-              {x.distinctive && <span className="chip !py-0.5 !text-xs">{t("proven in this block", "इस ब्लॉक में सिद्ध")}</span>}
-            </div>
-            <div className="grid gap-3 text-sm sm:grid-cols-2">
-              <p className="text-[var(--color-ink-2)]">{x.bright ? `“${x.bright}”` : <span className="text-[var(--color-ink-3)]">{t("Not mentioned", "ज़िक्र नहीं")}</span>}</p>
-              <p className="text-[var(--color-ink-2)]">{x.comparison ? `“${x.comparison}”` : <span className="text-[var(--color-ink-3)]">{t("Not mentioned", "ज़िक्र नहीं")}</span>}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-/** "If we send N CRPs to spread this method…" — the estimate with every assumption shown. */
-export function WhatIfCard({ state }: { state: PipelineState }) {
-  const t = useT();
-  const label = usePracticeLabel();
-  const proven = state.evidence.filter((e) => e.verdict === "distinctive").map((e) => e.practice);
-  const [practice, setPractice] = useState<PracticeId | "">(proven[0] ?? "");
-  const [crps, setCrps] = useState(3);
-  const [days, setDays] = useState(3);
-  const r = useMemo(() => (practice ? whatIf(state, { practice, schoolIds: state.find.struggling, crps, daysEach: days }) : null), [state, practice, crps, days]);
-  if (!proven.length || !r) return null;
-  return (
-    <Card title={t("What if we spread it this fortnight?", "अगर इस पखवाड़े फैलाएँ तो?")} icon={Sparkles}>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label={t("Method", "तरीका")}>
-          <select className={fieldClass} value={practice} onChange={(e) => setPractice(e.target.value as PracticeId)}>
-            {proven.map((p) => (
-              <option key={p} value={p}>
-                {label(p)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t(`CRPs: ${crps}`, `CRP: ${crps}`)}>
-          <input type="range" min={0} max={15} value={crps} onChange={(e) => setCrps(Number(e.target.value))} className="w-full accent-[var(--st-bright)]" />
-        </Field>
-        <Field label={t(`Days each: ${days}`, `हर CRP के दिन: ${days}`)}>
-          <input type="range" min={1} max={10} value={days} onChange={(e) => setDays(Number(e.target.value))} className="w-full accent-[var(--st-bright)]" />
-        </Field>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
-        <Stat label={t("Classroom visits that fit", "संभव साथी-यात्राएँ")} value={`${r.visited}/${r.schools}`} />
-        <Stat label={t("Teachers likely to adopt", "अपनाने वाले शिक्षक")} value={r.adopters.mean} hint={`${r.adopters.lo}–${r.adopters.hi}`} />
-        <Stat label={t("Change in Grade 3 (pts)", "कक्षा 3 में बदलाव (अंक)")} value={pct(r.upliftPts.mean)} hint={t(`90% range ${r.upliftPts.lo} to ${r.upliftPts.hi}`, `90% दायरा ${r.upliftPts.lo} से ${r.upliftPts.hi}`)} tone="var(--st-bright)" />
-        <Stat label={t("Children reached", "बच्चों तक पहुँच")} value={r.childrenReached.mean} hint={`${r.childrenReached.lo}–${r.childrenReached.hi}`} />
-      </div>
-      <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-[var(--color-ink-3)]">
-        {r.assumptions.map((a) => (
-          <li key={a}>{a}</li>
-        ))}
-      </ul>
-    </Card>
-  );
 }
 
 type PhotoResult = { value: { visible: "yes" | "partly" | "no" | "cannot_tell"; seen: string[]; summary_en: string; summary_hi: string; child_faces: boolean }; source: string; warning?: string };

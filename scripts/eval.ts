@@ -16,6 +16,7 @@ const { offlineNext } = await import("../server/ai/interviewer");
 const { guardAnswer } = await import("../server/ai/officer");
 const { pipelineFor } = await import("../server/blocks");
 const { claudeAvailable, MODEL } = await import("../server/claude");
+const { GEMINI_MODEL, geminiAvailable } = await import("../server/ai/gemini");
 const { PRACTICE_IDS, PRACTICES, specificity } = await import("../src/engine/practices");
 
 type Item = { id: string; text: string; gold: string[]; new?: boolean; tricky?: string };
@@ -23,14 +24,18 @@ const gold: { items: Item[] } = JSON.parse(fs.readFileSync(path.resolve("data/ev
 
 const QUESTION = { speaker: "jugnu" as const, text: "आपकी कक्षा में रोज़ क्या होता है?" };
 
-async function evalCoder(name: "keyword" | "claude") {
+async function evalCoder(name: "keyword" | "model") {
+  let answeredBy = "Offline";
   let tp = 0, fp = 0, fn = 0, trickyRight = 0, trickyN = 0, newFound = 0, newN = 0, grounded = 0, quotes = 0;
   const errors: { id: string; gold: string[]; got: string[] }[] = [];
   for (const it of gold.items) {
     const turns = [QUESTION, { speaker: "teacher" as const, text: it.text }];
-    const coded = name === "keyword" ? offlineCoding(turns) : (await codeTranscript(turns, `eval:${it.id}`)).value;
-    // A "real description": the keyword coder needs ≥ 2 concrete cues; Claude decides itself.
-    const got = [...new Set(coded.filter((c) => c.practice && (name === "claude" || c.specificity >= 2)).map((c) => c.practice!))];
+    const res = name === "keyword" ? null : await codeTranscript(turns, `eval:${it.id}`);
+    if (res?.source === "claude") answeredBy = `Claude (${MODEL})`;
+    if (res?.source === "gemini") answeredBy = `Gemini (${GEMINI_MODEL})`;
+    const coded = res ? res.value : offlineCoding(turns);
+    // A "real description": the keyword coder needs ≥ 2 concrete cues; a model decides itself.
+    const got = [...new Set(coded.filter((c) => c.practice && (name === "model" || c.specificity >= 2)).map((c) => c.practice!))];
     quotes += coded.length;
     grounded += coded.filter((c) => c.grounded).length;
     const goldSet = new Set(it.gold);
@@ -52,7 +57,7 @@ async function evalCoder(name: "keyword" | "claude") {
   const precision = tp / Math.max(1, tp + fp);
   const recall = tp / Math.max(1, tp + fn);
   return {
-    coder: name === "claude" ? `Claude (${MODEL})` : "Keyword lexicon (offline)",
+    coder: name === "model" ? answeredBy : "Keyword lexicon (offline)",
     items: gold.items.length,
     precision: round(precision),
     recall: round(recall),
@@ -157,10 +162,16 @@ function evalInterviewer() {
 const round = (x: number) => Math.round(x * 100) / 100;
 
 const coders = [await evalCoder("keyword")];
-if (claudeAvailable() && !process.argv.includes("--offline")) coders.push(await evalCoder("claude"));
+if ((claudeAvailable() || geminiAvailable()) && !process.argv.includes("--offline")) coders.push(await evalCoder("model"));
+// A model that didn't run this time keeps its last score, so the page still shows both.
+const resultsFile = path.resolve("data/eval/results.json");
+if (fs.existsSync(resultsFile)) {
+  const earlier: { coding: (typeof coders)[number][] } = JSON.parse(fs.readFileSync(resultsFile, "utf-8"));
+  coders.push(...earlier.coding.filter((c) => c.coder !== "Offline" && !coders.some((n) => n.coder === c.coder)));
+}
 const results = { ranAt: new Date().toISOString(), coding: coders, guardrails: evalGuardrails(), interviewer: evalInterviewer() };
 fs.mkdirSync(path.resolve("data/eval"), { recursive: true });
-fs.writeFileSync(path.resolve("data/eval/results.json"), JSON.stringify(results, null, 2));
+fs.writeFileSync(resultsFile, JSON.stringify(results, null, 2));
 
 // The eval runs on an in-memory database, so keep its Claude spend where `npm run credits` finds it.
 const { creditReport } = await import("../server/ai/run");
@@ -175,4 +186,4 @@ console.table(coders.map(({ errors: _e, ...c }) => c));
 console.log("Guardrails under attack");
 console.table(results.guardrails);
 console.log("Interviewer", results.interviewer);
-if (!claudeAvailable()) console.log("\n(No ANTHROPIC_API_KEY — Claude coder not evaluated. Add the key and run `npm run eval` again.)");
+if (!claudeAvailable() && !geminiAvailable()) console.log("\n(No AI model available: only the keyword coder was scored. Add a Claude key or a Google login and run `npm run eval` again.)");

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Guardrails under attack (offline, no keys)
+        run: npm run eval -- --offline
+      - name: Production dependencies have no high-severity advisories
+        run: npm audit --omit=dev --audit-level=high
+      - run: npm run build
+
+  flows:
+    name: Every user flow, end to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: check
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start the server on the offline engine
+        run: |
+          JUGNU_OFFLINE=1 npm start > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/api/status > /dev/null && exit 0
+            sleep 1
+          done
+          cat server.log
+          exit 1
+      - run: node scripts/flows.mjs http://localhost:8080
+
+  secrets:
+    name: No secrets in the code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

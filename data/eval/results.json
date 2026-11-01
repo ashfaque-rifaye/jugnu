@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-11-01T03:16:34.712Z",
+  "ranAt": "2026-11-01T13:57:08.332Z",
   "coding": [
     {
       "coder": "Keyword lexicon (offline)",
@@ -114,6 +114,25 @@
           "gold": [
             "absent_buddies",
             "parent_voice"
+          ],
+          "got": []
+        }
+      ]
+    },
+    {
+      "coder": "Gemini (gemini-3-flash-preview)",
+      "items": 30,
+      "precision": 1,
+      "recall": 0.95,
+      "f1": 0.98,
+      "tricky": "14/15",
+      "newPractices": "2/2",
+      "groundedQuotes": 1,
+      "errors": [
+        {
+          "id": "nt-2",
+          "gold": [
+            "number_talk"
           ],
           "got": []
         }

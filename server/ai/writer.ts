@@ -3,7 +3,7 @@
 // human review queue: nothing reaches a teacher until a CRP or the BEO approves it.
 import { z } from "zod";
 import { PRACTICES, type PracticeId } from "../../src/engine/practices";
-import { askClaude } from "../claude";
+import { askAI } from "./model";
 import { checkKeepsNumbers, checkLanguage, checkLength, checkNoInventedNumbers, checkSafeTopic, type Check } from "./guardrails";
 import { SAFETY } from "./interviewer";
 import { runAI, type AIResult } from "./run";
@@ -71,8 +71,8 @@ export async function draftCard(practice: PracticeId, quotes: CardQuote[]): Prom
     ref: practice,
     timeoutMs: 40000,
     offline: () => offlineCard(practice, quotes),
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `${SAFETY}
 Turn teachers' own descriptions of a classroom routine into a one-page method card another government-school teacher can use tomorrow.
 Use ONLY what the quotes say. Every step must cite the quote ids it comes from. Do not add numbers, materials or claims that are not in the quotes.
@@ -112,8 +112,8 @@ export async function polishNote(args: { draftHi: string; draftEn: string; pract
     ref: args.ref ?? args.practice,
     timeoutMs: 25000,
     offline: () => ({ voice_hi: args.draftHi, voice_en: args.draftEn }),
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `${SAFETY}
 Rewrite a 60-second peer-to-peer voice note from one teacher to another (under 150 words). Keep every fact, every number, the teacher who can show it's own words and the invitation to visit. Warm, spoken, simple Hindi.`,
         content: `Method: ${args.practice}\nDraft (Hindi): ${args.draftHi}\nDraft (English): ${args.draftEn}`,

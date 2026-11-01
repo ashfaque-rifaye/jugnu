@@ -155,8 +155,14 @@ export function Threshold({ open, closable, onClose }: { open: boolean; closable
       if (e.key === "Escape" && closable) onClose?.();
       if ((e.target as HTMLElement).tagName === "SELECT") return;
       const i = order.indexOf(active);
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") (e.preventDefault(), setActive(order[(i + 1) % order.length]));
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") (e.preventDefault(), setActive(order[(i + order.length - 1) % order.length]));
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setActive(order[(i + 1) % order.length]);
+      }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setActive(order[(i + order.length - 1) % order.length]);
+      }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);

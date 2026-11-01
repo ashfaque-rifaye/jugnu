@@ -35,7 +35,7 @@ export const whatsappConfigured = () => {
 };
 export const whatsappStatus = () => ({ configured: whatsappConfigured(), webhook: Boolean(cfg().verify), template: cfg().template || null });
 
-export class WhatsAppError extends Error {
+class WhatsAppError extends Error {
   constructor(message: string, public status = 502, public code?: number) {
     super(message);
   }
@@ -49,7 +49,7 @@ export function waNumber(raw: string): string | null {
 
 async function graph<T>(path: string, init: RequestInit): Promise<T> {
   const c = cfg();
-  const res = await fetch(`${GRAPH}/${c.version}/${path}`, { ...init, headers: { Authorization: `Bearer ${c.token}`, ...(init.headers ?? {}) }, signal: AbortSignal.timeout(20000) });
+  const res = await fetch(`${GRAPH}/${c.version}/${path}`, { ...init, headers: { Authorization: `Bearer ${c.token}`, ...init.headers }, signal: AbortSignal.timeout(20000) });
   const d = (await res.json().catch(() => ({}))) as T & { error?: { message?: string; code?: number } };
   if (!res.ok || d.error) throw new WhatsAppError(d.error?.message ?? `WhatsApp ${res.status}`, res.status >= 500 ? 502 : 400, d.error?.code);
   return d;
@@ -120,7 +120,7 @@ export async function rememberContact(rawTo: string, c: { block: string; schoolI
   );
 }
 
-export const checkinText = (teacher: string | undefined, practice: string | undefined, lang: "hi" | "en") =>
+const checkinText = (teacher: string | undefined, practice: string | undefined, lang: "hi" | "en") =>
   lang === "en"
     ? `Namaste${teacher ? ` ${teacher}` : ""}! Two weeks ago you heard about ${practice ?? "a method from a nearby school"}. Did you try it? What happened? Reply here — typing or a voice note is fine.`
     : `नमस्ते${teacher ? ` ${teacher} जी` : ""}! दो हफ़्ते पहले आपने ${practice ?? "पास के स्कूल का एक तरीका"} के बारे में सुना था। क्या आपने इसे आज़माया? क्या हुआ? यहीं जवाब दीजिए — लिखकर या बोलकर (वॉइस नोट)।`;

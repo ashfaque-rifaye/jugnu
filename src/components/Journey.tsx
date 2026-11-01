@@ -23,7 +23,7 @@ interface Step {
   run?: "tour" | "demo";
 }
 
-export function useJourneySteps(): Step[] {
+function useJourneySteps(): Step[] {
   const [role] = useRole();
   const { state, events, followUps } = usePipeline();
   const seen = useJourney();

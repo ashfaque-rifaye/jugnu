@@ -49,7 +49,10 @@ export default function SchoolsPage() {
   const last = CYCLES.length - 1;
   const sortOn = (k: SortBy) => {
     if (sortBy === k) setDown((v) => !v);
-    else (setSortBy(k), setDown(k !== "name"));
+    else {
+      setSortBy(k);
+      setDown(k !== "name");
+    }
   };
 
   const rows = useMemo(() => {

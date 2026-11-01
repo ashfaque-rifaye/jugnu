@@ -200,7 +200,7 @@ function Stepper({ label, value, onChange, max }: { label: string; value: number
 }
 
 /** One short report a week: enough to track a school without asking every teacher. */
-export function WeeklyReport({ school: s }: { school: School }) {
+function WeeklyReport({ school: s }: { school: School }) {
   const t = useT();
   const { lang } = usePrefs();
   const hi = lang === "hi" && "font-deva";
@@ -216,7 +216,11 @@ export function WeeklyReport({ school: s }: { school: School }) {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
-    if (lastReport) (setTeachers(lastReport.teachersUsing), setChildren(lastReport.childrenReached), setClasses(lastReport.classes));
+    if (lastReport) {
+      setTeachers(lastReport.teachersUsing);
+      setChildren(lastReport.childrenReached);
+      setClasses(lastReport.classes);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.id]);
   const save = async () => {

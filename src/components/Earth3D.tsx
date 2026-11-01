@@ -69,12 +69,13 @@ export default function Earth3D({ schools, pin, pinKey, outline, links, measure,
         setReady(true);
       })
       .catch((e) => !dead && cb.current.onFail(String(e?.message ?? e)));
+    const placed = markers.current;
     return () => {
       dead = true;
       off();
       map?.remove();
       lib.current = null;
-      markers.current.clear();
+      placed.clear();
       shapes.current = { links: [] };
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,7 +86,11 @@ export default function Earth3D({ schools, pin, pinKey, outline, links, measure,
     const L = lib.current;
     if (!L || !ready) return;
     const keep = new Set(schools.map((s) => s.id));
-    for (const [id, { m }] of markers.current) if (!keep.has(id)) (m.remove(), markers.current.delete(id));
+    for (const [id, { m }] of markers.current) {
+      if (keep.has(id)) continue;
+      m.remove();
+      markers.current.delete(id);
+    }
     for (const s of schools) {
       if (s.lat == null || s.lon == null) continue;
       const st = cb.current.pin(s);

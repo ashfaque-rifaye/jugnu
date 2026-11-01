@@ -1,12 +1,12 @@
 // TRACK: understand a teacher's answer to the day-14 follow-up call ("Did you try it? What
 // happened?"). Outcome drives the action board; a barrier becomes an escalated task with an owner.
 import { z } from "zod";
-import { askClaude } from "../claude";
+import { askAI } from "./model";
 import { groundQuote, type Check } from "./guardrails";
 import { SAFETY } from "./interviewer";
 import { runAI, type AIResult } from "./run";
 
-export type Outcome = "adopted" | "trying" | "barrier" | "not_tried";
+type Outcome = "adopted" | "trying" | "barrier" | "not_tried";
 
 export interface FollowUpReading {
   outcome: Outcome;
@@ -47,8 +47,8 @@ export async function readFollowUp(reply: string, practice: string, ref?: string
     ref,
     timeoutMs: 20000,
     offline: () => offlineFollowUp(reply),
-    claude: (signal) =>
-      askClaude({
+    ask: (signal) =>
+      askAI({
         system: `${SAFETY}
 Read a teacher's answer to a follow-up call two weeks after they were invited to try a peer's method. Classify honestly:
 - "barrier" whenever they name something that stops or limits them (missing materials, no time, no permission, not sure how) — even if they have started. A barrier becomes a task for whoever can remove it, so do not hide it under "trying".

@@ -8,12 +8,12 @@ import { hushJugnu } from "../lib/agent";
 import { usePrefs, useT } from "../lib/prefs";
 import { cx } from "./ui";
 
-export const FILM = { video: "/film/jugnu-film.mp4", poster: "/film/poster.jpg", cues: "/film/cues.json" };
+const FILM = { video: "/film/jugnu-film.mp4", poster: "/film/poster.jpg", cues: "/film/cues.json" };
 type Voice = "en" | "hi" | "off";
 type Cue = [number, number, string];
 
 /** Chapters start where their shot does (8 s shots, 0.6 s crossfades). */
-export const CHAPTERS: { at: number; thumb: string; en: string; hi: string }[] = [
+const CHAPTERS: { at: number; thumb: string; en: string; hi: string }[] = [
   { at: 0, thumb: "/film/ch-1.jpg", en: "Schools doing well exist", hi: "अच्छे स्कूल हैं" },
   { at: 14.8, thumb: "/film/ch-2.jpg", en: "The officer's problem", hi: "अधिकारी की मुश्किल" },
   { at: 22.2, thumb: "/film/ch-3.jpg", en: "Find", hi: "खोजें" },
@@ -79,6 +79,8 @@ export function FilmPlayer({ open, onClose, start = 0 }: { open: boolean; onClos
     void v.play().catch(() => setPlaying(false));
     return () => {
       v.pause();
+      // The voice track can change while the film plays: pause whichever one is there now.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       voiceEl.current?.pause();
     };
   }, [open, start]);
@@ -116,7 +118,10 @@ export function FilmPlayer({ open, onClose, start = 0 }: { open: boolean; onClos
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === " " || e.key === "k") (e.preventDefault(), toggle());
+      else if (e.key === " " || e.key === "k") {
+        e.preventDefault();
+        toggle();
+      }
       else if (e.key === "ArrowRight") seek(now + 5);
       else if (e.key === "ArrowLeft") seek(now - 5);
       else if (e.key === "c") setCc((x) => !x);

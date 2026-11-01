@@ -1,14 +1,18 @@
 // Every AI task in Jugnu goes through runAI: the same five layers, in the same order —
-//   input → model (Claude, with a deadline) → deterministic guardrails → fallback → trace.
-// If Claude is unavailable, too slow, declines, or fails a blocking guardrail, the offline engine's
+//   input → model (Claude, then Gemini, with a deadline) → deterministic guardrails → fallback → trace.
+// If no model answers in time, one declines, or the answer fails a blocking guardrail, the offline engine's
 // answer is used instead, so the teacher on the line or the officer on the console never waits on it.
 import { claudeAvailable, costUSD, describeError, type ClaudeResult } from "../claude";
+import { geminiAvailable } from "./gemini";
 import { db, now } from "../db";
 import type { Check } from "./guardrails";
 
+type Source = "claude" | "gemini" | "offline";
+const sourceOf = (model: string): Source => (model.startsWith("gemini") ? "gemini" : "claude");
+
 export interface AIResult<T> {
   value: T;
-  source: "claude" | "offline";
+  source: Source;
   checks: Check[];
   warning?: string;
 }
@@ -18,10 +22,10 @@ export interface AITask<C, T = C> {
   ref?: string | null;
   /** Deterministic answer from the offline engine — always available. */
   offline: () => T | Promise<T>;
-  /** The Claude call. Receives an abort signal tied to `timeoutMs`. */
-  claude: (signal: AbortSignal) => Promise<ClaudeResult<C>>;
+  /** The model call. Receives an abort signal tied to `timeoutMs`. */
+  ask: (signal: AbortSignal) => Promise<ClaudeResult<C>>;
   /**
-   * Guardrails: turn Claude's raw output into the value to use (e.g. drop ungrounded quotes) and the
+   * Guardrails: turn the model's raw output into the value to use (e.g. drop ungrounded quotes) and the
    * checks that were run. `accept: false` rejects the output and falls back to the offline engine.
    */
   guard: (raw: C) => { value: T; checks: Check[]; accept: boolean };
@@ -30,7 +34,7 @@ export interface AITask<C, T = C> {
 
 export async function runAI<C, T = C>(t: AITask<C, T>): Promise<AIResult<T>> {
   const started = Date.now();
-  if (!claudeAvailable()) {
+  if (!claudeAvailable() && !geminiAvailable()) {
     const value = await t.offline();
     await logCall(t.task, t.ref, "offline", null, 0, null, [], true, null);
     return { value, source: "offline", checks: [] };
@@ -38,15 +42,16 @@ export async function runAI<C, T = C>(t: AITask<C, T>): Promise<AIResult<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), t.timeoutMs ?? 20000);
   try {
-    const res = await t.claude(controller.signal);
+    const res = await t.ask(controller.signal);
+    const source = sourceOf(res.model);
     const { value, checks, accept } = t.guard(res.output);
     const ms = Date.now() - started;
     if (!accept) {
-      await logCall(t.task, t.ref, "claude", res.model, ms, res.usage, checks, false, "rejected by guardrails");
-      return { value: await t.offline(), source: "offline", checks, warning: "Claude's answer failed a guardrail — used the offline engine" };
+      await logCall(t.task, t.ref, source, res.model, ms, res.usage, checks, false, "rejected by guardrails");
+      return { value: await t.offline(), source: "offline", checks, warning: "The model's answer failed a guardrail — used the offline engine" };
     }
-    await logCall(t.task, t.ref, "claude", res.model, ms, res.usage, checks, true, null);
-    return { value, source: "claude", checks };
+    await logCall(t.task, t.ref, source, res.model, ms, res.usage, checks, true, null);
+    return { value, source, checks };
   } catch (error) {
     const msg = describeError(error);
     await logCall(t.task, t.ref, "claude", null, Date.now() - started, null, [], false, msg);
@@ -59,7 +64,7 @@ export async function runAI<C, T = C>(t: AITask<C, T>): Promise<AIResult<T>> {
 export async function logCall(
   task: string,
   ref: string | null | undefined,
-  source: "claude" | "offline",
+  source: Source,
   model: string | null,
   ms: number,
   usage: { input_tokens: number; output_tokens: number } | null,

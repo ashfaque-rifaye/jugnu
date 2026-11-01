@@ -26,7 +26,7 @@ if (typeof window !== "undefined") {
 
 const buf = new Uint8Array(512);
 /** 0–1 loudness of an analyser right now. */
-export function levelOf(a: AnalyserNode | null): number {
+function levelOf(a: AnalyserNode | null): number {
   if (!a) return 0;
   a.getByteTimeDomainData(buf);
   let sum = 0;
@@ -39,7 +39,7 @@ export function levelOf(a: AnalyserNode | null): number {
 export const outLevel = () => levelOf(outAnalyser);
 
 /** Which language a line is written in, from its script (for picking the voice). */
-export function scriptLang(text: string): string {
+function scriptLang(text: string): string {
   if (/[஀-௿]/.test(text)) return "ta";
   if (/[ఀ-౿]/.test(text)) return "te";
   if (/[ঀ-৿]/.test(text)) return "bn";

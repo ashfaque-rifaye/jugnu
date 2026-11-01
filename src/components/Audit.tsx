@@ -12,7 +12,7 @@ import { cx } from "./ui";
 
 type Kind = "all" | "moves" | "signoff" | "visits" | "calls" | "reports";
 
-export interface AuditRow {
+interface AuditRow {
   id: string;
   at: string;
   who: string;
@@ -33,7 +33,7 @@ const OUTCOME: Record<string, [string, string]> = {
 };
 const GOING: Record<string, [string, string]> = { well: ["going well", "अच्छा चल रहा"], mixed: ["mixed", "मिला-जुला"], hard: ["hard going", "मुश्किल"] };
 
-export function useAudit() {
+function useAudit() {
   const t = useT();
   const { events, state, allActions } = usePipeline();
   return useMemo(() => {

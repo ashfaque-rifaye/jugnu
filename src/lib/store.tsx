@@ -227,7 +227,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
           language: r.language,
           turns: [],
           mentions: r.codings.filter((c) => isPractice(c.practice)).map((c) => ({ practice: c.practice as PracticeId, quote: c.quote, specificity: c.specificity })),
-          codedBy: r.codings.some((c) => c.coder === "claude") ? "claude" : "offline",
+          codedBy: r.codings.some((c) => c.coder !== "offline") ? "ai" : "offline",
           minutes: 12,
         })),
     [live, block],

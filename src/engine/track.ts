@@ -4,7 +4,7 @@
 // fair difference-in-differences per practice, with a bootstrap interval.
 import { measured, rateFor } from "./block";
 import { FOLLOW_UP_LINES, PRACTICE_LINES } from "./followup-lines";
-import { PRACTICES, type PracticeId } from "./practices";
+import { type PracticeId } from "./practices";
 import { chance, mulberry32, pick, type Rng } from "./rng";
 import { CYCLES, type Block, type FollowUp, type Recommendation, type TrackResult } from "./types";
 
@@ -115,5 +115,3 @@ export function trueEffectPts(block: Block, practice: PracticeId, schoolIds: str
   }
   return Math.round((sum / Math.max(1, schoolIds.length)) * 10) / 10;
 }
-
-export const practiceLabel = (p: PracticeId) => PRACTICES[p].label;

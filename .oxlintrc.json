@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "unicorn",
+    "oxc",
+    "import"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "unicorn/no-invalid-fetch-options": "off",
+    "react/set-state-in-effect": "off",
+    "react/refs": "off",
+    "react/purity": "off",
+    "react/preserve-manual-memoization": "off",
+    "react/immutability": "off",
+    "react/use-memo": "off",
+    "react/static-components": "off"
+  },
+  "ignorePatterns": [
+    "dist/**",
+    ".vercel/**",
+    "public/**",
+    "demo/**",
+    "video/**"
+  ]
+}

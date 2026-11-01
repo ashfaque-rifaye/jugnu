@@ -57,7 +57,7 @@ function sprite(c: RGB) {
 }
 
 /** Jugnu's face: a few dozen fireflies around a warm core, moved by the voice (mic or speaker). */
-export function Swarm({ mode, level, size, count }: { mode: Mode; level: () => number; size: number; count?: number }) {
+function Swarm({ mode, level, size, count }: { mode: Mode; level: () => number; size: number; count?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -167,7 +167,7 @@ function sentences(text: string): string[] {
   return out.length ? out : [text];
 }
 
-export const VOICE_CHOICES: { id: string; en: string; hi: string }[] = [
+const VOICE_CHOICES: { id: string; en: string; hi: string }[] = [
   { id: "Aoede", en: "Warm · woman", hi: "गर्मजोशी · महिला" },
   { id: "Kore", en: "Clear · woman", hi: "साफ़ · महिला" },
   { id: "Leda", en: "Gentle · woman", hi: "कोमल · महिला" },
@@ -188,7 +188,7 @@ const savedVoice = () => {
 
 // ---------------------------------------------------------------- the agent
 
-export interface Line {
+interface Line {
   id: number;
   who: "you" | "jugnu";
   text: string;
@@ -249,7 +249,7 @@ const guided = new Set<string>();
 const nudged = new Set<string>();
 const IDLE_MS = 45000;
 
-export function useAgent() {
+function useAgent() {
   const t = useT();
   const { lang, setLang } = usePrefs();
   const { setMode: setTheme } = useTheme();
@@ -890,7 +890,7 @@ function LivePill({ mode, steps }: { mode: Mode; steps: Line["tools"] }) {
           ? [t("Speaking", "बोल रहा हूँ"), "Chirp 3 HD"]
           : last && TOOL_LABEL[last.name]
             ? [t(...TOOL_LABEL[last.name]), last.name]
-            : [t("Planning the next step", "अगला कदम सोच रहा हूँ"), "Claude"];
+            : [t("Planning the next step", "अगला कदम सोच रहा हूँ"), "Jugnu AI"];
   return (
     <motion.div
       initial={{ opacity: 0, y: -14, scale: 0.97 }}

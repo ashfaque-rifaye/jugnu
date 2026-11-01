@@ -185,9 +185,9 @@ function ScenarioCard({ x, result, onSaved }: { x: Scenario; result?: { done: nu
     setBusy(true);
     setOut(null);
     try {
-      const h = await getJSON<{ ok: boolean; claude: { ok: boolean }; speaking: { ok: boolean }; listening: { ok: boolean } }>("/api/ai/health");
+      const h = await getJSON<{ ok: boolean; claude: { ok: boolean }; gemini: { ok: boolean }; speaking: { ok: boolean }; listening: { ok: boolean } }>("/api/ai/health");
       const word = (ok: boolean) => (ok ? t("working", "चालू") : t("not working", "बंद"));
-      setOut({ ok: h.ok, text: t(`Thinking: ${word(h.claude.ok)} · Speaking: ${word(h.speaking.ok)} · Listening: ${word(h.listening.ok)}`, `सोचना: ${word(h.claude.ok)} · बोलना: ${word(h.speaking.ok)} · सुनना: ${word(h.listening.ok)}`) });
+      setOut({ ok: h.ok, text: t(`Thinking: ${word(h.claude.ok || h.gemini.ok)} · Speaking: ${word(h.speaking.ok)} · Listening: ${word(h.listening.ok)}`, `सोचना: ${word(h.claude.ok || h.gemini.ok)} · बोलना: ${word(h.speaking.ok)} · सुनना: ${word(h.listening.ok)}`) });
     } catch (e) {
       setOut({ ok: false, text: (e as Error).message });
     } finally {

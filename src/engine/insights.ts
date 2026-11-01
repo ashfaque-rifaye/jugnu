@@ -16,7 +16,7 @@ import { mulberry32, type Rng } from "./rng";
 import type { PipelineState } from "./pipeline";
 import type { School } from "./types";
 
-export interface PairSide {
+interface PairSide {
   schoolId: string;
   /** latest reported minus expected, percentage points (reading, numeracy) */
   aboveExpected: { reading: number; numeracy: number };
@@ -90,7 +90,7 @@ export interface WhatIfInput {
   daysEach?: number;
 }
 
-export interface Range {
+interface Range {
   mean: number;
   lo: number;
   hi: number;

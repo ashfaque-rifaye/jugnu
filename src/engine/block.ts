@@ -82,7 +82,7 @@ export function measured(rng: Rng, rate: number, n: number) {
   return Math.round((1000 * k) / n) / 10;
 }
 
-export const BASE = { reading: logit(ASER_2024.std3ReadingGovt) + 0.02, numeracy: logit(0.3) };
+const BASE = { reading: logit(ASER_2024.std3ReadingGovt) + 0.02, numeracy: logit(0.3) };
 
 export function rateFor(s: School, t: Pick<SchoolTruth, "practices" | "fidelity" | "schoolEffect">, which: "reading" | "numeracy", cycle: number) {
   return trueRate(BASE[which], s, t, which, cycle);
@@ -218,7 +218,7 @@ export function generateBlock(seed = 2024, size = 200): Block {
 }
 
 /** km east / north of a point, on the local flat approximation (fine at block scale). */
-export function toKm(lat: number, lon: number, lat0: number, lon0: number) {
+function toKm(lat: number, lon: number, lat0: number, lon0: number) {
   return { x: (lon - lon0) * 111.32 * Math.cos((lat0 * Math.PI) / 180), y: (lat - lat0) * 110.57 };
 }
 

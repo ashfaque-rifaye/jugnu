@@ -1,7 +1,5 @@
 import { motion } from "framer-motion";
-import { CircleAlert, CircleCheck, CircleHelp } from "lucide-react";
 import type { ReactNode } from "react";
-import type { VerifyVerdict } from "../engine/types";
 
 export function cx(...xs: (string | false | null | undefined)[]) {
   return xs.filter(Boolean).join(" ");
@@ -41,46 +39,6 @@ export function StatTile({ label, value, sub, accent }: { label: string; value: 
         {value}
       </div>
       {sub && <div className="mt-0.5 text-xs text-[var(--color-ink-3)]">{sub}</div>}
-    </div>
-  );
-}
-
-const VERDICT: Record<VerifyVerdict, { label: string; color: string; Icon: typeof CircleCheck }> = {
-  verified: { label: "Confirmed: doing well", color: "#0ca30c", Icon: CircleCheck },
-  inflation_suspected: { label: "Data may be inflated", color: "#d03b3b", Icon: CircleAlert },
-  revisit: { label: "Revisit", color: "#fab219", Icon: CircleHelp },
-};
-
-export function VerdictChip({ verdict }: { verdict: VerifyVerdict }) {
-  const v = VERDICT[verdict];
-  return (
-    <span className="chip" style={{ borderColor: `${v.color}99`, background: `${v.color}22` }}>
-      <v.Icon size={12} style={{ color: v.color }} aria-hidden /> {v.label}
-    </span>
-  );
-}
-
-/** Diverging colour for "results vs expectation": red below, neutral grey at expected, blue above. */
-export function zColor(z: number): string {
-  const t = Math.max(-1, Math.min(1, z / 2));
-  const mix = (a: number[], b: number[], k: number) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
-  const neutral = [92, 94, 98];
-  const above = [57, 135, 229];
-  const below = [230, 103, 103];
-  const c = t >= 0 ? mix(neutral, above, t) : mix(neutral, below, -t);
-  return `rgb(${c[0]} ${c[1]} ${c[2]})`;
-}
-
-export function Fireflies({ count = 14 }: { count?: number }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {Array.from({ length: count }, (_, i) => (
-        <span
-          key={i}
-          className="firefly"
-          style={{ left: `${(i * 37) % 100}%`, top: `${(i * 53) % 100}%`, animationDelay: `${(i % 7) * 0.9}s, ${(i % 5) * 0.6}s`, animationDuration: `${8 + (i % 5)}s, ${2.2 + (i % 4) * 0.5}s` }}
-        />
-      ))}
     </div>
   );
 }

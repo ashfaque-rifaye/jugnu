@@ -53,7 +53,7 @@ export interface FieldData {
  * real. They are chosen among candidates the simulated checks would NOT have verified (several have
  * inflated data), so the demo's evidence about what works stays the same.
  */
-export function demoPending(block: Block, notVerified: string[]): Set<string> {
+function demoPending(block: Block, notVerified: string[]): Set<string> {
   if (!block.truth) return new Set();
   return new Set(notVerified.slice(0, 3));
 }

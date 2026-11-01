@@ -1,7 +1,7 @@
 // Building blocks of the working app: page headers, glass cards, status chips, an iOS-style
 // segmented control, progress rings and a step tracker — the same on every page.
 import { motion } from "framer-motion";
-import { Check, CircleHelp, X, type LucideIcon } from "lucide-react";
+import { CircleHelp, X, type LucideIcon } from "lucide-react";
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
 import { usePrefs, useT } from "../lib/prefs";
@@ -9,7 +9,6 @@ import { CountText, EASE, WordReveal } from "../lib/motion";
 import { cx } from "./ui";
 
 export const SPRING = { type: "spring", stiffness: 420, damping: 34, mass: 0.8 } as const;
-export const SOFT = { type: "spring", stiffness: 190, damping: 26 } as const;
 
 export function PageHeader({ title, sub, actions, eyebrow, hint }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; hint?: ReactNode }) {
   const { lang } = usePrefs();
@@ -46,7 +45,7 @@ export function PageHeader({ title, sub, actions, eyebrow, hint }: { title: Reac
 }
 
 /** A "?" that opens one plain sentence about the page. */
-export function Hint({ children }: { children: ReactNode }) {
+function Hint({ children }: { children: ReactNode }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   return (
@@ -287,73 +286,6 @@ export function Meter({ value, color = "var(--st-bright)", className, height = 6
         animate={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }}
         transition={{ type: "spring", stiffness: 70, damping: 18 }}
       />
-    </div>
-  );
-}
-
-export type StepState = "done" | "current" | "todo" | "bad" | "skip";
-export interface TrackStep {
-  key: string;
-  label: ReactNode;
-  sub?: ReactNode;
-  state: StepState;
-  icon?: LucideIcon;
-}
-
-const STEP_TONE: Record<StepState, string> = {
-  done: "var(--tone-lime)",
-  current: "var(--st-bright)",
-  todo: "var(--tone-muted)",
-  bad: "var(--tone-bad)",
-  skip: "var(--tone-muted)",
-};
-
-/** Where something is on its way — like a parcel tracker: done steps filled, the current one pulsing. */
-export function Tracker({ steps, className }: { steps: TrackStep[]; className?: string }) {
-  const { lang } = usePrefs();
-  const reached = steps.reduce((acc, s, i) => (s.state === "done" || s.state === "current" || s.state === "bad" ? i : acc), 0);
-  const fill = `${(steps.length > 1 ? reached / (steps.length - 1) : 1) * 100}%`;
-  const n = { "--n": steps.length } as CSSProperties;
-  return (
-    <div className={cx("relative", className)} style={n}>
-      {/* the rail: vertical on phones, horizontal from md */}
-      <div className="absolute bottom-[18px] left-[17px] top-[18px] w-[3px] rounded-full bg-[var(--ring-track)] md:hidden">
-        <motion.div className="w-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ height: 0 }} animate={{ height: fill }} transition={{ ...SOFT, delay: 0.35 }} />
-      </div>
-      <div className="absolute left-[calc(100%/var(--n)/2)] right-[calc(100%/var(--n)/2)] top-[17px] hidden h-[3px] rounded-full bg-[var(--ring-track)] md:block">
-        <motion.div className="h-full rounded-full" style={{ background: "var(--grad-flat)" }} initial={{ width: 0 }} animate={{ width: fill }} transition={{ ...SOFT, delay: 0.35 }} />
-      </div>
-      <ol className="relative grid gap-4 md:gap-2 md:[grid-template-columns:repeat(var(--n),minmax(0,1fr))]">
-        {steps.map((s, i) => {
-          const tone = STEP_TONE[s.state];
-          const Icon = s.state === "done" ? Check : s.state === "bad" ? X : s.icon;
-          const quiet = s.state === "todo" || s.state === "skip";
-          return (
-            <li key={s.key} className="flex items-start gap-3 md:flex-col md:items-center md:text-center">
-              <motion.span
-                initial={{ scale: 0.4, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.1 + i * 0.09 }}
-                className="relative grid h-[37px] w-[37px] shrink-0 place-items-center rounded-full border"
-                style={
-                  s.state === "done"
-                    ? { background: "var(--grad-flat)", borderColor: "transparent", color: "#0b1308" }
-                    : quiet
-                      ? { background: "var(--chrome-solid)", borderColor: "var(--chip-line)", color: "var(--color-ink-3)" }
-                      : { background: `color-mix(in srgb, ${tone} 18%, var(--chrome-solid))`, borderColor: tint(tone, 70), color: tone }
-                }
-              >
-                {s.state === "current" && <span className="absolute inset-0 rounded-full" style={{ color: tone, animation: "pulse-dot 2s infinite" }} aria-hidden />}
-                {Icon ? <Icon size={16} strokeWidth={2.4} /> : <span className="h-2 w-2 rounded-full bg-current" />}
-              </motion.span>
-              <span className="min-w-0 pt-1 md:pt-0">
-                <span className={cx("block text-[13.5px] font-semibold leading-snug", quiet && "text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{s.label}</span>
-                {s.sub && <span className={cx("mt-0.5 block text-xs leading-snug text-[var(--color-ink-3)]", lang === "hi" && "font-deva")}>{s.sub}</span>}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
     </div>
   );
 }

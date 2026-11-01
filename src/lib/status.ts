@@ -33,11 +33,4 @@ export function meanZ(st: PipelineState): Record<string, number> {
   return Object.fromEntries(st.block.schools.map((s) => [s.id, st.find.z[s.id].reduce((a, b) => a + b, 0) / st.find.z[s.id].length]));
 }
 
-/** "+12 pts" style difference of reported vs expected, latest cycle, reading + maths averaged. */
-export function gapPts(st: PipelineState, id: string, which: "reading" | "numeracy") {
-  const s = st.block.schools.find((x) => x.id === id)!;
-  const last = s[which].length - 1;
-  return Math.round(s[which][last] - st.find.expected[id][which][last]);
-}
-
 export const practiceLabel = (id: string, hi = false) => (id in PRACTICES ? (hi ? PRACTICES[id as PracticeId].labelHi : PRACTICES[id as PracticeId].label) : id);
