@@ -4,7 +4,7 @@ Work the owner has decided to hold. Nothing here starts until the owner asks.
 
 ## Update the outro's screens and labels
 
-**Status:** on hold (owner's decision, 30 Oct 2026). This changes the video only, not the app.
+**Status:** done on 1 Nov 2026, when the owner asked to finish the remaining work. Kept here as the steps to repeat if the screens change again.
 
 **Cost:** no AI and no credits. The screens are screenshots of our own app, and the music and voices stay as they are.
 

@@ -3,12 +3,12 @@ import { W, H, C, FONT, lerp, prog, ease, window_, rng, loadFonts, loadImage, lo
 
 const Q = await (await fetch(new URL("./assets/outro-cues.json", import.meta.url))).json();
 
-// crop = source rectangle in the 2000×1250 screenshots (the phone crop stops above the line details).
+// crop = source rectangle in the 2000×1250 screenshots, past the menu (the phone crop stops above the line details).
 const PANELS = [
-  { img: "phone", crop: [300, 25, 1379, 862], tag: "LISTEN", a: "Calls any phone.", b: "Speaks Hindi.", hi: "किसी भी फ़ोन पर, हिंदी में।" },
-  { img: "practices", crop: [300, 60, 1640, 1025], tag: "WHAT WORKS", a: "Hears what", b: "actually works.", hi: "जो सच में काम करता है, वो सुनता है।" },
-  { img: "schools", crop: [300, 60, 1640, 1025], tag: "SHARE", a: "Tells each officer", b: "what to do next.", hi: "हर अधिकारी को अगला कदम।" },
-  { img: "today", crop: [300, 60, 1640, 1025], tag: "FOLLOW UP", a: "Calls back", b: "on day 14.", hi: "14वें दिन फिर फ़ोन।" },
+  { img: "phone", crop: [345, 90, 1280, 800], tag: "TALK TO TEACHERS", a: "Calls any phone.", b: "Speaks Hindi.", hi: "किसी भी फ़ोन पर, हिंदी में।" },
+  { img: "practices", crop: [345, 90, 1640, 1025], tag: "METHODS THAT WORK", a: "Hears what", b: "actually works.", hi: "जो सच में काम करता है, वो सुनता है।" },
+  { img: "plan", crop: [345, 90, 1640, 1025], tag: "SHARE WITH SCHOOLS", a: "Tells each officer", b: "what to do next.", hi: "हर अधिकारी को अगला कदम।" },
+  { img: "results-sim", crop: [345, 90, 1640, 1025], tag: "CHECK PROGRESS", a: "Calls back", b: "on day 14.", hi: "14वें दिन फिर फ़ोन।" },
 ];
 
 let S;

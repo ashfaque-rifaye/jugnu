@@ -1,4 +1,4 @@
-// Screenshots of the real console for the outro. The dev server must be running on :5191.
+// Screenshots of the real console for the outro. The dev server must be running on :5190.
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
@@ -11,9 +11,15 @@ await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1.25 });
 await page.evaluateOnNewDocument(() => {
   localStorage.setItem("jugnu-welcomed", "1");
   localStorage.setItem("jugnu-role", JSON.stringify({ kind: "beo" }));
+  localStorage.setItem("jugnu-guide", "off"); // no guide bubble on the screens
+  addEventListener("DOMContentLoaded", () => {
+    const s = document.createElement("style");
+    s.textContent = "[data-agent]{display:none!important}";
+    document.head.append(s);
+  });
 });
 for (const p of PAGES) {
-  await page.goto("http://localhost:5191/" + p, { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
+  await page.goto("http://localhost:5190/" + p, { waitUntil: "networkidle2", timeout: 60000 }).catch(() => {});
   await new Promise((r) => setTimeout(r, 2500));
   await page.screenshot({ path: join(OUT, p + ".png") });
   console.log("shot", p);
