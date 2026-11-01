@@ -15,7 +15,7 @@ import { Router, urlencoded } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 import { requireOfficer } from "./auth";
 import { db } from "./db";
-import { answer, createInterview, getByCallSid, getById, getByToken, LANGUAGE_ASK, start, type InterviewRow } from "./interviews";
+import { answer, createInterview, getByCallSid, getById, getByToken, ASK_LANGUAGE, LANGUAGE_ASK, start, type InterviewRow } from "./interviews";
 import { pcmToWav, synthesize, transcribe, voiceConfigured } from "./voice";
 
 export type Provider = "exotel" | "plivo";
@@ -210,6 +210,11 @@ class CallSession {
   private admit: ReturnType<typeof setTimeout>;
   /** For the one-line summary logged when the stream closes. */
   private stats = { opened: Date.now(), frames: 0, loud: 0, peak: 0, turns: 0 };
+  /** Lines differ in loudness: speech is judged against this line's own idle level. */
+  private noise = 150;
+  private get speechLevel() {
+    return Math.max(300, Math.min(SPEECH_RMS, this.noise * 2.5));
+  }
   /** Only with RECORD_CALLS=1, for the team's own demo call: both sides, kept on this computer. */
   private tape = process.env.RECORD_CALLS === "1" ? { heard: [] as Buffer[], spoken: [] as { at: number; text: string; pcm: Buffer }[], t0: 0 } : null;
 
@@ -268,7 +273,8 @@ class CallSession {
     const level = rms(ev.pcm);
     this.stats.frames++;
     this.stats.peak = Math.max(this.stats.peak, level);
-    if (level > SPEECH_RMS) this.stats.loud++;
+    if (level > this.speechLevel) this.stats.loud++;
+    else this.noise += (level - this.noise) * 0.02;
     if (this.speaking || this.busy) return;
     this.hear(ev.pcm);
   }
@@ -276,7 +282,7 @@ class CallSession {
   /** Energy-based end-pointing: speech, then a second of quiet, is one answer. */
   private hear(pcm: Buffer) {
     const ms = pcm.length / BYTES_PER_MS;
-    const loud = rms(pcm) > SPEECH_RMS;
+    const loud = rms(pcm) > this.speechLevel;
     if (loud) {
       this.speechMs += ms;
       this.silenceMs = 0;
@@ -321,7 +327,7 @@ class CallSession {
       const result = await answer(this.row, text, { source: "asr", deadlineMs: 15000 });
       this.stats.turns++;
       this.row = (await getById(this.row.id)) ?? this.row;
-      if (result.reply.topic === "language") await this.askLanguage();
+      if (result.reply.topic === ASK_LANGUAGE) await this.askLanguage();
       else await this.say(result.reply.say);
       if (result.status === "completed" || result.status === "declined") {
         setTimeout(() => this.ws.close(), 500);

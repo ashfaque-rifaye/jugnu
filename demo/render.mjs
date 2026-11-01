@@ -1,5 +1,5 @@
 // Renders the demo film from the edit (edit.json, beside the takes).
-//   node demo/render.mjs                    the whole film, to video/out/jugnu-demo.mp4
+//   node demo/render.mjs                    the demo itself, to body.mp4 beside the takes
 //   node demo/render.mjs --stills 3,20.5    single frames, still-<t>.jpg beside the takes
 //   node demo/render.mjs --from 30 --to 45  a stretch, for checking motion
 import { spawn } from "node:child_process";
@@ -56,7 +56,7 @@ mkdirSync(join(ROOT, "video/out"), { recursive: true });
 const from = Number(arg("--from") ?? 0);
 const to = Number(arg("--to") ?? duration);
 const partial = !!(arg("--from") || arg("--to"));
-const silent = join(TAKES, partial ? "part.mp4" : "demo.silent.mp4");
+const silent = join(TAKES, partial ? "part.mp4" : "body.silent.mp4");
 const ff = spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-c:v", "mjpeg", "-framerate", String(fps), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", silent], { stdio: ["pipe", "inherit", "inherit"] });
 const first = Math.round(from * fps);
 const last = Math.round(to * fps);
@@ -72,7 +72,7 @@ await new Promise((r) => ff.on("close", r));
 await browser.close();
 server.close();
 const mix = join(TAKES, "mix.wav");
-const out = partial ? join(TAKES, "part-sound.mp4") : join(ROOT, "video/out/jugnu-demo.mp4");
+const out = join(TAKES, partial ? "part-sound.mp4" : "body.mp4"); // demo/assemble.mjs adds the intro and outro
 await new Promise((r) => {
   const args = ["-v", "error", "-y", "-i", silent];
   if (partial) args.push("-ss", String(from), "-t", String(to - from));

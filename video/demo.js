@@ -23,16 +23,17 @@ const spring = (x) => (x >= 1 ? 1 : 1 - Math.exp(-6 * x) * Math.cos(9 * x));
 const pad = (n) => String(n).padStart(6, "0");
 const bitmaps = new Map();
 async function bitmap(url) {
-  if (!bitmaps.has(url)) {
-    bitmaps.set(url, fetch(url).then((r) => r.blob()).then((b) => createImageBitmap(b)));
-    if (bitmaps.size > 10) {
-      const old = bitmaps.keys().next().value;
-      const p = bitmaps.get(old);
-      bitmaps.delete(old);
-      p.then((x) => x.close()).catch(() => {});
-    }
+  // Most recently used last, so a screen held still is never closed while it is being drawn.
+  const hit = bitmaps.get(url) ?? fetch(url).then((r) => r.blob()).then((b) => createImageBitmap(b));
+  bitmaps.delete(url);
+  bitmaps.set(url, hit);
+  if (bitmaps.size > 12) {
+    const old = bitmaps.keys().next().value;
+    const p = bitmaps.get(old);
+    bitmaps.delete(old);
+    p.then((x) => x.close()).catch(() => {});
   }
-  return bitmaps.get(url);
+  return hit;
 }
 function frameAt(take, at) {
   const times = edit.frameTimes[take];
@@ -155,10 +156,11 @@ function drawCaption(c, t) {
   if (a <= 0) return;
   const font = `500 30px ${FONT.sans}`;
   // Long narration shows a phrase at a time, paced through its length.
-  const all = wrap(c.text, font, 1280);
+  const all = wrap(c.text, font, 1180);
   const per = (c.t1 - c.t0) / all.length;
-  const idx = Math.floor(clamp((t - c.t0) / per, 0, all.length - 0.001) / 2) * 2;
-  const rows = all.slice(idx, idx + 2);
+  let idx = Math.floor(clamp((t - c.t0) / per, 0, all.length - 0.001) / 2) * 2;
+  if (idx && all.length % 2 && idx === all.length - 1 && all[idx].length < 24) idx -= 2;
+  const rows = all.slice(idx, idx + (idx + 3 === all.length && all[idx + 2].length < 24 ? 3 : 2));
   const lh = 42;
   const label = c.who ? c.who.toUpperCase() : null;
   const h = rows.length * lh + 30 + (label ? 24 : 0);
@@ -199,15 +201,15 @@ function drawChip(text, a) {
   g.shadowColor = "rgba(15,23,42,.14)";
   g.shadowBlur = 16;
   g.fillStyle = "rgba(255,255,255,.95)";
-  rounded(1920 - 46 - w, 30, w, 44, 22);
+  rounded(1920 - 110 - w, 12, w, 42, 21);
   g.fill();
   g.shadowColor = "transparent";
   g.fillStyle = "#f59e0b";
   g.beginPath();
-  g.arc(1920 - 46 - w + 24, 52, 6, 0, 7);
+  g.arc(1920 - 110 - w + 24, 33, 6, 0, 7);
   g.fill();
   g.fillStyle = INK;
-  g.fillText(text, 1920 - 46 - w + 40, 60);
+  g.fillText(text, 1920 - 110 - w + 40, 40);
   g.restore();
 }
 function drawCard(s, t) {
@@ -252,7 +254,7 @@ function drawEnd(s, t) {
 }
 
 // ---------------------------------------------------------------- one frame
-const FULL = { x: 64, y: 36, w: 1792, h: 1008 };
+const FULL = { x: 110, y: 66, w: 1700, h: 956 };
 const SPLIT = { x: 44, y: 150, w: 1364, h: 767 };
 async function draw(i) {
   const t = i / FPS;

@@ -11,7 +11,7 @@ const teacher = turns.filter((t) => t.speaker === "teacher");
 const captions: { atMs: number; ms: number; text: string; who: string }[] = [];
 // Each thing Jugnu says is followed by one answer. English and Hindi share the first line; the caption keeps the English.
 tape.spoken.forEach((s, i) => {
-  const text = i === 0 || /Which language/.test(s.text) ? s.text.replace(/\s*नमस्ते.*$/s, "") : s.text;
+  const text = /Which language/.test(s.text) ? s.text.replace(/\s*आप हिंदी.*$/s, "") : s.text;
   captions.push({ atMs: s.atMs, ms: s.ms, text, who: "Jugnu" });
   const next = tape.spoken[i + 1];
   const said = teacher[i];
@@ -23,8 +23,9 @@ tape.spoken.forEach((s, i) => {
 const last = tape.spoken.at(-1)!;
 const endMs = last.atMs + last.ms + 800;
 const n = tape.spoken.length;
-// The moments the film keeps: the language, the consent, two questions with answers, the last answer and the thanks.
-const pick = n >= 7 ? [[0, 1], [1, 2], [2, 3], [3, 4], [n - 2, n - 1], [n - 1, null]] : tape.spoken.map((_, i) => [i, i + 1 < n ? i + 1 : null]);
+// The moments the film keeps: the language, the consent question alone, and two questions with their answers.
+const consentAt = n > 1 ? Math.max(0, tape.spoken[1].text.indexOf("Shall we begin")) / Math.max(1, tape.spoken[1].text.length) : 0;
+const pick = n >= 5 ? [[0, 1], [1, 2, consentAt], [2, 3], [3, 4]] : tape.spoken.map((_, i) => [i, i + 1 < n ? i + 1 : null]);
 const out = process.env.DEMO_TAKES ?? "E:/jugnu-takes";
 mkdirSync(`${out}/call`, { recursive: true });
 copyFileSync(`${dir}/${id}.wav`, `${out}/call/call.wav`);

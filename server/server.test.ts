@@ -69,7 +69,7 @@ describe("interview service (offline)", () => {
     expect(opening[0].text).toContain("Hindi or English");
 
     const unclear = await svc.answer((await svc.getById(row.id))!, "the line is bad");
-    expect(unclear.reply.topic).toBe("language");
+    expect(unclear.reply.topic).toBe(svc.ASK_LANGUAGE);
 
     const chosen = await svc.answer((await svc.getById(row.id))!, "English please");
     expect(chosen.reply.say).toContain("Shall we begin");

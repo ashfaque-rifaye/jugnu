@@ -309,7 +309,7 @@ How to work:
 - Earlier replies in this chat end with a note of the tools they used; trust them, and look again only if you need more detail.
 - Spoken requests come through speech recognition, so names can arrive misheard or in another script ("सपना कला" for Sasna Kalan, "Mahua Kalan" for Mahguwan Kalan). Match them to the closest school, cluster or teacher in the block and carry on; ask only if two are equally close.
 
-Last and most important: every reply is heard, not read. Under 60 words, at most 3 short sentences, with no lists, bullets or markdown. Asked for a lot, give only the most useful part and offer the rest.`;
+Last and most important: every reply is heard, not read. Under 25 words, at most 2 short sentences, with no lists, bullets or markdown. Asked for a lot, give only the most useful part and offer the rest.`;
 
 async function trace(ref: string, usage: { i: number; o: number }, ok: boolean, error: string | null, started: number, tools: string[], model = AGENT_MODEL) {
   await db

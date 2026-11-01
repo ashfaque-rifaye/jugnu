@@ -125,9 +125,12 @@ export function openingLines(row: InterviewRow): NextTurn[] {
 
 /** A phone call opens by asking which language the teacher is comfortable in; the interview then runs in that one. */
 export const LANGUAGE_ASK = {
-  en: "Hello, this is Jugnu, calling from the Block Education Office. Which language are you comfortable in, Hindi or English?",
-  hi: "नमस्ते, मैं जुगनू हूँ। आप किस भाषा में बात करना चाहेंगे, हिंदी या अंग्रेज़ी?",
+  en: "Hello, this is Jugnu, from the Block Education Office. Which language are you comfortable in, Hindi or English?",
+  hi: "आप हिंदी में बात करेंगे या अंग्रेज़ी में?",
 };
+
+/** Marks a reply that repeats the language question (the script has its own "language" topic). */
+export const ASK_LANGUAGE = "choose_language";
 
 export function readLanguage(text: string): Lang | null {
   const en = /english|इंग्लिश|अंग्रेज़ी|अंग्रेजी|अंग्रेज|angrezi/i.test(text);
@@ -187,7 +190,7 @@ export async function answer(row: InterviewRow, raw: string, meta: { source?: "a
     // Ask twice at most; after that the call carries on in the language it was placed in.
     if (!chosen && sofar.filter((t) => t.kind === "language").length < 2) {
       await addTurns(row.id, ...heard, { speaker: "jugnu", text: `${LANGUAGE_ASK.en} ${LANGUAGE_ASK.hi}`, text_en: LANGUAGE_ASK.en, kind: "language", source: "script" });
-      return { reply: { say: `${LANGUAGE_ASK.en} ${LANGUAGE_ASK.hi}`, say_en: LANGUAGE_ASK.en, kind: "clarify", topic: "language", done: false }, source: "script", status: row.status };
+      return { reply: { say: `${LANGUAGE_ASK.en} ${LANGUAGE_ASK.hi}`, say_en: LANGUAGE_ASK.en, kind: "clarify", topic: ASK_LANGUAGE, done: false }, source: "script", status: row.status };
     }
     row = { ...row, language: chosen ?? row.language };
     const [intro, consent] = openingLines(row);

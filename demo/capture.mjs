@@ -76,7 +76,8 @@ await page.evaluateOnNewDocument(
       if (dest instanceof AudioDestinationNode && dest.context.__tap) connect.call(this, dest.context.__tap);
       return connect.call(this, dest, ...rest);
     };
-    navigator.mediaDevices.getUserMedia = async () => window.__ctx.__mic.stream;
+    // A copy each time: the app stops its tracks when a voice session ends.
+    navigator.mediaDevices.getUserMedia = async () => window.__ctx.__mic.stream.clone();
     // Plays a recorded line into the microphone. The app hears it as speech, and the film hears it too.
     window.__speak = async (b64) => {
       const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -329,27 +330,50 @@ const api = {
     await wait(400);
   },
   lastWords: () => page.evaluate(() => [...document.querySelectorAll("[data-agent]")].map((d) => d.innerText).join(" | ").slice(0, 500)),
+  /** Place a call straight through the phone line, to the number on file. It never appears on screen. */
+  dial: async (body) => {
+    const to = readFileSync(join(ROOT, ".env"), "utf8").match(/^DEMO_TEACHER_PHONE=(.*)$/m)?.[1].trim();
+    const r = await fetch(`${process.env.DEMO_API ?? "http://localhost:8788"}/api/ivr/call`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to, ...body }) });
+    const d = await r.json();
+    log("dial", { ok: r.ok, provider: d.provider, error: d.error });
+  },
   /** Stay on the phone line while the call runs, keeping the live words in view, until it ends and is read. */
   followCall: async (limitMs = 720000) => {
     const t0 = Date.now();
+    const api = process.env.DEMO_API ?? "http://localhost:8788";
     let seen = "";
-    let quiet = 0;
+    let id = null;
     while (Date.now() - t0 < limitMs) {
-      const st = await page.evaluate(() => {
+      await page.evaluate(() => {
         const list = [...document.querySelectorAll("main .scroll-thin")].at(-1);
         if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
-        const rows = [...document.querySelectorAll("main button")].map((b) => b.innerText);
-        const chip = rows.find((t) => /On the line|Dialing|Call ended|No answer|Busy|Failed/.test(t)) ?? "";
-        return { chip: chip.replace(/\n/g, " ").slice(0, 80), turns: list?.children.length ?? 0, coded: /clear detail|vague/.test(document.querySelector("main")?.innerText ?? "") };
       });
-      const now = `${st.chip} ${st.turns}`;
-      if (now !== seen) log("call", st);
-      seen = now;
-      if (st.coded) quiet++;
-      if (quiet > 4 || /No answer|Busy|Failed/.test(st.chip)) break;
+      const rows = await fetch(`${api}/api/interviews`).then((r) => r.json()).catch(() => []);
+      const row = rows.find((r) => r.channel === "phone" && Date.parse(r.created_at) >= started - 2000);
+      if (!row && Date.now() - t0 > 45000) {
+        log("no-call-placed");
+        break;
+      }
+      if (row) {
+        id = row.id;
+        const now = `${row.call_status} ${row.status} ${row.language} ${row.turns}`;
+        if (now !== seen) log("call", { id: row.id, call_status: row.call_status, status: row.status, language: row.language, turns: row.turns });
+        seen = now;
+        if (row.status === "completed" || row.status === "declined") break;
+        if (["no-answer", "busy", "failed", "completed", "NO_ANSWER", "BUSY", "FAILED", "ORIGINATOR_CANCEL", "NORMAL_CLEARING"].includes(row.call_status)) break;
+      }
       await wait(1000);
     }
-    await wait(3000);
+    // The methods are read just after the call: stay until they are on screen.
+    for (let i = 0; id && i < 30; i++) {
+      const d = await fetch(`${api}/api/interviews/${id}`).then((r) => r.json()).catch(() => ({}));
+      if (d.codings?.length) {
+        log("coded", { methods: d.codings.length });
+        break;
+      }
+      await wait(1000);
+    }
+    await wait(4500);
   },
   shot: async (name) => {
     if (probe) await page.screenshot({ path: join(out, `${name}.jpg`), type: "jpeg", quality: 70 });
