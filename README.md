@@ -272,7 +272,7 @@ and Vertex AI (`npm run speech:setup`).
 
 | Service | Model or product | Used for | Key (`.env`) | Without it |
 |---|---|---|---|---|
-| **Anthropic Claude** | Claude Haiku 5.5 (structured tasks); Claude Sonnet 5.5 (assistant agent) | The ten AI tasks in §3 | `ANTHROPIC_API_KEY`; optional `CLAUDE_MODEL`, `AGENT_MODEL` (only these two models are allowed), `CREDIT_BUDGET_USD` | Gemini, then the offline engine |
+| **Anthropic Claude** | Claude Haiku 5.5 (structured tasks); Claude Sonnet 5.5 (assistant agent) | The ten AI tasks in §3 | `ANTHROPIC_API_KEY`; optional `ANTHROPIC_API_KEY_2` (a backup key, used when the first is out of credit or refused), `CLAUDE_MODEL`, `AGENT_MODEL` (only these two models are allowed), `CREDIT_BUDGET_USD` | Gemini, then the offline engine |
 | **Google Gemini on Vertex AI** | `gemini-3-flash-preview`, then `gemini-3.8-flash` | Backup for the ten AI tasks, the briefing and the page guide | The same Google credentials as Speech-to-Text below; optional `GEMINI_MODEL` | Offline engine for every task |
 | **Google Cloud Speech-to-Text** | Chirp 3 | Hearing teachers and officers on every screen | On Vercel, the site's own identity with no stored key (`npm run speech:setup`); `GOOGLE_SERVICE_ACCOUNT_JSON` on another host; a `gcloud` login on your machine; falls back to `GOOGLE_CLOUD_API_KEY` | Typing |
 | **Google Cloud Text-to-Speech** | Chirp 3 HD voices | Jugnu's voice on every screen, on calls and in voice notes | `GOOGLE_CLOUD_API_KEY` | Browser voices; phone calls need it |

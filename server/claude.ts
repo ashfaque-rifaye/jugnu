@@ -20,21 +20,36 @@ export function costUSD(model: string | null, inputTokens: number, outputTokens:
 
 let client: Anthropic | null = null;
 
+/** The team's Claude keys in order: ANTHROPIC_API_KEY, then ANTHROPIC_API_KEY_2 as the backup. */
+const apiKeys = () => [process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_API_KEY_2].filter((k): k is string => Boolean(k));
+let keyIndex = 0;
+
 /** True when the SDK can find credentials (API key or auth token). */
 export function claudeAvailable(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return Boolean(apiKeys().length || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
 let restingUntil = 0;
-/** After a spent budget or a bad key, don't ask Claude again for a while: every task would wait for the same no. */
-export function noteClaudeError(error: unknown) {
+/**
+ * After a spent budget or a bad key, move to the next key. With none left, don't ask Claude again for a
+ * while: every task would wait for the same no. Returns true when there is another key to try now.
+ */
+export function noteClaudeError(error: unknown): boolean {
   const closed = error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError || (error instanceof Error && /usage limits|credit balance/i.test(error.message));
-  if (closed) restingUntil = Date.now() + 10 * 60_000;
+  if (!closed) return false;
+  if (keyIndex < apiKeys().length - 1) {
+    keyIndex++;
+    client = null;
+    return true;
+  }
+  restingUntil = Date.now() + 10 * 60_000;
+  return false;
 }
 export const claudeUsable = () => claudeAvailable() && Date.now() >= restingUntil;
 
 export function getClient(): Anthropic {
-  client ??= new Anthropic();
+  const key = apiKeys()[keyIndex];
+  client ??= key ? new Anthropic({ apiKey: key }) : new Anthropic();
   return client;
 }
 

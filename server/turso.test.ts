@@ -7,6 +7,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 // The interview service against the Turso adapter, as deployed on Vercel. A local libSQL file
 // stands in for the Turso database: same client API, same SQL, same row shapes.
 delete process.env.ANTHROPIC_API_KEY;
+delete process.env.ANTHROPIC_API_KEY_2;
 delete process.env.ANTHROPIC_AUTH_TOKEN;
 
 let svc: typeof import("./interviews");

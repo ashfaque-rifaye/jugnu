@@ -9,7 +9,8 @@ export async function askAI<S extends z.ZodType>(args: Parameters<typeof askClau
   try {
     return await askClaude(args);
   } catch (error) {
-    noteClaudeError(error);
+    // A spent or refused key: the backup key gets the same question straight away.
+    if (noteClaudeError(error) && !args.signal?.aborted) return askAI(args);
     // A refusal is an answer, and a task out of time has no time left: neither goes to a second model.
     if (error instanceof ClaudeRefusal || args.signal?.aborted || !geminiAvailable()) throw error;
     return geminiJson(args);

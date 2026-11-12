@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // Offline engine + in-memory database for every server test.
 process.env.JUGNU_DB = ":memory:";
 delete process.env.ANTHROPIC_API_KEY;
+delete process.env.ANTHROPIC_API_KEY_2;
 delete process.env.ANTHROPIC_AUTH_TOKEN;
 
 type G = typeof import("./ai/guardrails");
