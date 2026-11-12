@@ -98,7 +98,8 @@ async function generate({ system, contents, tools = [], maxTokens, json, signal 
 
 /** A plain answer, for the page guide and the briefing. */
 export async function geminiText(system: string, user: string, maxTokens = 1500): Promise<string> {
-  const { parts } = await generate({ system, contents: [{ role: "user", parts: [{ text: user }] }], maxTokens });
+  // Thinking spends from the same limit as the answer: without the extra room a long thought leaves no answer.
+  const { parts } = await generate({ system, contents: [{ role: "user", parts: [{ text: user }] }], maxTokens: maxTokens + 4000 });
   return parts.map((p) => p.text ?? "").join(" ").replace(/[ \t]+/g, " ").trim();
 }
 
@@ -121,7 +122,7 @@ export async function geminiJson<S extends z.ZodType>(args: { system: string; co
 
 /** One step of the agent. The reply comes back as Claude-shaped blocks. */
 export async function geminiStep(system: string, messages: Message[], tools: { name: string; description?: string; input_schema?: unknown }[]): Promise<Block[]> {
-  const { parts } = await generate({ system, contents: toContents(messages), tools, maxTokens: 3000 });
+  const { parts } = await generate({ system, contents: toContents(messages), tools, maxTokens: 7000 });
   return parts.flatMap((p): Block[] => {
     if (p.functionCall) return [{ type: "tool_use", id: `gem_${randomUUID()}`, name: p.functionCall.name, input: p.functionCall.args ?? {}, ...(p.thoughtSignature ? { gemini_signature: p.thoughtSignature } : {}) }];
     return p.text?.trim() ? [{ type: "text", text: p.text }] : [];
