@@ -10,7 +10,7 @@ import path from "node:path";
 const SERVICE = "jugnu-phone";
 const REGION = "asia-south1";
 const PROJECT = "ai-pro-developer";
-const KEEP = ["ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_2", "CLAUDE_MODEL", "CREDIT_BUDGET_USD", "TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "API_KEY_EXOTEL", "API_TOKEN_PASSWORD", "GOOGLE_CLOUD_API_KEY", "TELEPHONY_PROVIDER", "EXOTEL_SID", "EXOTEL_HOST", "EXOTEL_FROM", "EXOTEL_APP_ID", "PHONE_SALT"];
+const KEEP = ["ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_2", "CLAUDE_MODEL", "CREDIT_BUDGET_USD", "TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "API_KEY_EXOTEL", "API_TOKEN_PASSWORD", "GOOGLE_CLOUD_API_KEY", "TELEPHONY_PROVIDER", "EXOTEL_SID", "EXOTEL_HOST", "EXOTEL_FROM", "EXOTEL_APP_ID", "PHONE_SALT"]; // gitleaks:allow (names of settings, not their values)
 
 const raw = fs.readFileSync(".env", "utf-8");
 const env = Object.fromEntries(
