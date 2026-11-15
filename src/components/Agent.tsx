@@ -198,6 +198,8 @@ interface Line {
   brief?: boolean;
   /** The hello when the console opens: shows ways to start. */
   greet?: boolean;
+  /** For a page guide: the page it describes. It is never shown or spoken anywhere else. */
+  path?: string;
 }
 
 type ApiMessage = { role: "user" | "assistant"; content: unknown };
@@ -717,11 +719,15 @@ function useAgent() {
       const onTap = async (e: Event) => {
         window.removeEventListener("pointerdown", onTap, true);
         window.removeEventListener("keydown", onTap, true);
-        const lines = pending.current;
+        const held = pending.current;
         pending.current = [];
         if ((e.target as Element | null)?.closest?.(".dock-orb") || busy.current || live.current.mode !== "off" || isHushed()) return;
-        const me = startSpeakingUp();
         audio();
+        // The tap may be on a link: let it move first, then say only what belongs to the page now open.
+        await new Promise((r) => setTimeout(r, 300));
+        const lines = held.filter((x) => !x.extra.path || x.extra.path === window.location.pathname);
+        if (!lines.length || busy.current || live.current.mode !== "off" || isHushed()) return;
+        const me = startSpeakingUp();
         setLines((ls) => ls.filter((l) => !lines.some((x) => x.id === l.id)));
         try {
           for (const x of lines) if (!cancelled.current && speakingUp.current === me) await speakOut(x.text, x.extra);
@@ -744,7 +750,7 @@ function useAgent() {
       const res = await postJSON<{ text: string }>("/api/agent/page", { page, screen: readScreen().slice(0, 3800), facts: briefingFacts(st, ev).slice(0, 14), lang: l }).catch(() => null);
       if (!res?.text || speakingUp.current !== me || cancelled.current || live.current.mode !== "off" || isHushed()) return;
       if (pageOf(window.location.pathname, window.location.search) !== page) return; // they have moved on
-      await sayAloud(res.text, { tools: [{ name: "guide", ok: true }] });
+      await sayAloud(res.text, { tools: [{ name: "guide", ok: true }], path: window.location.pathname });
       history.current.push({ role: "user", content: `(I opened the ${page} page.)` }, { role: "assistant", content: `${res.text}
 [page guide]` });
     } finally {
@@ -806,7 +812,7 @@ function useAgent() {
         if (document.hidden || live.current.mode !== "off" || busy.current || isHushed()) return restart();
         nudged.add(page);
         const me = startSpeakingUp();
-        void sayAloud(t("Need a hand here? Tap me and ask, or say Brief me.", "यहाँ कोई मदद चाहिए? मुझे दबाकर पूछिए, या बोलिए, ब्रीफ़ कीजिए।"), { tools: [{ name: "guide", ok: true }] }).finally(() => {
+        void sayAloud(t("Need a hand here? Tap me and ask, or say Brief me.", "यहाँ कोई मदद चाहिए? मुझे दबाकर पूछिए, या बोलिए, ब्रीफ़ कीजिए।"), { tools: [{ name: "guide", ok: true }], path: window.location.pathname }).finally(() => {
           endSpeakingUp(me);
         });
       }, IDLE_MS);
@@ -1034,10 +1040,13 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
     const id = setTimeout(() => setLinger(false), lastJ?.greet ? 30000 : 14000);
     return () => clearTimeout(id);
   }, [guideLine]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A finished page guide belongs to its page: moving on clears it, so it never describes the wrong screen.
+  // A page guide belongs to its page: moving on stops it mid-sentence and clears it, so it never describes the wrong screen.
+  const offPage = !!lastJ?.path && lastJ.path !== pathname;
   useEffect(() => {
-    if (guideLine != null && !lastJ?.greet) setLinger(false);
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!offPage) return;
+    if (a.mode === "speaking") a.interrupt();
+    setLinger(false);
+  }, [offPage]); // eslint-disable-line react-hooks/exhaustive-deps
   const lastYou = useMemo(() => [...a.lines].reverse().find((l) => l.who === "you"), [a.lines]);
   const youLast = !!lastYou && (!lastJ || lastYou.id > lastJ.id);
   const ears = a.mode === "listening" || a.mode === "hearing";
@@ -1047,7 +1056,7 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
       ? { who: "you", text: a.heard, note: a.mode === "hearing" ? t("Understanding…", "समझ रहा हूँ…") : a.heard ? undefined : t("Listening — speak in any language", "सुन रहा हूँ — किसी भी भाषा में बोलें") }
       : (a.mode === "thinking" || a.mode === "working") && youLast && lastYou
         ? { who: "you", text: lastYou.text, note: a.mode === "working" ? t("Working on it…", "काम कर रहा हूँ…") : t("Thinking…", "सोच रहा हूँ…") }
-        : lastJ && !youLast && (active || linger)
+        : lastJ && !youLast && !offPage && (active || linger)
           ? { who: "jugnu", text: lastJ.text.slice(0, lastJ.shown), rest: lastJ.text.slice(lastJ.shown) }
           : a.mode === "error" && a.heard
             ? { who: "jugnu", text: a.heard }
