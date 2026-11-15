@@ -24,6 +24,7 @@ import {
   Stars,
   Stethoscope,
   X,
+  Presentation,
   Zap,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -259,9 +260,9 @@ function Console() {
     <>
       <AppBackground />
       {/* desktop: floating glass sidebar */}
-      <aside className="chrome no-print scroll-thin fixed bottom-3 left-3 top-3 z-30 hidden w-[256px] overflow-y-auto rounded-[1.9rem] lg:block">{sidebar}</aside>
+      <aside className="side-rail chrome no-print scroll-thin fixed bottom-3 left-3 top-3 z-30 hidden w-[256px] overflow-y-auto rounded-[1.9rem] lg:block">{sidebar}</aside>
 
-      <div className="lg:pl-[268px]">
+      <div className="side-pad lg:pl-[268px]">
         <header className={cx("no-print sticky top-0 z-20 px-3 pt-3 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] md:px-5", tucked && !more && "max-lg:-translate-y-[120%]")}>
           <div className="chrome chrome-solid mx-auto flex max-w-[1400px] items-center gap-2 rounded-full py-1.5 pl-2 pr-1.5">
             <NavLink to="/" className="shrink-0 lg:hidden" title={t("Home page", "होम पेज")}>
@@ -621,7 +622,7 @@ function LiveToasts() {
   useEffect(() => {
     if (!incoming.seq) return;
     for (const e of incoming.events.filter((x) => x.actor !== me).slice(-3)) {
-      const d = describeEvent(e, t, allActions);
+      const d = describeEvent(e, t, allActions, state.block.schools);
       const s = school(d.schoolId);
       toast({ meta: t("Live · just now", "लाइव · अभी"), title: s?.name ?? t("Block update", "ब्लॉक अपडेट"), body: d.text, icon: d.icon, tone: d.tone, to: s ? `/schools/${s.id}` : undefined, action: t("Open school", "स्कूल खोलें") });
     }
@@ -696,7 +697,7 @@ function RoleBadge({ role, onChange }: { role: Role | null; onChange: () => void
 
 function PrefsRow() {
   const t = useT();
-  const { lang, setLang, lite, setLite, liteReason } = usePrefs();
+  const { lang, setLang, lite, setLite, liteReason, stage, setStage } = usePrefs();
   return (
     <div className="flex items-center gap-2">
       <button className="btn btn-glass flex-1 justify-center !py-1.5 font-deva" onClick={() => setLang(lang === "hi" ? "en" : "hi")} title={t("Switch to Hindi", "Switch to English")}>
@@ -710,6 +711,15 @@ function PrefsRow() {
         aria-label={t("Low-data mode", "कम-डेटा मोड")}
       >
         <Zap size={15} />
+      </button>
+      <button
+        className={cx("btn !px-3 !py-1.5", stage ? "btn-primary" : "btn-glass")}
+        onClick={() => setStage(!stage)}
+        title={stage ? t("Stage mode on: bigger small print for a projector", "स्टेज मोड चालू: प्रोजेक्टर के लिए बड़े अक्षर") : t("Stage mode: bigger small print for a projector", "स्टेज मोड: प्रोजेक्टर के लिए बड़े अक्षर")}
+        aria-pressed={stage}
+        aria-label={t("Stage mode", "स्टेज मोड")}
+      >
+        <Presentation size={15} />
       </button>
       <ThemeToggle labels={{ dark: t("Dark mode", "डार्क मोड"), light: t("Light mode", "लाइट मोड") }} />
     </div>

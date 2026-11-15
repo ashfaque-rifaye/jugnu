@@ -64,7 +64,17 @@ export function describeEvent(e: BlockEvent, t: T, allActions: Action[], schools
     const visit = e.ref.endsWith("-visit");
     const note = e.ref.endsWith("-note");
     const st = STATUS[String(p.status)] ?? [String(p.status), String(p.status)];
-    const task = a?.task ?? e.ref;
+    // An action no longer in the current plan (another block, or the plan was rebuilt): name it from its id
+    // and the school, never show the raw id.
+    const where = schools.find((s) => s.id === e.ref.split("-")[0])?.name;
+    const kindOf = visit
+      ? t("Classroom visit", "कक्षा भ्रमण")
+      : note
+        ? t("Voice note", "वॉइस नोट")
+        : e.ref.endsWith("-call")
+          ? t("Follow-up call", "फ़ॉलो-अप कॉल")
+          : t("A step on the plan", "योजना का एक काम");
+    const task = a?.task ?? (where ? `${kindOf} · ${where}` : kindOf);
     const insight =
       p.status === "stuck"
         ? t("Stuck — someone has to unblock it.", "अटका है — किसी को रास्ता खोलना होगा।")

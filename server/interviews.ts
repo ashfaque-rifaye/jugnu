@@ -241,15 +241,58 @@ export async function answer(row: InterviewRow, raw: string, meta: { source?: "a
   const said = turn(row.id, { speaker: "jugnu", text: next.value.say, text_en: next.value.say_en, kind: next.value.kind, topic: next.value.topic, source: next.source });
   await db.batch(next.value.done ? [said, setStatus(row.id, "completed")] : [said, touch(row.id)]);
   if (next.value.done) later(codeAndStore(row.id)); // coding runs in the background; the teacher hears the thank-you now
+  else if (row.status === "in_progress") later(codeSoFar(row.id)); // the officer sees methods appear while the call is still on
   return { reply: next.value, source: next.source, status: next.value.done ? "completed" : "in_progress", warning: next.warning };
 }
 
+const liveCoding = new Map<string, { again: boolean; done: Promise<void> }>();
+
+/**
+ * Read the conversation so far while the call is still on, so methods appear on the officer's screen
+ * during the call. One reading per interview at a time; answers that arrive meanwhile are read once it
+ * ends. Writes only while the interview is in progress, so the final reading is never overwritten.
+ */
+export function codeSoFar(id: string): Promise<void> {
+  const running = liveCoding.get(id);
+  if (running) {
+    running.again = true;
+    return running.done;
+  }
+  const entry = { again: false, done: Promise.resolve() };
+  entry.done = (async () => {
+    try {
+      do {
+        entry.again = false;
+        await readSoFar(id);
+      } while (entry.again);
+    } finally {
+      liveCoding.delete(id);
+    }
+  })();
+  liveCoding.set(id, entry);
+  return entry.done;
+}
+
+async function readSoFar(id: string) {
+  const turns = await codingTurns(id);
+  if (!turns.some((t) => t.speaker === "teacher")) return;
+  const res = await codeTranscript(turns, id, "interview.code.live");
+  const live = `EXISTS (SELECT 1 FROM interviews WHERE id = ? AND status = 'in_progress')`;
+  await db.batch([
+    { sql: `DELETE FROM codings WHERE interview_id = ? AND ${live}`, args: [id, id] },
+    ...res.value.map((c) => ({
+      sql: `INSERT INTO codings (interview_id, practice, new_name, quote, specificity, grounded, coder, note, created_at) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${live}`,
+      args: [id, c.practice, c.newName, c.quote, c.specificity, c.grounded ? 1 : 0, `live:${res.source}`, c.note, now(), id],
+    })),
+  ]);
+}
+
+const codingTurns = async (id: string): Promise<Turn[]> =>
+  (await turnsOf(id)).filter((t) => !HOUSEKEEPING.has(t.kind ?? "")).map((t) => ({ speaker: t.speaker, text: t.text, textEn: t.text_en ?? undefined }));
+
 /** Code a transcript into practices and store the codings (replacing earlier ones). */
 export async function codeAndStore(id: string) {
-  const turns: Turn[] = (await turnsOf(id))
-    .filter((t) => !HOUSEKEEPING.has(t.kind ?? ""))
-    .map((t) => ({ speaker: t.speaker, text: t.text, textEn: t.text_en ?? undefined }));
-  const res = await codeTranscript(turns, id);
+  const res = await codeTranscript(await codingTurns(id), id);
   await db.batch([
     { sql: `DELETE FROM codings WHERE interview_id = ?`, args: [id] },
     ...res.value.map((c) => ({

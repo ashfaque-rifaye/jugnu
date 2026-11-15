@@ -78,9 +78,22 @@ export function normaliseIndianNumber(raw: string): string | null {
   return /^91[6-9]\d{9}$/.test(d) ? `+${d}` : null;
 }
 
-/** Webhook URLs carry a key derived from the provider secret, so nobody else can drive a call. */
+/**
+ * The public site may ring only these numbers (CALL_ONLY_TO, comma-separated), so a visitor can't use
+ * Jugnu to call strangers. Unset means any Indian mobile, as on a laptop or the private phone server.
+ */
+export function mayDial(to: string, list = env("CALL_ONLY_TO")): boolean {
+  if (!list) return true;
+  const allowed = list.split(",").map((n) => normaliseIndianNumber(n.trim())).filter(Boolean);
+  return allowed.includes(normaliseIndianNumber(to));
+}
+
+/**
+ * Webhook URLs carry a key, so nobody else can drive a call. The salt comes first: the site that dials
+ * and the phone server that answers both have it, so the key one makes is the key the other checks.
+ */
 function webhookKey(): string {
-  const seed = exotel().token || plivo().token || env("PHONE_SALT") || "jugnu";
+  const seed = env("PHONE_SALT") || exotel().token || plivo().token || "jugnu";
   return createHash("sha256").update(`webhook:${seed}`).digest("hex").slice(0, 20);
 }
 const keyOk = (given: unknown) => {
@@ -465,6 +478,7 @@ export async function placeCall(b: CallRequest): Promise<{ interview: InterviewR
   if (!voiceConfigured()) throw new CallError("Voice (GOOGLE_CLOUD_API_KEY) is not configured.", 503);
   const to = normaliseIndianNumber(String(b.to ?? ""));
   if (!to) throw new CallError("Enter an Indian mobile number (10 digits, or +91…).", 400);
+  if (!mayDial(to)) throw new CallError("On the public site Jugnu rings only the team's demo phone. To call a teacher, run Jugnu on your own server.", 403);
   // The phone server sleeps when idle: wake it now, so the teacher does not wait in silence after answering.
   void fetch(`${publicUrl()}/api/status`, { signal: AbortSignal.timeout(20000) }).catch(() => {});
   const hash = phoneHash(to);

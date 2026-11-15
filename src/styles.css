@@ -898,3 +898,29 @@ html[data-lite="1"] .hero-figure { filter: none; }
   .spread { border-radius: 1.8rem; }
   .spread-stage { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 8%, #000 92%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 8%, #000 92%, transparent 100%); }
 }
+
+/* Stage mode (?stage=1, or the projector button): for a projector at the back of a hall. Small print
+   grows and grey text gets darker; the layout, maps and charts stay as they are. */
+html[data-stage="1"] {
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.9375rem;
+}
+html[data-stage="1"] body { font-size: 16px; }
+html[data-stage="1"] .label,
+html[data-stage="1"] .chip,
+html[data-stage="1"] .table-clean th { font-size: 0.8125rem; }
+html[data-stage="1"]:root,
+html[data-stage="1"]:root[data-mode="light"] .on-dark {
+  --color-ink-2: rgb(255 255 255 / 0.94);
+  --color-ink-3: rgb(255 255 255 / 0.84);
+}
+html[data-stage="1"]:root[data-mode="light"] {
+  --color-ink-2: #1e293b;
+  --color-ink-3: #3b4454;
+}
+/* the bigger print needs a wider menu, or its notes get cut off */
+@media (min-width: 64rem) {
+  html[data-stage="1"] .side-rail { width: 300px; }
+  html[data-stage="1"] .side-pad { padding-left: 312px; }
+}

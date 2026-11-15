@@ -191,7 +191,7 @@ Scored against 30 hand-labelled answers (`npm run eval`, latest results in `data
 
 ```bash
 npm run check   # lint, types and tests
-npm test        # 69 tests: engine on simulated blocks, guardrails, interview service (SQLite + Turso), telephony, WhatsApp, coach, exports, mapper
+npm test        # 72 tests: engine on simulated blocks, guardrails, interview service (SQLite + Turso), telephony, WhatsApp, coach, exports, mapper
 npm run eval    # coding vs 30 hand-labelled answers + guardrails under attack + interviewer behaviour
 npm run smoke   # end-to-end interview against a running server (consent → 7 topics → coding)
 node scripts/flows.mjs http://localhost:8788   # every user flow against a running server

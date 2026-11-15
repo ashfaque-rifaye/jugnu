@@ -137,6 +137,25 @@ describe("interview service (offline)", () => {
     expect(await svc.codingsOf(row.id)).toHaveLength(0);
   });
 
+  it("reads methods while the call is on, and never overwrites the final reading", async () => {
+    const row = await svc.createInterview({ teacherName: "Rekha", schoolName: "GPS Live", group: "bright" });
+    await svc.start(row);
+    await svc.answer((await svc.getById(row.id))!, "हाँ");
+    await svc.answer((await svc.getById(row.id))!, "रोज़ पहले 45 मिनट हम बच्चों को स्तर से समूह में बाँटते हैं — अक्षर, शब्द, कहानी।");
+    await svc.codeSoFar(row.id);
+    const live = await svc.codingsOf(row.id);
+    expect(live.map((c) => c.practice)).toContain("level_groups");
+    expect(live.every((c) => c.coder === "live:offline")).toBe(true);
+    // Once the interview is over, a late live reading must not replace the final one.
+    await svc.codeAndStore(row.id);
+    const { db } = await import("./db");
+    await db.run(`UPDATE interviews SET status = 'completed' WHERE id = ?`, row.id);
+    await svc.codeAndStore(row.id);
+    await svc.codeSoFar(row.id);
+    expect((await svc.codingsOf(row.id)).every((c) => c.coder === "offline")).toBe(true);
+    await svc.eraseInterview(row.id);
+  });
+
   it("keeps no transcript when the teacher declines", async () => {
     const row = await svc.createInterview({ teacherName: "Ramesh" });
     await svc.start(row);
@@ -229,6 +248,9 @@ describe("coder, writer and officer guardrails", () => {
     expect(t.normaliseIndianNumber("+14155550100")).toBeNull();
     expect(t.phoneHash("+919876543210")).toBe(t.phoneHash("09876543210"));
     expect(t.phoneHash("+919876543210")).not.toContain("9876");
+    expect(t.mayDial("+919876543210", "")).toBe(true);
+    expect(t.mayDial("09876 543210", "+919876543210, +919999999999")).toBe(true);
+    expect(t.mayDial("+919811111111", "+919876543210,+919999999999")).toBe(false);
     expect(t.plivoSignature("https://x.test/a", "nonce", "token")).toBe(t.plivoSignature("https://x.test/a", "nonce", "token"));
     expect(t.plivoSignature("https://x.test/a", "nonce", "token")).not.toBe(t.plivoSignature("https://x.test/b", "nonce", "token"));
     expect(t.xmlEscape("A & B < C")).toBe("A &amp; B &lt; C");

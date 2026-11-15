@@ -214,7 +214,7 @@ function InterviewDetail({ id, onDeleted }: { id: string; onDeleted: () => void 
   };
   const i = data.interview;
   return (
-    <Glass className="p-5">
+    <Glass className="@container p-5">
       <SectionTitle
         eyebrow={`${i.channel === "web" ? t("Web voice call", "वेब वॉइस कॉल") : t("Phone call", "फ़ोन कॉल")} · ${i.consent ? t("consent given", "अनुमति दी") : t("no consent yet", "अनुमति अभी नहीं")}`}
         title={`${i.teacher_name || t("Teacher", "शिक्षक")} · ${i.school_name || "—"}`}
@@ -227,8 +227,9 @@ function InterviewDetail({ id, onDeleted }: { id: string; onDeleted: () => void 
           </div>
         }
       />
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="glass-inset scroll-thin max-h-[480px] space-y-2 overflow-y-auto p-3">
+      {/* In a narrow column the methods come first: during a live call they are what everyone watches. */}
+      <div className="grid gap-4 @3xl:grid-cols-[1.4fr_1fr]">
+        <div className="glass-inset scroll-thin max-h-[320px] space-y-2 overflow-y-auto p-3 @3xl:max-h-[480px]">
           {data.turns.map((tu) => (
             <div key={tu.idx} className={cx("flex", tu.speaker === "teacher" ? "justify-end" : "justify-start")}>
               <div className={cx("max-w-[85%] rounded-2xl px-3 py-2 text-sm", tu.speaker === "teacher" ? "rounded-br-sm bg-amber-200/12" : "rounded-bl-sm bg-white/8")}>
@@ -238,10 +239,24 @@ function InterviewDetail({ id, onDeleted }: { id: string; onDeleted: () => void 
           ))}
           {data.turns.length === 0 && <p className="text-sm text-[var(--color-ink-3)]">{i.status === "declined" ? t("The teacher declined — no transcript was kept.", "शिक्षक ने मना किया — कोई रिकॉर्ड नहीं रखा गया।") : t("Waiting for the teacher to open the link.", "शिक्षक के लिंक खोलने का इंतज़ार।")}</p>}
         </div>
-        <div>
-          <div className="label mb-2">{t("Coded methods", "कोड किए गए तरीके")}</div>
+        <div className="order-first @3xl:order-none">
+          <div className="label mb-2 flex items-center gap-2">
+            {i.status === "in_progress" && data.codings.length > 0 ? t("Methods heard so far", "अब तक सुने गए तरीके") : t("Coded methods", "कोड किए गए तरीके")}
+            {i.status === "in_progress" && <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--tone-teal)]" aria-hidden />}
+          </div>
+          {i.status === "completed" && data.codings.some((c) => c.coder.startsWith("live:")) && (
+            <p className="mb-2 flex items-center gap-2 text-sm text-[var(--color-ink-2)]">
+              <Loader2 size={14} className="animate-spin" /> {t("Call ended. Checking the whole conversation once more…", "कॉल खत्म। पूरी बातचीत एक बार फिर जाँची जा रही है…")}
+            </p>
+          )}
           {data.codings.length === 0 ? (
-            <p className="glass-inset p-3 text-sm text-[var(--color-ink-3)]">{i.status === "completed" ? t("Reading the conversation…", "बातचीत पढ़ी जा रही है…") : t("Appears when the conversation ends.", "बातचीत खत्म होने पर दिखेगा।")}</p>
+            <p className="glass-inset p-3 text-sm text-[var(--color-ink-3)]">
+              {i.status === "completed"
+                ? t("Reading the conversation…", "बातचीत पढ़ी जा रही है…")
+                : i.status === "in_progress"
+                  ? t("Methods appear here as the teacher describes them.", "शिक्षक जैसे-जैसे तरीके बताएँगे, वे यहाँ दिखेंगे।")
+                  : t("Appears when the conversation starts.", "बातचीत शुरू होने पर दिखेगा।")}
+            </p>
           ) : (
             <ul className="space-y-2">
               {data.codings.map((c, k) => (

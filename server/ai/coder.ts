@@ -71,9 +71,10 @@ export function guardCoding(out: z.infer<typeof CodeSchema>, turns: Turn[]) {
   return { value: kept, checks, accept: coded.length === 0 || kept.length > 0 };
 }
 
-export async function codeTranscript(turns: Turn[], ref?: string): Promise<AIResult<Coding[]>> {
+/** `task` names the trace row: "interview.code" for the final reading, "interview.code.live" while the call runs. */
+export async function codeTranscript(turns: Turn[], ref?: string, task = "interview.code"): Promise<AIResult<Coding[]>> {
   return runAI({
-    task: "interview.code",
+    task,
     ref,
     timeoutMs: 45000,
     offline: () => offlineCoding(turns),
