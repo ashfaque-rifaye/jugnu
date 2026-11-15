@@ -100,8 +100,11 @@ await flow("Teacher web interview", "Teacher · BEO", async (step) => {
   }
   step(`Interview completes (${turns} answers)`, reply.done || reply.kind === "closing", reply.say);
   step(`Questions written by ${answeredBy}`, sources.has(answeredBy), [...sources].join(", "));
+  // Methods read during the call are marked live:…; wait for the final reading of the whole conversation.
+  const final = (x) => x.data.codings.length > 0 && !x.data.codings.some((c) => String(c.coder).startsWith("live:"));
   let d = await call("GET", `/api/interviews/${interviewId}`);
-  for (let i = 0; i < 40 && d.data.codings.length === 0; i++) {
+  step("Methods appear during the call", d.data.codings.length > 0, `${d.data.codings.length} so far`);
+  for (let i = 0; i < 40 && !final(d); i++) {
     await sleep(1000);
     d = await call("GET", `/api/interviews/${interviewId}`);
   }
