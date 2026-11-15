@@ -1034,6 +1034,10 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
     const id = setTimeout(() => setLinger(false), lastJ?.greet ? 30000 : 14000);
     return () => clearTimeout(id);
   }, [guideLine]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A finished page guide belongs to its page: moving on clears it, so it never describes the wrong screen.
+  useEffect(() => {
+    if (guideLine != null && !lastJ?.greet) setLinger(false);
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const lastYou = useMemo(() => [...a.lines].reverse().find((l) => l.who === "you"), [a.lines]);
   const youLast = !!lastYou && (!lastJ || lastYou.id > lastJ.id);
   const ears = a.mode === "listening" || a.mode === "hearing";
