@@ -591,7 +591,9 @@ function LiveIndicator() {
     return () => window.clearInterval(id);
   }, []);
   const ago = lastSync ? Math.max(0, Math.round((Date.now() - lastSync) / 1000)) : null;
-  const ok = !syncError && ago !== null && ago < 40;
+  // Only a failed request means offline. A tab left in the background simply hasn't asked lately;
+  // it asks again the moment it is shown, so a slide-to-browser switch on stage never reads "Offline".
+  const ok = !syncError && ago !== null;
   const connecting = lastSync === null && !syncError;
   const tone = demoEvents.length ? "var(--tone-teal)" : connecting ? "var(--tone-muted)" : ok ? "var(--tone-good)" : "var(--tone-warn)";
   return (
@@ -606,7 +608,7 @@ function LiveIndicator() {
     >
       <span className="live-dot" style={{ color: tone }} />
       <span style={{ color: tone }}>{demoEvents.length ? t("Sample term", "नमूना सत्र") : connecting ? t("Connecting", "जुड़ रहे") : ok ? t("Live", "लाइव") : t("Offline", "ऑफ़लाइन")}</span>
-      {ok && !demoEvents.length && <span className="hidden tabular-nums text-[var(--color-ink-3)] sm:inline">{ago}s</span>}
+      {ok && ago !== null && ago < 40 && !demoEvents.length && <span className="hidden tabular-nums text-[var(--color-ink-3)] sm:inline">{ago}s</span>}
     </span>
   );
 }

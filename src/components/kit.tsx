@@ -36,7 +36,7 @@ export function PageHeader({ title, sub, actions, eyebrow, hint }: { title: Reac
         )}
       </div>
       {actions && (
-        <motion.div className="flex flex-wrap items-center gap-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.25, ease: EASE }}>
+        <motion.div className="flex min-w-0 max-w-full flex-wrap items-center gap-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.25, ease: EASE }}>
           {actions}
         </motion.div>
       )}

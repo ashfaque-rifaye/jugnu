@@ -40,7 +40,7 @@ export default function AboutPage({ onTour }: { onTour: () => void }) {
       <HeroMedia video={MEDIA.doorClassroom} className="min-h-[660px]">
         <div className="grid min-h-[660px] items-end gap-6 p-6 md:p-12">
           <div>
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="chip mb-5 w-fit">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="chip mb-5 w-fit max-w-full whitespace-normal !rounded-2xl sm:!rounded-full">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" /> AI for Foundational Learning · {t("Challenge 4 · Data to action", "चुनौती 4 · डेटा से कार्य")}
             </motion.div>
             <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={cx("text-5xl font-bold leading-[0.98] md:text-7xl", hi && "!leading-[1.15]")}>

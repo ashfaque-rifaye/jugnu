@@ -27,8 +27,9 @@ const env = Object.fromEntries(
     }),
 );
 // A fixed public address must not let strangers place calls: its officer routes need this private key.
-const phoneKey = env.PHONE_SERVER_KEY || env.PHONE_SERVER_PASSCODE || crypto.randomBytes(24).toString("base64url");
-if (!env.PHONE_SERVER_KEY) fs.appendFileSync(".env", `\nPHONE_SERVER_KEY=${phoneKey}\n`);
+// Kept in .env as PHONE_SERVER_PASSCODE: a local server that found PHONE_SERVER_KEY would lock its own officer pages.
+const phoneKey = env.PHONE_SERVER_PASSCODE || env.PHONE_SERVER_KEY || crypto.randomBytes(24).toString("base64url");
+if (!env.PHONE_SERVER_PASSCODE && !env.PHONE_SERVER_KEY) fs.appendFileSync(".env", `\nPHONE_SERVER_PASSCODE=${phoneKey}\n`);
 
 if (!env.PHONE_SALT) throw new Error("Set PHONE_SALT in .env first: the live site and the phone server must share it.");
 // The demo phones are the only numbers the public site may ring.
