@@ -27,8 +27,111 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preload" as="image" href="/logo-mark.png" />
+    <style>
+      /* The opening: the firefly lights up, the name rises, one line, then the app. It is plain HTML
+         and CSS so it paints at once, while the app loads behind it. Once per browser tab. */
+      #intro { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; overflow: hidden; background: radial-gradient(120% 90% at 50% 42%, #0b1220 0%, #04060a 62%); color: #fff; cursor: pointer; transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.6s; }
+      [data-mode="light"] #intro { background: radial-gradient(120% 90% at 50% 42%, #fffaf0 0%, #f3efe4 65%); color: #0b1220; }
+      #intro.out { opacity: 0; visibility: hidden; pointer-events: none; }
+      #intro.out .i-stack { transform: scale(1.06); }
+      #intro .i-stack { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px; transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+      #intro .i-glow { position: absolute; left: 50%; top: 58px; width: 340px; height: 340px; margin: -170px 0 0 -170px; border-radius: 50%; background: radial-gradient(circle, rgba(250, 204, 21, 0.55) 0%, rgba(250, 204, 21, 0.16) 34%, rgba(45, 212, 191, 0.06) 55%, transparent 70%); opacity: 0; transform: scale(0.4); animation: i-glow 1.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards, i-breathe 2.4s ease-in-out 1.75s infinite; pointer-events: none; }
+      [data-mode="light"] #intro .i-glow { background: radial-gradient(circle, rgba(250, 204, 21, 0.5) 0%, rgba(250, 204, 21, 0.14) 36%, transparent 70%); }
+      #intro .i-mark { position: relative; width: 116px; height: 116px; border-radius: 28px; opacity: 0; transform: translateY(14px) scale(0.72); filter: blur(10px); animation: i-mark 1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards; box-shadow: 0 24px 60px -18px rgba(250, 204, 21, 0.45); }
+      #intro .i-mark img { width: 100%; height: 100%; display: block; border-radius: 28px; }
+      #intro .i-name { margin-top: 26px; display: flex; gap: 0.01em; font-family: "Space Grotesk", "Inter", system-ui, sans-serif; font-weight: 700; font-size: clamp(3rem, 9vw, 4.6rem); line-height: 1; letter-spacing: -0.035em; }
+      #intro .i-name span { display: inline-block; opacity: 0; transform: translateY(0.45em); animation: i-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      #intro .i-deva { margin-top: 10px; font-family: "Noto Sans Devanagari", "Inter", system-ui, sans-serif; font-weight: 600; font-size: clamp(1.15rem, 3vw, 1.45rem); color: #facc15; opacity: 0; animation: i-fade 0.8s ease 1.05s forwards; }
+      [data-mode="light"] #intro .i-deva { color: #a16207; }
+      #intro .i-line { margin: 18px auto 0; height: 2px; width: 0; border-radius: 2px; background: linear-gradient(90deg, #fde047, #facc15, #a3e635, #2dd4bf); animation: i-line 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1.15s forwards; }
+      #intro .i-cap { margin-top: 16px; max-width: 30ch; font-family: "Inter", system-ui, sans-serif; font-weight: 400; font-size: clamp(1rem, 2.4vw, 1.2rem); line-height: 1.45; color: rgba(255, 255, 255, 0.78); opacity: 0; transform: translateY(8px); animation: i-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.3s forwards; }
+      [data-mode="light"] #intro .i-cap { color: rgba(11, 18, 32, 0.72); }
+      #intro .i-cap.hi { font-family: "Noto Sans Devanagari", "Inter", system-ui, sans-serif; }
+      #intro .i-fly { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #fde047; box-shadow: 0 0 12px 4px rgba(250, 204, 21, 0.6); opacity: 0; animation: i-fly 3.2s ease-in-out infinite; pointer-events: none; }
+      #intro .i-skip { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font: 500 12px/1 "Inter", system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: currentColor; opacity: 0; animation: i-skip 0.6s ease 1.6s forwards; }
+      @keyframes i-mark { to { opacity: 1; transform: none; filter: none; } }
+      @keyframes i-glow { 0% { opacity: 0; transform: scale(0.4); } 55% { opacity: 1; transform: scale(1.12); } 100% { opacity: 0.85; transform: scale(1); } }
+      @keyframes i-breathe { 0%, 100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+      @keyframes i-rise { to { opacity: 1; transform: none; } }
+      @keyframes i-fade { to { opacity: 1; } }
+      @keyframes i-line { to { width: 72px; } }
+      @keyframes i-skip { to { opacity: 0.35; } }
+      @keyframes i-fly { 0% { opacity: 0; transform: translate(0, 0); } 25% { opacity: 1; } 70% { opacity: 0.7; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)); } }
+      @media (prefers-reduced-motion: reduce) {
+        #intro *, #intro .i-name span { animation-duration: 0.01s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+        #intro .i-fly { display: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="intro" aria-hidden="true">
+      <div class="i-stack">
+        <div class="i-glow"></div>
+        <div class="i-mark"><img src="/logo-mark.png" alt="" width="116" height="116" /></div>
+        <div class="i-name"><span style="animation-delay: 0.55s">J</span><span style="animation-delay: 0.61s">u</span><span style="animation-delay: 0.67s">g</span><span style="animation-delay: 0.73s">n</span><span style="animation-delay: 0.79s">u</span></div>
+        <div class="i-deva" lang="hi">जुगनू</div>
+        <div class="i-line"></div>
+        <div class="i-cap" id="intro-cap">Every block already has its fireflies.</div>
+      </div>
+      <div class="i-skip" id="intro-skip">Tap to skip</div>
+    </div>
+    <script>
+      // Show the opening once per tab, never on a teacher's interview link (weak phones, no time to
+      // spare). ?intro=1 plays it again, for the stage. The app tells us when it has drawn (jugnu:ready).
+      (function () {
+        var el = document.getElementById("intro");
+        var q = location.search;
+        var seen = false;
+        try { seen = sessionStorage.getItem("jugnu-intro") === "1"; } catch (e) {}
+        var force = /[?&]intro=1/.test(q);
+        if (!force && (seen || /^\/talk/.test(location.pathname) || /[?&]intro=0/.test(q))) { el.remove(); return; }
+        try { sessionStorage.setItem("jugnu-intro", "1"); } catch (e) {}
+        var hi = false;
+        try { hi = localStorage.getItem("jugnu-lang") === "hi"; } catch (e) {}
+        if (hi) {
+          var cap = document.getElementById("intro-cap");
+          cap.textContent = "हर ब्लॉक में जुगनू पहले से हैं।";
+          cap.className += " hi";
+          cap.lang = "hi";
+          document.getElementById("intro-skip").textContent = "छोड़ने के लिए छुएँ";
+        }
+        // A few fireflies drifting up around the mark.
+        var stack = el.querySelector(".i-stack");
+        for (var i = 0; i < 7; i++) {
+          var f = document.createElement("span");
+          f.className = "i-fly";
+          // left or right of the mark, never on it
+          f.style.left = (i % 2 ? 62 + Math.random() * 34 : 4 + Math.random() * 34) + "%";
+          f.style.top = 18 + Math.random() * 60 + "%";
+          f.style.setProperty("--dx", (Math.random() * 2 - 1) * 60 + "px");
+          f.style.setProperty("--dy", -40 - Math.random() * 70 + "px");
+          f.style.animationDelay = 0.5 + Math.random() * 1.8 + "s";
+          f.style.width = f.style.height = 3 + Math.random() * 4 + "px";
+          stack.appendChild(f);
+        }
+        var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var start = Date.now();
+        var minTime = reduce ? 1200 : 2700;
+        var ready = false;
+        var done = false;
+        function close() {
+          if (done) return;
+          done = true;
+          el.className = "out";
+          window.dispatchEvent(new Event("jugnu:intro-done"));
+          setTimeout(function () { el.remove(); }, 700);
+        }
+        function maybe() {
+          if (ready && Date.now() - start >= minTime) close();
+        }
+        window.addEventListener("jugnu:ready", function () { ready = true; setTimeout(maybe, Math.max(0, minTime - (Date.now() - start))); });
+        // Never hold anyone at the door: go in after 7 s whatever happens.
+        setTimeout(close, 7000);
+        el.addEventListener("click", close);
+        window.addEventListener("keydown", function (e) { if (!done && (e.key === "Escape" || e.key === "Enter" || e.key === " ")) close(); });
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

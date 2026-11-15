@@ -40,6 +40,7 @@ import { LogoMark, Wordmark } from "./components/Logo";
 import { FilmPlayer } from "./components/Film";
 import { cx } from "./components/ui";
 import { Threshold } from "./components/Threshold";
+import { useReadyForIntro } from "./lib/intro";
 import { DAMOH, profileFor } from "./engine/district";
 import { usePoll } from "./lib/api";
 import { markJourney } from "./lib/journey";
@@ -117,6 +118,7 @@ type NavItem = { to: string; label: string; icon: typeof Stars; badge?: number; 
 
 function Console() {
   const t = useT();
+  useReadyForIntro();
   const { lang } = usePrefs();
   const location = useLocation();
   const navigate = useNavigate();

@@ -35,6 +35,7 @@ import { usePipeline } from "../lib/store";
 import { pickStory, type Story } from "../lib/story";
 import { ThemeToggle } from "../lib/theme";
 import { useReveal, usePointerSheen } from "../lib/motion";
+import { useIntroDone, useReadyForIntro } from "../lib/intro";
 
 export default function HomePage({ onTour }: { onTour: () => void }) {
   const t = useT();
@@ -60,10 +61,14 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
   };
 
   const [doors, setDoors] = useState(false);
-  const openDoors = () => (role ? enter("/today") : setDoors(true));
+  // Someone who has chosen who they are goes straight in; a guest (or anyone new) is asked first.
+  const openDoors = () => (role && role.kind !== "guest" ? enter("/today") : setDoors(true));
   const mainRef = useRef<HTMLElement>(null);
   useReveal(mainRef);
   usePointerSheen();
+  useReadyForIntro();
+  // The hero plays its entrance as the opening lifts, not unseen behind it.
+  const introDone = useIntroDone();
 
   return (
     <div className="min-h-dvh">
@@ -104,7 +109,7 @@ export default function HomePage({ onTour }: { onTour: () => void }) {
 
       {/* hero: the name, huge, with one teacher in front of it */}
       <div className="-mt-[66px] px-2 md:px-3">
-        <HeroPoster onOpen={openDoors} onPlay={play} onFilm={onTour} canPlay={demo.available} />
+        <HeroPoster key={introDone ? "on" : "wait"} onOpen={openDoors} onPlay={play} onFilm={onTour} canPlay={demo.available} />
       </div>
 
       <main ref={mainRef} className="mx-auto max-w-[1240px] space-y-24 px-4 pb-16 pt-16 md:px-6">

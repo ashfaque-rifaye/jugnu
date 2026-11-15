@@ -67,7 +67,7 @@ export function Threshold({ open, closable, onClose }: { open: boolean; closable
           nav("/today");
           onClose?.();
         },
-        reduced ? 0 : 720,
+        reduced ? 0 : 420,
       );
     },
     [entering, cluster, school, setRole, nav, onClose],
@@ -176,11 +176,12 @@ export function Threshold({ open, closable, onClose }: { open: boolean; closable
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.35 }}
+          transition={{ duration: 0.18 }}
           role="dialog"
           aria-modal
           aria-label={t("Who is opening Jugnu?", "जुगनू कौन खोल रहा है?")}
         >
+          <motion.div className="flex min-h-0 flex-1 flex-col" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}>
           <header className={cx("flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 px-4 pb-3 pt-3 transition-opacity duration-300 md:px-6 md:pt-5", entering && "opacity-0")}>
             <span className="flex items-center gap-2">
               <LogoMark size={32} />
@@ -217,6 +218,7 @@ export function Threshold({ open, closable, onClose }: { open: boolean; closable
               />
             ))}
           </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
