@@ -213,15 +213,16 @@ export function writeTools(st: PipelineState, ctx: AgentContext) {
     }),
     betaZodTool({
       name: "send_whatsapp",
-      description: "Send on WhatsApp to a teacher, with a number the officer gave in this conversation (never invent one): voice_note = the school's peer voice note from the plan, spoken in a Jugnu voice; checkin = the day-14 'did you try it?' question, whose reply updates the board; text = a short message the officer dictated.",
+      description: `Send on WhatsApp to a teacher${numberOnFile() ? " (this block has the teacher's number on file: leave 'to' out unless the officer gives another)" : ", with a number the officer gave in this conversation (never invent one)"}: voice_note = the school's peer voice note from the plan, spoken in a Jugnu voice; checkin = the day-14 'did you try it?' question, whose reply updates the board; text = a short message the officer dictated.`,
       inputSchema: z.object({
         school: z.string(),
-        to: z.string().describe("Phone number with country code"),
+        to: z.string().optional().describe("Phone number with country code"),
         kind: z.enum(["voice_note", "checkin", "text"]),
         text: z.string().max(1000).optional().describe("Only for kind=text"),
         language: z.enum(["hi", "en"]).default("hi"),
       }),
-      run: async ({ school, to, kind, text, language }) => {
+      run: async ({ school, to: given, kind, text, language }) => {
+        const to = given ?? numberOnFile();
         const miss = need();
         if (miss) return miss;
         const s = byName(school);
