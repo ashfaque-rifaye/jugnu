@@ -1,14 +1,7 @@
-// Access control. The app is open to everyone, with no login; teachers join an interview with an
-// unguessable link token; AI routes are rate-limited so a public link cannot burn the Claude credits.
-// Only the separate phone server, a fixed public address that can place real calls, sets
-// PHONE_SERVER_KEY, so strangers can't use its officer routes.
+// Access control. The app is open to everyone, with no login or passcode; teachers join an interview
+// with an unguessable link token; AI routes are rate-limited so a public link cannot burn the Claude
+// credits; and a call can only ring the demo phones (CALL_ONLY_TO), never a stranger.
 import type { NextFunction, Request, Response } from "express";
-
-export function requireOfficer(req: Request, res: Response, next: NextFunction) {
-  const key = process.env.PHONE_SERVER_KEY;
-  if (!key || req.get("x-jugnu-key") === key) return next();
-  res.status(401).json({ error: "Not allowed" });
-}
 
 const hits = new Map<string, number[]>();
 

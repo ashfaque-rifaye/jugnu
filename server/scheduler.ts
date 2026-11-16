@@ -5,7 +5,7 @@
 // block's activity log, so the console shows it within seconds.
 import express from "express";
 import { z } from "zod";
-import { rateLimit, requireOfficer } from "./auth";
+import { rateLimit } from "./auth";
 import { db, json, now } from "./db";
 import { BlockKey, writeEvent } from "./eventlog";
 import { CallError, placeCall } from "./telephony";
@@ -200,7 +200,6 @@ async function skipJob(id: number): Promise<boolean> {
 }
 
 export const jobs = express.Router();
-jobs.use(requireOfficer);
 
 jobs.get("/", async (req, res) => {
   const block = BlockKey.safeParse(req.query.block);

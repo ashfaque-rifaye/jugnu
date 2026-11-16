@@ -9,7 +9,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import express, { Router } from "express";
 import { z } from "zod";
 import { readFollowUp } from "./ai/followup";
-import { rateLimit, requireOfficer } from "./auth";
+import { rateLimit } from "./auth";
 import { db, now } from "./db";
 import { BlockKey, writeEvent } from "./eventlog";
 import { enqueue } from "./scheduler";
@@ -237,7 +237,7 @@ whatsapp.post("/webhook", async (req, res) => {
 whatsapp.get("/status", (_req, res) => res.json(whatsappStatus()));
 
 /** Send from the console: a check-in, a peer voice note, or a plain message. */
-whatsapp.post("/send", requireOfficer, rateLimit("whatsapp", 60, 600000), express.json(), async (req, res) => {
+whatsapp.post("/send", rateLimit("whatsapp", 60, 600000), express.json(), async (req, res) => {
   const body = z
     .object({
       to: z.string().min(10).max(20),

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, CheckCheck, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, Newspaper, PartyPopper, Play, School as SchoolIcon, Search, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
-import { useMemo, useState, type CSSProperties } from "react";
+import { Activity, AlertTriangle, ArrowRight, CalendarCheck2, CheckCheck, ClipboardCheck, Footprints, Map as MapIcon, MessageCircleQuestion, Mic, Newspaper, PartyPopper, Play, School as SchoolIcon, Search, ShieldCheck, Stethoscope, Target, UserRound, Workflow } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { useDemo } from "../components/Demo";
@@ -75,6 +75,12 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
   const links = state.recs.filter((r) => r.wave === 1 && mine.some((s) => s.id === r.schoolId)).map((r) => ({ from: r.demonstratorId, to: r.schoolId }));
   const hi = lang === "hi" && "font-deva";
   const guest = role?.kind === "guest" || !role;
+  // The still frame shows at once; the moving picture (about 3 MB) starts after the page has settled.
+  const [heroMoving, setHeroMoving] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setHeroMoving(true), 1500);
+    return () => window.clearTimeout(id);
+  }, []);
   const hero = role?.kind === "beo" ? { video: MEDIA.doorOfficer, poster: MEDIA.doorOfficerPoster } : role?.kind === "crp" ? { video: MEDIA.doorCoordinator, poster: MEDIA.doorCoordinatorPoster } : role?.kind === "head" ? { video: MEDIA.doorHead, poster: MEDIA.doorHeadPoster } : { video: MEDIA.doorClassroom, poster: MEDIA.doorClassroomPoster };
   const headSchool = role?.kind === "head" ? state.block.schools.find((s) => s.id === role.schoolId) : undefined;
   const first = tasks[0];
@@ -105,8 +111,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
     <div className="space-y-5">
       {/* the day: a calm hero with the one next step floating on it */}
       <section className="card on-dark relative overflow-hidden !rounded-[2rem]">
-        {!lite && <video key={hero.video} className="welcome-video" style={{ objectPosition: "center 22%" }} src={hero.video} poster={hero.poster} autoPlay muted loop playsInline aria-hidden />}
-        {lite && <img className="welcome-video" src={hero.poster} alt="" aria-hidden />}
+        {!lite && heroMoving ? <video key={hero.video} className="welcome-video" style={{ objectPosition: "center 22%" }} src={hero.video} poster={hero.poster} autoPlay muted loop playsInline aria-hidden /> : <img className="welcome-video" style={{ objectPosition: "center 22%" }} src={hero.poster} alt="" aria-hidden />}
         <div className="welcome-shade" />
         <div className="pointer-events-none absolute inset-3 rounded-[1.6rem] border border-white/10" aria-hidden />
         <div className="relative grid gap-5 p-5 md:p-8 lg:grid-cols-[1fr_380px] lg:items-end">
@@ -119,10 +124,10 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               {summary}
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.42, ease: EASE }} className="mt-5 flex flex-wrap gap-2">
-              {demo.available && !headSchool && (
-                <button className="btn btn-primary" onClick={demo.start} data-tour="play" title={t("A 40-second sample of how a whole term runs in this block: visits, voice notes and follow-up calls. It uses sample data, and nothing is saved.", "40 सेकंड में दिखाता है कि इस ब्लॉक में पूरा सत्र कैसे चलता है: दौरे, वॉइस नोट और फ़ॉलो-अप कॉल। यह नमूना डेटा है, कुछ भी सेव नहीं होता।")}>
-                  <Play size={16} /> {t("See a sample term", "नमूना सत्र देखें")}
-                </button>
+              {!headSchool && (
+                <Link to="/audit" className="btn btn-primary" data-tour="audit" title={t("Who came in, what they changed, and how Jugnu is being used", "कौन आया, क्या बदला, और जुगनू कैसे इस्तेमाल हो रहा है")}>
+                  <ShieldCheck size={16} /> {t("Audit", "ऑडिट")}
+                </Link>
               )}
               <button className="btn btn-glass" onClick={() => window.dispatchEvent(new CustomEvent("jugnu:ask", { detail: "brief" }))}>
                 <Newspaper size={16} /> {t("Brief me", "ब्रीफ़ करो")}
@@ -144,7 +149,7 @@ export default function TodayPage({ onAsk, onRole, onTour }: { onAsk: () => void
               <div className={cx("text-white", hi)}>
                 <div className="label !text-white/60">{t("Start here", "यहीं से शुरू करें")}</div>
                 <div className="mt-1 text-lg font-semibold">{t("Nothing waiting for you", "आपके लिए कुछ बाकी नहीं")}</div>
-                <p className="mt-1 text-sm text-white/70">{t("See a sample term to watch confirmation visits, visits and calls arrive.", "जाँच, दौरे और कॉल आते देखने के लिए सत्र चलाएँ।")}</p>
+                <p className="mt-1 text-sm text-white/70">{t("Under “This term” you can play a 40-second sample to watch visits and calls arrive.", "“यह सत्र” में 40 सेकंड का नमूना चलाकर दौरे और कॉल आते देख सकते हैं।")}</p>
               </div>
             )}
           </motion.div>

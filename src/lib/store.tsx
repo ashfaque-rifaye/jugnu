@@ -10,10 +10,13 @@ import { PRACTICE_IDS, type PracticeId } from "../engine/practices";
 import type { Action, Block, FollowUp, Interview } from "../engine/types";
 import { runVerify } from "../engine/verify";
 import { delJSON, getJSON, postJSON } from "./api";
+import { track } from "./track";
 import type { DemoEvent } from "./demo";
 import { roleName, useRole } from "./role";
 
 export type EventKind = "action" | "spotcheck" | "followup" | "note" | "weekly";
+/** How each change reads on the Audit page. */
+const CHANGE_NAMES: Record<EventKind, string> = { action: "Updated a task", spotcheck: "Recorded a visit", followup: "Recorded a call-back", note: "Added a note", weekly: "Weekly update" };
 export interface BlockEvent {
   id: number | string;
   kind: EventKind;
@@ -55,8 +58,6 @@ interface Store {
   events: BlockEvent[];
   /** Events that just arrived from other people's devices (seq changes on each arrival). */
   incoming: { seq: number; events: BlockEvent[]; interviews: CodedRow[] };
-  /** When the log was last fetched (ms), for the "Live" indicator. */
-  lastSync: number | null;
   /** "Play the term": events shown on this screen only. */
   demoEvents: BlockEvent[];
   addDemoEvents: (evts: DemoEvent[]) => void;
@@ -107,12 +108,13 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<BlockEvent[]>([]);
   const [live, setLive] = useState<CodedRow[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [lastSync, setLastSync] = useState<number | null>(null);
   const [incoming, setIncoming] = useState<Store["incoming"]>({ seq: 0, events: [], interviews: [] });
   const [demoEvents, setDemoEvents] = useState<BlockEvent[]>([]);
   const blockKey = block.source === "simulated" ? `seed:${block.seed}` : `import:${block.name}:${block.schools.length}`;
   // What this screen has already seen, so only other people's new work is announced.
   const known = useRef<{ key: string; events: Set<string>; interviews: Set<string> } | null>(null);
+  // What the last poll returned, so an unchanged answer changes nothing on screen (no redraw every 4 s).
+  const lastText = useRef({ ev: "", coded: "" });
 
   const load = useCallback(
     async (withInterviews = true) => {
@@ -121,10 +123,17 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
           getJSON<BlockEvent[]>(`/api/events?block=${encodeURIComponent(blockKey)}`),
           withInterviews ? getJSON<CodedRow[]>("/api/interviews/coded") : Promise.resolve(null),
         ]);
-        setEvents((cur) => [...ev, ...cur.filter((e) => e.pending)]);
-        if (coded) setLive(coded);
+        const evText = `${blockKey}|${JSON.stringify(ev)}`;
+        if (evText !== lastText.current.ev) {
+          lastText.current.ev = evText;
+          setEvents((cur) => [...ev, ...cur.filter((e) => e.pending)]);
+        }
+        const codedText = coded ? JSON.stringify(coded) : "";
+        if (coded && codedText !== lastText.current.coded) {
+          lastText.current.coded = codedText;
+          setLive(coded);
+        }
         setSyncError(null);
-        setLastSync(Date.now());
         const seen = known.current;
         if (!seen || seen.key !== blockKey) {
           known.current = { key: blockKey, events: new Set(ev.map((e) => String(e.id))), interviews: new Set((coded ?? []).map((r) => r.id)) };
@@ -174,6 +183,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
 
   const record = useCallback(
     async (kind: EventKind, ref: string, payload: Record<string, unknown>) => {
+      track("change", CHANGE_NAMES[kind] ?? kind, ref);
       const temp: BlockEvent = { id: `tmp-${Date.now()}-${Math.random()}`, kind, ref, payload, actor: roleName(role, block), created_at: new Date().toISOString(), pending: true };
       setEvents((cur) => [...cur, temp]);
       try {
@@ -303,7 +313,6 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         select,
         events: allEvents,
         incoming,
-        lastSync,
         demoEvents,
         addDemoEvents,
         clearDemo,

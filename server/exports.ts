@@ -5,12 +5,10 @@ import express from "express";
 import { z } from "zod";
 import { PRACTICES } from "../src/engine/practices";
 import type { Action } from "../src/engine/types";
-import { requireOfficer } from "./auth";
 import { pipelineFor } from "./blocks";
 import { db, json } from "./db";
 
 export const exportsRouter = express.Router();
-exportsRouter.use(requireOfficer);
 
 const Query = z.object({ block: z.string().regex(/^seed:\d{1,9}$/, "Only blocks Jugnu generates can be exported here"), track: z.enum(["0", "1"]).optional() });
 

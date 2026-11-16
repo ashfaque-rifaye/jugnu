@@ -12,5 +12,7 @@ export default defineConfig({
   server: {
     port: Number(process.env.PORT) || 5190,
     proxy: { "/api": `http://localhost:${API_PORT}` },
+    // Prepare the first screens while the server starts, so the first page on a laptop doesn't stall.
+    warmup: { clientFiles: ["./src/main.tsx", "./src/App.tsx", "./src/Console.tsx", "./src/pages/Home.tsx", "./src/pages/Today.tsx", "./src/components/Agent.tsx"] },
   },
 });

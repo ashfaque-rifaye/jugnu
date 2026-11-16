@@ -161,6 +161,35 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
 CREATE INDEX IF NOT EXISTS jobs_due ON scheduled_jobs(status, due_at);
 CREATE INDEX IF NOT EXISTS jobs_by_block ON scheduled_jobs(block, id);
 
+-- The audit log: one row per visit (a random id per browser tab, no name or IP; the place is a city),
+-- and what happened in it: pages and time on them, the role chosen, changes, AI, voice and calls.
+CREATE TABLE IF NOT EXISTS visits (
+  id           TEXT PRIMARY KEY,
+  started_at   TEXT NOT NULL,
+  last_at      TEXT NOT NULL,
+  role         TEXT,                              -- beo | crp | head | teacher, once chosen
+  name         TEXT,                              -- the role's label, e.g. "Cluster coordinator · Sarra"
+  device       TEXT, browser TEXT, os TEXT,
+  city         TEXT, region TEXT, country TEXT,
+  lang         TEXT, entry TEXT, referrer TEXT,
+  bot          INTEGER NOT NULL DEFAULT 0,        -- automated checks, left out of the numbers
+  pages        INTEGER NOT NULL DEFAULT 0,
+  actions      INTEGER NOT NULL DEFAULT 0,
+  changes      INTEGER NOT NULL DEFAULT 0,
+  active_ms    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS visits_by_time ON visits(last_at);
+CREATE TABLE IF NOT EXISTS visit_events (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  visit_id     TEXT NOT NULL,
+  at           TEXT NOT NULL,
+  kind         TEXT NOT NULL,                     -- page | role | change | ai | voice | call | action
+  name         TEXT NOT NULL,
+  detail       TEXT,
+  ms           INTEGER                            -- time on the page, for page events
+);
+CREATE INDEX IF NOT EXISTS visit_events_by_time ON visit_events(at);
+
 -- WhatsApp conversations Jugnu opened: which school and action a reply belongs to. Keyed by the
 -- salted hash of the number, so the number itself is never stored here.
 CREATE TABLE IF NOT EXISTS wa_contacts (
@@ -228,7 +257,7 @@ async function openTurso(): Promise<Store> {
 /** The Turso adapter, for any libSQL client: HTTPS in production, a local libSQL file in the tests. */
 export async function libsqlStore(c: Pick<Client, "execute" | "batch" | "executeMultiple">): Promise<Store> {
   await c.executeMultiple(SCHEMA);
-  for (const m of MIGRATIONS) await c.execute(m).catch(() => undefined); // already applied
+  await Promise.all(MIGRATIONS.map((m) => c.execute(m).catch(() => undefined))); // already applied; together, one wait instead of three
   const objects = (rs: ResultSet) => rs.rows.map((r) => Object.fromEntries(rs.columns.map((col, i) => [col, r[i]])));
   return {
     all: async (sql, ...args) => objects(await c.execute({ sql, args })) as never,

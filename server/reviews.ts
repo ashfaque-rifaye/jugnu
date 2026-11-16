@@ -9,11 +9,10 @@ import { runPipeline } from "../src/engine/pipeline";
 import { PRACTICES, PRACTICE_IDS, type PracticeId } from "../src/engine/practices";
 import type { Check } from "./ai/guardrails";
 import { draftCard, guardNote, offlineCard, polishNote, type CardQuote } from "./ai/writer";
-import { requireOfficer, rateLimit } from "./auth";
+import { rateLimit } from "./auth";
 import { db, json, now } from "./db";
 
 export const reviews = express.Router();
-reviews.use(requireOfficer);
 
 async function enqueue(kind: string, ref: string | null, payload: unknown, checks: Check[], source: string) {
   const id = crypto.randomUUID();

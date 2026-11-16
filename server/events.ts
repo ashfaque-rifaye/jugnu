@@ -3,14 +3,13 @@
 // so every officer sees the same state, and the Today page shows them as recent activity.
 import express from "express";
 import { z } from "zod";
-import { rateLimit, requireOfficer } from "./auth";
+import { rateLimit } from "./auth";
 import { resetDemoDrafts } from "./reviews";
 import { db, json } from "./db";
 import { BlockKey as Block, EventError, EventKind as Kind, writeEvent } from "./eventlog";
 import { enqueueForAction } from "./scheduler";
 
 export const events = express.Router();
-events.use(requireOfficer);
 
 events.get("/", async (req, res) => {
   const block = Block.safeParse(req.query.block);

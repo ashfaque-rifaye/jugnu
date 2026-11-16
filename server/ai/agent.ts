@@ -23,7 +23,7 @@ import { officerTools } from "./officer";
 const wanted = process.env.AGENT_MODEL || "claude-sonnet-5-5";
 const AGENT_MODEL = wanted in PRICES ? wanted : "claude-haiku-5-5";
 
-const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "practices", "interviews", "calls", "district", "ai", "method", "about", "home"] as const;
+const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "practices", "interviews", "calls", "district", "audit", "ai", "method", "about", "home"] as const;
 
 /** The block keeps no teachers' numbers; the team's demo sets one so a call can be placed by the school's name alone. */
 const numberOnFile = () => (process.env.DEMO_TEACHER_PHONE ?? "").trim();
@@ -476,13 +476,14 @@ const PAGE_HELP: Record<string, [string, string]> = {
   plan: ["This shows how each method reaches schools and children, and who does what. Check what is stuck first.", "यहाँ दिखता है कि हर तरीका स्कूलों और बच्चों तक कैसे पहुँचता है, और कौन क्या करेगा। पहले देखिए कि क्या अटका है।"],
   approvals: ["Nothing written by AI reaches a teacher until a person says yes. Listen to a draft, then approve it or send it back.", "AI का लिखा कुछ भी आपकी हाँ के बिना शिक्षक तक नहीं जाता। ड्राफ़्ट सुनिए, फिर मंज़ूर कीजिए या वापस भेजिए।"],
   results: ["Here you can check whether a method was tried, and whether it helped. Start with the teachers not called yet.", "यहाँ देखिए कि तरीका अपनाया गया या नहीं, और उससे फ़ायदा हुआ या नहीं। उन शिक्षकों से शुरू कीजिए जिन्हें अभी कॉल नहीं हुई।"],
+  audit: ["This is the audit: who came into Jugnu, as which role, what they changed, and how much they used Jugnu's AI, voice and calls. Tap a visit to see what happened in it.", "यह ऑडिट है: कौन जुगनू पर आया, किस भूमिका में, क्या बदला, और जुगनू की AI, आवाज़ और कॉल कितनी इस्तेमाल हुई। किसी विज़िट को दबाकर देखिए उसमें क्या हुआ।"],
   district: ["This is all of Damoh district, block by block. Open a block to work in it.", "यह पूरा दमोह ज़िला है, ब्लॉक के हिसाब से। किसी ब्लॉक को खोलकर उसमें काम कीजिए।"],
   ai: ["This page shows how Jugnu checks everything the AI says. You can try it yourself.", "यहाँ दिखता है कि जुगनू AI की हर बात की जाँच कैसे करता है। आप ख़ुद भी आज़मा सकते हैं।"],
 };
 const pageHelp = (page: string, lang: "en" | "hi") => PAGE_HELP[page]?.[lang === "hi" ? 1 : 0] ?? "";
 
 const guideSystem = (page: string, lang: "en" | "hi") => `${SAFETY}
-You are Jugnu, the voice guide inside a console for a Block Education Officer in India. The officer has just opened the "${page}" page. Say, out loud, in 2 short sentences: what this page helps them do, and the single most useful thing to do on it right now, naming a real school or number from the screen or the facts. Never invent names or numbers.
+You are Jugnu, the voice guide inside a console for a Block Education Officer in India. The officer has just opened the "${page}" page.${page === "audit" ? " It is the audit log of Jugnu itself: visits, the role each visitor chose, device and city, pages used and for how long, changes made, and use of AI, voice and phone calls. Talk about those numbers, not about schools." : ""} Say, out loud, in 2 short sentences: what this page helps them do, and the single most useful thing to do on it right now, naming a real school or number from the screen or the facts. Never invent names or numbers.
 ${lang === "hi" ? "Speak simple spoken Hindi (Devanagari); English words like confirmation visit or CRP are fine." : "Speak plain Indian English."} No greeting, no lists, no markdown, numbers as digits, under 40 words. End with a short offer such as "Want me to open it?"`;
 
 /** A spoken word of help when the officer opens a page: what it is for, and the one thing worth doing here now. */
@@ -510,6 +511,51 @@ export async function agentPageGuide(page: string, screen: string, facts: string
   } catch (e) {
     noteClaudeError(e);
     await trace("guide", { i: 0, o: 0 }, false, describeError(e), started, [], GUIDE_MODEL);
+    return backup();
+  }
+}
+
+// ---------------------------------------------------------------- why a school has its status
+const whyCache = new Map<string, string>();
+
+function whySystem(status: string, lang: "en" | "hi"): string {
+  return [
+    `You are Jugnu, helping a block education officer in India. A school is marked "${status}".`,
+    "Using only the facts given, say in at most two short sentences (45 words in all) why it has this status and what the next visit should do.",
+    "Give the one or two numbers that matter most (such as reported reading against what similar schools reach), rounded. Plain words a busy officer reads at a glance: no statistics terms, no list of every check.",
+    "Never blame the teacher, never guess at things not in the facts, no lists, no markdown, no greeting.",
+    lang === "hi" ? "Answer in simple Hindi (Devanagari), the way people speak in Madhya Pradesh." : "Answer in English.",
+  ].join(" ");
+}
+
+/** Two sentences on why a school has its status, from its own numbers. Cached, so each school is asked about once. */
+export async function agentWhy(status: string, facts: string[], lang: "en" | "hi", fallback: string): Promise<{ text: string; source: "claude" | "gemini" | "offline" }> {
+  const key = `${lang}|${status}|${facts.join("|")}`;
+  const hit = whyCache.get(key);
+  if (hit) return { text: hit, source: "claude" };
+  const user = `Facts about this school:\n${facts.map((f) => `- ${f}`).join("\n")}`;
+  const keep = (text: string) => {
+    if (whyCache.size > 500) whyCache.clear();
+    whyCache.set(key, text);
+    return text;
+  };
+  const backup = async (): Promise<{ text: string; source: "gemini" | "offline" }> => {
+    const said = await geminiText(whySystem(status, lang), user, 600).catch(() => "");
+    return said ? { text: keep(wholeSentences(said, "max_tokens").replace(/\s+/g, " ").trim()), source: "gemini" } : { text: fallback, source: "offline" };
+  };
+  if (!claudeUsable()) return backup();
+  const started = Date.now();
+  try {
+    const res = await getClient().messages.create(
+      { model: GUIDE_MODEL, max_tokens: 180, thinking: { type: "disabled" }, system: whySystem(status, lang), messages: [{ role: "user", content: user }] },
+      { signal: AbortSignal.timeout(10000) },
+    );
+    const text = wholeSentences(res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join(" "), res.stop_reason).replace(/\s+/g, " ").trim();
+    await trace("why", { i: res.usage.input_tokens, o: res.usage.output_tokens }, true, null, started, [], GUIDE_MODEL);
+    return text ? { text: keep(text), source: "claude" } : backup();
+  } catch (e) {
+    noteClaudeError(e);
+    await trace("why", { i: 0, o: 0 }, false, describeError(e), started, [], GUIDE_MODEL);
     return backup();
   }
 }

@@ -7,7 +7,7 @@ import path from "node:path";
 import express from "express";
 import { z } from "zod";
 import { cleanAndLog } from "./safety";
-import { rateLimit, requireOfficer } from "./auth";
+import { rateLimit } from "./auth";
 import { db, json, now } from "./db";
 
 export const testing = express.Router();
@@ -57,7 +57,7 @@ export function susScore(a: number[]): number {
   return a.reduce((s, x, i) => s + (i % 2 === 0 ? x - 1 : 5 - x), 0) * 2.5;
 }
 
-testing.get("/summary", requireOfficer, async (_req, res) => {
+testing.get("/summary", async (_req, res) => {
   const sessions = await db.all<{ id: string; role: string; place: string | null; sus: string | null; created_at: string }>(`SELECT id, role, place, sus, created_at FROM sessions ORDER BY created_at`);
   const feedback = await db.all<Record<string, string | number | null>>(`SELECT session_id, role, page, kind, task, rating, text, lang, created_at FROM feedback ORDER BY created_at DESC`);
   const sus = sessions.filter((s) => s.sus).map((s) => ({ role: s.role, score: susScore(json<number[]>(s.sus, [])) }));

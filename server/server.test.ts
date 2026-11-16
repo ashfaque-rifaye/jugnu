@@ -645,3 +645,45 @@ describe("approvals", () => {
     server.close();
   });
 });
+
+describe("audit", () => {
+  it("tells phones, laptops and our own automated checks apart", async () => {
+    const { describeDevice } = await import("./audit");
+    expect(describeDevice("Mozilla/5.0 (Linux; Android 14; SM-A146B) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36")).toMatchObject({ device: "Phone", browser: "Chrome", os: "Android", bot: false });
+    expect(describeDevice("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36 Edg/130.0")).toMatchObject({ device: "Laptop", browser: "Edge", os: "Windows" });
+    expect(describeDevice("Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/130.0 Safari/537.36").bot).toBe(true);
+  });
+
+  it("logs a visit's pages, role and changes, and reports them without any personal details", async () => {
+    const { audit } = await import("./audit");
+    const express = (await import("express")).default;
+    const app = express().use(express.json()).use("/a", audit);
+    const server = app.listen(0);
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/a`;
+    const at = new Date().toISOString();
+    const send = (events: unknown[], role: string | null = "beo") =>
+      fetch(`${base}/track`, { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile Safari/604.1", "x-vercel-ip-city": "Damoh" }, body: JSON.stringify({ visit: { id: "visit-test-0001", role, name: "BEO", lang: "hi" }, events }) });
+    expect((await send([{ at, kind: "role", name: "beo" }, { at, kind: "page", name: "Today", ms: 30000 }])).status).toBe(200);
+    await send([{ at, kind: "change", name: "Recorded a visit", detail: "s001" }, { at, kind: "ai", name: "Asked Jugnu" }, { at, kind: "page", name: "Today", detail: "again", ms: 10000 }]);
+    const r = (await (await fetch(`${base}?days=1`)).json()) as { summary: Record<string, number>; pages: { name: string; n: number }[]; places: { name: string }[]; visits: { device: string; pages: number; changes: number; active_ms: number }[] };
+    expect(r.summary).toMatchObject({ visits: 1, signedIn: 1, changes: 1, ai: 1, pages: 1 });
+    expect(r.pages[0]).toMatchObject({ name: "Today", n: 1 });
+    expect(r.places[0].name).toBe("Damoh");
+    expect(r.visits[0]).toMatchObject({ device: "Phone", pages: 1, changes: 1, active_ms: 40000 });
+    expect(JSON.stringify(r)).not.toMatch(/\d+\.\d+\.\d+\.\d+/); // no IP addresses
+    server.close();
+  });
+});
+
+describe("no passcode", () => {
+  it("opens the officer routes even when an old phone-server key is still set", async () => {
+    process.env.PHONE_SERVER_KEY = "left-over";
+    const { events } = await import("./events");
+    const express = (await import("express")).default;
+    const server = express().use(express.json()).use("/e", events).listen(0);
+    const res = await fetch(`http://127.0.0.1:${(server.address() as { port: number }).port}/e?block=seed%3A1`);
+    expect(res.status).not.toBe(401);
+    delete process.env.PHONE_SERVER_KEY;
+    server.close();
+  });
+});

@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { trackRequest } from "./track";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 export interface Status {
   claude: boolean;
@@ -55,6 +56,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  if (method !== "GET") trackRequest(method, url);
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const r = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -82,25 +84,42 @@ export const postJSON = <T,>(url: string, body: unknown) => request<T>("POST", u
 export const getJSON = <T,>(url: string) => request<T>("GET", url);
 export const delJSON = <T,>(url: string) => request<T>("DELETE", url);
 
-/** Poll a GET endpoint; returns [data, error, reload]. */
+// Several parts of a screen ask for the same list at once (the badge, the page, the guide):
+// they share one request instead of sending three.
+const shared = new Map<string, { at: number; p: Promise<unknown> }>();
+function sharedGet<T>(url: string, fresh: boolean): Promise<T> {
+  const hit = shared.get(url);
+  if (!fresh && hit && Date.now() - hit.at < 2500) return hit.p as Promise<T>;
+  const p = getJSON<T>(url);
+  shared.set(url, { at: Date.now(), p });
+  p.catch(() => shared.delete(url));
+  return p;
+}
+
+/** Poll a GET endpoint; returns [data, error, reload]. An unchanged answer leaves the screen alone, and a hidden tab doesn't ask. */
 export function usePoll<T>(url: string | null, everyMs = 0): [T | null, string | null, () => void] {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const last = useRef("");
   const reload = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => {
     if (!url) return;
     let alive = true;
-    const load = () =>
-      getJSON<T>(url)
+    const load = (fresh: boolean) =>
+      sharedGet<T>(url, fresh)
         .then((d) => {
           if (!alive) return;
-          setData(d);
+          const text = JSON.stringify(d);
+          if (text !== last.current) {
+            last.current = text;
+            setData(d);
+          }
           setError(null);
         })
         .catch((e: Error) => alive && setError(e.message));
-    load();
-    const id = everyMs ? window.setInterval(load, everyMs) : 0;
+    load(tick > 0);
+    const id = everyMs ? window.setInterval(() => document.visibilityState === "visible" && load(false), everyMs) : 0;
     return () => {
       alive = false;
       if (id) window.clearInterval(id);

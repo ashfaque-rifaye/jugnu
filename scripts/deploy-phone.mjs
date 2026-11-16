@@ -26,13 +26,8 @@ const env = Object.fromEntries(
       return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, "")];
     }),
 );
-// A fixed public address must not let strangers place calls: its officer routes need this private key.
-// Kept in .env as PHONE_SERVER_PASSCODE: a local server that found PHONE_SERVER_KEY would lock its own officer pages.
-const phoneKey = env.PHONE_SERVER_PASSCODE || env.PHONE_SERVER_KEY || crypto.randomBytes(24).toString("base64url");
-if (!env.PHONE_SERVER_PASSCODE && !env.PHONE_SERVER_KEY) fs.appendFileSync(".env", `\nPHONE_SERVER_PASSCODE=${phoneKey}\n`);
-
 if (!env.PHONE_SALT) throw new Error("Set PHONE_SALT in .env first: the live site and the phone server must share it.");
-// The demo phones are the only numbers the public site may ring.
+// No passcode: the demo phones are the only numbers the server may ring, so a stranger can't misuse it.
 env.CALL_ONLY_TO ||= [env.DEMO_TEACHER_PHONE, env.TEST_PHONE].filter(Boolean).join(",");
 
 /** The live database's address and a fresh token for it, from the Turso account in .env. */
@@ -54,7 +49,6 @@ if (!DEV) {
 
 const file = path.join(os.tmpdir(), `jugnu-phone-${crypto.randomUUID()}.yaml`);
 const lines = KEEP.filter((k) => env[k]).map((k) => `${k}: ${JSON.stringify(env[k])}`);
-lines.push(`PHONE_SERVER_KEY: ${JSON.stringify(phoneKey)}`);
 const run = (cmd, capture = false) => execSync(cmd, { stdio: capture ? ["ignore", "pipe", "inherit"] : "inherit", encoding: "utf-8" });
 const where = `--region ${REGION} --project ${PROJECT}`;
 

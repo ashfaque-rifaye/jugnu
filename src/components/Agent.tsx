@@ -6,7 +6,7 @@
 import { cx } from "./ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Compass, Loader2, MessageCircle, Mic, MicOff, Newspaper, Send, Square, Volume2, VolumeX, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DAMOH } from "../engine/district";
 import { briefingFacts, buildBriefing, clickByLabel, fillField, findSchool, HUSH_EVENT, isHushed, parseCommand, pointAtText, pointTo, readScreen, TOOL_LABEL } from "../lib/agent";
@@ -19,6 +19,8 @@ import { useTheme } from "../lib/theme";
 import { audio, fetchSpeech, openMic, outLevel, play, stopPlayback, transcribe, type Mic as MicHandle } from "../lib/voice";
 import { fieldBase } from "./kit";
 import { Orb } from "./Orb";
+// The 3D orb arrives a moment after the page: until then the light bubble stands in, at the same size.
+const VoiceOrb = lazy(() => import("./VoiceOrb"));
 
 export type Mode = "off" | "listening" | "hearing" | "thinking" | "working" | "speaking" | "error";
 
@@ -224,6 +226,7 @@ const PAGE_PATH: Record<string, string> = {
   interviews: "/interviews",
   calls: "/interviews?tab=phone",
   district: "/district",
+  audit: "/audit",
   ai: "/ai",
   method: "/method",
   about: "/about",
@@ -1250,7 +1253,9 @@ export function AgentDock({ open, onOpen, onClose }: { open: boolean; onOpen: ()
             aria-label={a.handsFree ? t("Stop talking to Jugnu", "जुगनू से बात बंद करें") : a.mode === "speaking" ? t("Cut in", "बीच में बोलें") : t("Talk to Jugnu", "जुगनू से बात करें")}
             title={t(...MODE_LABEL[a.handsFree && a.mode === "off" ? "listening" : a.mode])}
           >
-            <Orb mode={a.mode} level={a.levelNow} size={82} fallback={<Swarm mode={a.mode} level={a.levelNow} size={62} />} />
+            <Suspense fallback={<Orb mode={a.mode} level={a.levelNow} size={82} fallback={<Swarm mode={a.mode} level={a.levelNow} size={62} />} />}>
+              <VoiceOrb mode={a.mode} level={a.levelNow} size={82} fallback={<Orb mode={a.mode} level={a.levelNow} size={82} fallback={<Swarm mode={a.mode} level={a.levelNow} size={62} />} />} />
+            </Suspense>
           </button>
         </div>
       </div>

@@ -10,6 +10,7 @@ import { Card, Empty, PageHeader, Segmented, StatusChip, useAgo } from "../compo
 import { AgainstSimilar, ClassSubjectGrid, SubjectTrends } from "../components/SchoolCharts";
 import { SchoolPeople } from "../components/SchoolPeople";
 import { SatThumb } from "../components/SchoolMapCard";
+import { StatusWhy } from "../components/StatusWhy";
 import { cx } from "../components/ui";
 import { distanceKm } from "../engine/block";
 import { nearest } from "../engine/geo";
@@ -80,6 +81,7 @@ export default function SchoolPage() {
         sub={`${kind} · ${t("classes 1 to 5 shown", "कक्षा 1 से 5")}${s.udise ? ` · UDISE ${s.udise}` : ""}`}
         actions={<StatusChip status={st} />}
       />
+      <StatusWhy school={s} state={state} status={st} />
 
       <div className="no-scrollbar -mx-1 mb-4 overflow-x-auto px-1">
         <Segmented

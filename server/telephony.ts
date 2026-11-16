@@ -13,7 +13,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, Server } from "node:http";
 import { Router, urlencoded } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
-import { requireOfficer } from "./auth";
 import { db } from "./db";
 import { answer, createInterview, getByCallSid, getById, getByToken, ASK_LANGUAGE, LANGUAGE_ASK, start, type InterviewRow } from "./interviews";
 import { pcmToWav, synthesize, transcribe, voiceConfigured } from "./voice";
@@ -429,9 +428,11 @@ ivr.use(urlencoded({ extended: false }));
 ivr.get("/status", (_req, res) => res.json(telephonyStatus()));
 
 /** Everything the officer must paste into the provider dashboard, in one place. */
-ivr.get("/setup", requireOfficer, (_req, res) => {
+ivr.get("/setup", (req, res) => {
   const base = publicUrl();
-  const key = webhookKey();
+  // The full webhook key only on a laptop: on a public address it would let anyone drive a call's steps.
+  const local = ["localhost", "127.0.0.1", "::1"].includes(req.hostname);
+  const key = local ? webhookKey() : "(shown on a laptop only)";
   const wsBase = base.replace(/^http/, "ws");
   res.json({
     ...telephonyStatus(),
@@ -508,7 +509,7 @@ export async function placeCall(b: CallRequest): Promise<{ interview: InterviewR
 }
 
 /** Dial a teacher. Body: { to, teacherName?, schoolName?, schoolId?, group?, language?, interviewId? }. */
-ivr.post("/call", requireOfficer, async (req, res) => {
+ivr.post("/call", async (req, res) => {
   try {
     res.json(await placeCall((req.body ?? {}) as CallRequest));
   } catch (e) {

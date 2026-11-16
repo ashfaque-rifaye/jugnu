@@ -1,7 +1,7 @@
 // Maps of the block, coloured by each school's status (bright spot, needs support, ...).
 // LivingMap = the real map (OpenStreetMap / satellite) for a real block, and the flat drawing in
 // low-data mode or for blocks without positions.
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { School } from "../engine/types";
 import { usePrefs, useT } from "../lib/prefs";
 import { STATUS_INFO, tint, type SchoolStatus } from "../lib/status";
@@ -33,10 +33,42 @@ export interface LivingMapProps extends MapProps {
   onBlock?: (name: string) => void;
 }
 
+/**
+ * True once the element is near the screen and the page has finished its first work. The real map is
+ * the heaviest thing in the app (a 1 MB library and a 3D canvas), so it waits its turn instead of
+ * freezing the page while everything else is still appearing.
+ */
+function useWhenNear<T extends Element>(): [RefObject<T | null>, boolean] {
+  const ref = useRef<T | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || ready) return;
+    let idle = 0;
+    const go = () => {
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+      if (w.requestIdleCallback) idle = w.requestIdleCallback(() => setReady(true), { timeout: 900 });
+      else idle = window.setTimeout(() => setReady(true), 300);
+    };
+    if (typeof IntersectionObserver === "undefined") return go();
+    const io = new IntersectionObserver((es) => es.some((e) => e.isIntersecting) && (io.disconnect(), go()), { rootMargin: "300px" });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      const w = window as Window & { cancelIdleCallback?: (id: number) => void };
+      if (w.cancelIdleCallback) w.cancelIdleCallback(idle);
+      else window.clearTimeout(idle);
+    };
+  }, [ready]);
+  return [ref, ready];
+}
+
 export function LivingMap(props: LivingMapProps) {
   const { lite } = usePrefs();
   const h = props.height ?? 420;
   const real = props.mode !== "2d" && !lite && props.schools.some((s) => s.lat != null);
+  const [near, ready] = useWhenNear<HTMLDivElement>();
+  if (real && !ready) return <div ref={near} className="skeleton rounded-[1.4rem]" style={{ height: h }} />;
   if (real)
     return (
       <Suspense fallback={<div className="skeleton rounded-[1.4rem]" style={{ height: h }} />}>

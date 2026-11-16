@@ -18,9 +18,9 @@ import {
   MessageCircleQuestion,
   MessageSquareHeart,
   Mic,
-  Play,
   School as SchoolIcon,
   Search,
+  ShieldCheck,
   Stars,
   Stethoscope,
   X,
@@ -32,7 +32,7 @@ import { useReveal, usePointerSheen, useScrollingDown } from "./lib/motion";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigationType, useMatch, useNavigate, useSearchParams } from "react-router-dom";
 import { AgentDock } from "./components/Agent";
 import { describeEvent } from "./components/ActivityFeed";
-import { DemoProvider, useDemo } from "./components/Demo";
+import { DemoProvider } from "./components/Demo";
 import { FEEDBACK_EVENT, FeedbackButton, useSession } from "./components/Feedback";
 import { AppBackground, SPRING } from "./components/kit";
 import { Locator } from "./components/Locator";
@@ -51,6 +51,7 @@ import { PipelineProvider, usePipeline } from "./lib/store";
 import { loopCounts, pickStory } from "./lib/story";
 import { ThemeToggle } from "./lib/theme";
 import { ToastProvider, useToast } from "./lib/toast";
+import { setVisitor, track } from "./lib/track";
 import { TourProvider, useTour, type TourStep } from "./lib/tour";
 
 const HomePage = lazy(() => import("./pages/Home"));
@@ -66,6 +67,7 @@ const TestingPage = lazy(() => import("./pages/Testing"));
 const AIPage = lazy(() => import("./pages/AI"));
 const DistrictPage = lazy(() => import("./pages/District"));
 const AboutPage = lazy(() => import("./pages/About"));
+const AuditPage = lazy(() => import("./pages/Audit"));
 
 /** While a page loads: glass placeholders in the shape of a page. */
 const Loading = () => (
@@ -136,11 +138,12 @@ function Console() {
   usePointerSheen();
   const tucked = useScrollingDown();
   const tour = useTour();
-  const demo = useDemo();
   const [pending] = usePoll<unknown[]>("/api/reviews?status=pending", 15000);
   const c = loopCounts(state, followUps);
   const tourSteps = useTourSteps();
-  const startTour = () => (setMore(false), tour.start(tourSteps));
+  const startTour = () => (setMore(false), track("action", "Guide started"), tour.start(tourSteps));
+  // The Audit page's "who came in": the role chosen on this screen, and the language.
+  useEffect(() => setVisitor(role?.kind ?? null, roleName(role, state.block), lang), [role, lang, state.block]);
 
   useEffect(() => {
     if (params.get("ask") === "1") {
@@ -172,6 +175,7 @@ function Console() {
         { to: "/today", label: t("Today", "आज"), icon: CalendarCheck2 },
         { to: "/review", label: t("Approvals", "मंज़ूरी"), icon: ClipboardCheck, badge: pending?.length ?? 0 },
         { to: "/district", label: t("District (Damoh)", "ज़िला (दमोह)"), icon: Landmark },
+        { to: "/audit", label: t("Audit", "ऑडिट"), icon: ShieldCheck },
       ];
   const TOOLS: NavItem[] = [
     { to: "/", label: t("Home page", "होम पेज"), icon: House },
@@ -234,11 +238,6 @@ function Console() {
         <button className="nav-item w-full" onClick={startTour}>
           <Compass size={18} aria-hidden /> <span className="flex-1 text-left">{t("Guide me", "गाइड करें")}</span>
         </button>
-        {demo.available && (
-          <button className="nav-item w-full" onClick={demo.start}>
-            <Play size={18} aria-hidden /> <span className="flex-1 text-left">{t("See a sample term", "नमूना सत्र देखें")}</span>
-          </button>
-        )}
         {TOOLS.map((x) => navLink(x, "tools"))}
           </>
         )}
@@ -276,16 +275,18 @@ function Console() {
                 navigate(`/schools/${id}`);
               }}
             />
-            <LiveIndicator />
-            <button className="btn btn-glass !px-3 !py-2" onClick={startTour} data-tour="guide" title={t("Show me around", "मुझे घुमाएँ")}>
-              <Compass size={16} /> <span className="hidden sm:inline">{t("Guide", "गाइड")}</span>
-            </button>
-            <button className="btn btn-glass !hidden !px-3 !py-2 lg:!inline-flex" onClick={() => window.dispatchEvent(new Event(FEEDBACK_EVENT))}>
-              <MessageSquareHeart size={16} /> {t("Feedback", "राय दें")}
-            </button>
-            <button className="btn btn-glass btn-icon !p-2 lg:hidden" onClick={() => setAsk(true)} aria-label={t("Ask Jugnu", "जुगनू से पूछें")}>
-              <MessageCircleQuestion size={17} />
-            </button>
+            <OfflineChip />
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <button className="btn btn-glass !px-3 !py-2" onClick={startTour} data-tour="guide" title={t("Show me around", "मुझे घुमाएँ")}>
+                <Compass size={16} /> <span className="hidden sm:inline">{t("Guide", "गाइड")}</span>
+              </button>
+              <button className="btn btn-glass !hidden !px-3 !py-2 lg:!inline-flex" onClick={() => window.dispatchEvent(new Event(FEEDBACK_EVENT))}>
+                <MessageSquareHeart size={16} /> {t("Feedback", "राय दें")}
+              </button>
+              <button className="btn btn-glass btn-icon !p-2 lg:hidden" onClick={() => setAsk(true)} aria-label={t("Ask Jugnu", "जुगनू से पूछें")}>
+                <MessageCircleQuestion size={17} />
+              </button>
+            </div>
           </div>
           {session.id && (
             <div className="chrome mx-auto mt-2 flex max-w-[1400px] items-center justify-between gap-2 rounded-full px-4 py-1.5 text-sm">
@@ -317,6 +318,7 @@ function Console() {
                 <Route path="/ai" element={<AIPage />} />
                 <Route path="/method" element={<Navigate to="/about" replace />} />
                 <Route path="/district" element={<DistrictPage />} />
+                <Route path="/audit" element={<AuditPage />} />
                 <Route path="/about" element={<AboutPage onTour={() => setFilm(true)} />} />
                 {/* older links */}
                 <Route path="/find" element={<Navigate to="/schools" replace />} />
@@ -396,21 +398,9 @@ function Console() {
                   <Compass size={16} /> {t("Guide me", "गाइड करें")}
                 </button>
               </div>
-              {demo.available && (
-                <button className="card-inset mt-2 flex w-full items-center gap-3 p-3 text-left" onClick={() => (setMore(false), demo.start())}>
-                  <span className="grid h-9 w-9 place-items-center rounded-full text-[#0b1308]" style={{ background: "var(--grad-flat)" }}>
-                    <Play size={16} />
-                  </span>
-                  <span className="flex-1">
-                    <span className="block text-sm font-semibold">{t("See a sample term", "नमूना सत्र देखें")}</span>
-                    <span className="block text-xs text-[var(--color-ink-3)]">{t("A whole term in 40 seconds, on sample data", "पूरा सत्र 40 सेकंड में, नमूना डेटा पर")}</span>
-                  </span>
-                  <ChevronRight size={16} className="text-[var(--color-ink-3)]" />
-                </button>
-              )}
               <div className="mt-3 rounded-[1.4rem] bg-[var(--inset-bg)] p-1.5">
                 <div className="label px-3 pb-1 pt-1.5">{t("Five steps, every term", "हर सत्र, पाँच कदम")}</div>
-                {(mySchool ? TOP.slice(1) : [TOP[1], ...LOOP]).map((x) => navLink(x, "sheet"))}
+                {(mySchool ? TOP.slice(1) : [TOP[1], ...TOP.filter((x) => x.to === "/audit"), ...LOOP]).map((x) => navLink(x, "sheet"))}
               </div>
               <div className="mt-2 rounded-[1.4rem] bg-[var(--inset-bg)] p-1.5">
                 {TOOLS.map((x) => navLink(x, "sheet-tools"))}
@@ -567,48 +557,28 @@ function useTourSteps(): TourStep[] {
       );
     steps.push(
       {
-        target: "live",
         title: ["Live on every screen", "हर स्क्रीन पर लाइव"],
         body: ["What anyone records — on a phone in the field or here — reaches every screen within seconds, with a notification.", "कोई भी जो दर्ज करे — मैदान में फ़ोन पर या यहाँ — कुछ ही सेकंड में हर स्क्रीन पर सूचना के साथ पहुँचता है।"],
       },
       {
         target: "guide",
         title: ["Replay any time", "कभी भी दोबारा"],
-        body: ["Open this guide again from here. To watch a sample term in 40 seconds, press “See a sample term” on Today.", "यह गाइड यहाँ से फिर खोलें। पूरा सत्र 40 सेकंड में देखने के लिए ‘आज’ पर “सत्र चलाकर देखें” दबाएँ।"],
+        body: ["Open this guide again from here. To watch a sample term in 40 seconds, use the play button under “This term” on Today.", "यह गाइड यहाँ से फिर खोलें। पूरा सत्र 40 सेकंड में देखने के लिए ‘आज’ पर “यह सत्र” के नीचे वाला बटन दबाएँ।"],
       },
     );
     return steps;
   }, [role, state, followUps]);
 }
 
-/** "Live · 2 s": the shared log is being kept up to date. */
-function LiveIndicator() {
+/** Says nothing while all is well; appears only when the server can't be reached. */
+function OfflineChip() {
   const t = useT();
-  const { lastSync, syncError, demoEvents } = usePipeline();
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const id = window.setInterval(() => tick((x) => x + 1), 1000);
-    return () => window.clearInterval(id);
-  }, []);
-  const ago = lastSync ? Math.max(0, Math.round((Date.now() - lastSync) / 1000)) : null;
-  // Only a failed request means offline. A tab left in the background simply hasn't asked lately;
-  // it asks again the moment it is shown, so a slide-to-browser switch on stage never reads "Offline".
-  const ok = !syncError && ago !== null;
-  const connecting = lastSync === null && !syncError;
-  const tone = demoEvents.length ? "var(--tone-teal)" : connecting ? "var(--tone-muted)" : ok ? "var(--tone-good)" : "var(--tone-warn)";
+  const { syncError } = usePipeline();
+  if (!syncError) return null;
   return (
-    <span
-      className="chip shrink-0 !py-1.5"
-      data-tour="live"
-      title={
-        syncError
-          ? t(`Can't reach the server — retrying (${syncError})`, `सर्वर तक नहीं पहुँच पा रहे — फिर कोशिश (${syncError})`)
-          : t("Changes anyone records appear on every screen within seconds.", "कोई भी जो दर्ज करे, कुछ सेकंड में हर स्क्रीन पर दिखता है।")
-      }
-    >
-      <span className="live-dot" style={{ color: tone }} />
-      <span style={{ color: tone }}>{demoEvents.length ? t("Sample term", "नमूना सत्र") : connecting ? t("Connecting", "जुड़ रहे") : ok ? t("Live", "लाइव") : t("Offline", "ऑफ़लाइन")}</span>
-      {ok && ago !== null && ago < 40 && !demoEvents.length && <span className="hidden tabular-nums text-[var(--color-ink-3)] sm:inline">{ago}s</span>}
+    <span className="chip shrink-0 !py-1.5" title={t(`Can't reach the server — retrying (${syncError})`, `सर्वर तक नहीं पहुँच पा रहे — फिर कोशिश (${syncError})`)}>
+      <span className="live-dot" style={{ color: "var(--tone-warn)" }} />
+      <span style={{ color: "var(--tone-warn)" }}>{t("Offline", "ऑफ़लाइन")}</span>
     </span>
   );
 }

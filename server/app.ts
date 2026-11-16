@@ -10,13 +10,14 @@ import { checkPhoto, PHOTO_TYPES } from "./ai/vision";
 import { askCoach } from "./ai/coach";
 import { mapColumns } from "./ai/mapper";
 import { exportsRouter } from "./exports";
-import { agentBrief, agentPageGuide, agentTurn } from "./ai/agent";
+import { agentBrief, agentPageGuide, agentTurn, agentWhy } from "./ai/agent";
 import { askOfficer } from "./ai/officer";
 import { aiHealth } from "./ai/health";
 import { seedDemoInterviews } from "./demo-interviews";
 import { safety } from "./safety";
 import { creditReport, recentCalls, traceSummary } from "./ai/run";
-import { rateLimit, requireOfficer } from "./auth";
+import { rateLimit } from "./auth";
+import { audit } from "./audit";
 import { pipelineFor } from "./blocks";
 import { PRACTICE_IDS, PRACTICES, type PracticeId } from "../src/engine/practices";
 import { claudeAvailable, MODEL } from "./claude";
@@ -49,35 +50,35 @@ const Invite = z.object({
   language: z.enum(["hi", "en"]).default("hi"),
 });
 
-app.get("/api/interviews", requireOfficer, async (_req, res) => {
+app.get("/api/interviews", async (_req, res) => {
   await seedDemoInterviews().catch((e) => console.warn("sample interviews:", e));
   res.json(await listInterviews());
 });
 
 /** Completed, school-linked interviews with grounded codings — merged into the block's evidence. */
-app.get("/api/interviews/coded", requireOfficer, async (_req, res) => res.json(await codedForBlock()));
+app.get("/api/interviews/coded", async (_req, res) => res.json(await codedForBlock()));
 
-app.post("/api/interviews", requireOfficer, async (req, res) => {
+app.post("/api/interviews", async (req, res) => {
   const body = Invite.safeParse(req.body ?? {});
   if (!body.success) return res.status(400).json({ error: "Invalid invitation" });
   const row = await createInterview({ ...body.data, channel: "web" });
   res.json({ interview: row, link: `/talk/${row.token}` });
 });
 
-app.get("/api/interviews/:id", requireOfficer, async (req, res) => {
+app.get("/api/interviews/:id", async (req, res) => {
   const row = await getById(String(req.params.id));
   if (!row) return res.status(404).json({ error: "Not found" });
   const [turns, codings] = await Promise.all([turnsOf(row.id), codingsOf(row.id)]);
   res.json({ interview: row, turns, codings });
 });
 
-app.post("/api/interviews/:id/code", requireOfficer, rateLimit("ai", 120, 600000), async (req, res) => {
+app.post("/api/interviews/:id/code", rateLimit("ai", 120, 600000), async (req, res) => {
   if (!(await getById(String(req.params.id)))) return res.status(404).json({ error: "Not found" });
   const out = await codeAndStore(String(req.params.id));
   res.json({ source: out.source, checks: out.checks, warning: out.warning, codings: await codingsOf(String(req.params.id)) });
 });
 
-app.delete("/api/interviews/:id", requireOfficer, async (req, res) => {
+app.delete("/api/interviews/:id", async (req, res) => {
   await eraseInterview(String(req.params.id));
   res.json({ ok: true });
 });
@@ -133,7 +134,7 @@ app.post("/api/talk/:token/answer", rateLimit("talk", 40, 60000), async (req, re
 });
 
 // ---------------------------------------------------------------- track: follow-up calls
-app.post("/api/followup/read", requireOfficer, rateLimit("ai", 120, 600000), async (req, res) => {
+app.post("/api/followup/read", rateLimit("ai", 120, 600000), async (req, res) => {
   const body = z.object({ reply: z.string().min(1).max(2000), practice: z.string(), schoolId: z.string().optional() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "reply and method are required" });
   res.json(await readFollowUp(body.data.reply, body.data.practice, body.data.schoolId));
@@ -141,7 +142,7 @@ app.post("/api/followup/read", requireOfficer, rateLimit("ai", 120, 600000), asy
 
 // ---------------------------------------------------------------- verify: a photo from the spot check
 // The photo is checked and dropped; only the verdict is kept (in the block's log, when a block is given).
-app.post("/api/evidence/photo", requireOfficer, rateLimit("photo", 40, 600000), async (req, res) => {
+app.post("/api/evidence/photo", rateLimit("photo", 40, 600000), async (req, res) => {
   const body = z
     .object({
       image: z.string().min(100).max(5_500_000), // base64, or a data: URL
@@ -170,7 +171,7 @@ app.post("/api/evidence/photo", requireOfficer, rateLimit("photo", 40, 600000), 
 });
 
 // ---------------------------------------------------------------- import: map a state's columns onto Jugnu's
-app.post("/api/import/map", requireOfficer, rateLimit("ai", 120, 600000), async (req, res) => {
+app.post("/api/import/map", rateLimit("ai", 120, 600000), async (req, res) => {
   const body = z.object({ target: z.array(z.string().max(40)).min(1).max(40), headers: z.array(z.string().max(120)).min(1).max(200), sample: z.array(z.array(z.string().max(200)).max(200)).max(5).default([]) }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "target and headers are required" });
   res.json(await mapColumns(body.data.target, body.data.headers, body.data.sample));
@@ -185,7 +186,7 @@ app.post("/api/coach", rateLimit("coach", 20, 600000), async (req, res) => {
 });
 
 // ---------------------------------------------------------------- the officer asks the block
-app.post("/api/ask", requireOfficer, rateLimit("ask", 60, 600000), async (req, res) => {
+app.post("/api/ask", rateLimit("ask", 60, 600000), async (req, res) => {
   const body = z.object({ question: z.string().min(2).max(500), seed: z.number().int().optional(), track: z.boolean().optional(), block: z.any().optional() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "question is required" });
   const st = pipelineFor({ seed: body.data.seed, track: body.data.track, block: body.data.block });
@@ -193,7 +194,7 @@ app.post("/api/ask", requireOfficer, rateLimit("ask", 60, 600000), async (req, r
 });
 
 // ---------------------------------------------------------------- the voice / chat agent
-app.post("/api/agent", requireOfficer, rateLimit("agent", 150, 600000), async (req, res) => {
+app.post("/api/agent", rateLimit("agent", 150, 600000), async (req, res) => {
   const body = z
     .object({
       messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.any() })).min(1).max(60),
@@ -214,20 +215,27 @@ app.post("/api/agent", requireOfficer, rateLimit("agent", 150, 600000), async (r
   res.json(await agentTurn(body.data.messages as Parameters<typeof agentTurn>[0], st, body.data.context));
 });
 
-app.post("/api/agent/brief", requireOfficer, rateLimit("agent", 150, 600000), async (req, res) => {
+app.post("/api/agent/brief", rateLimit("agent", 150, 600000), async (req, res) => {
   const body = z.object({ facts: z.array(z.string().max(400)).min(1).max(30), lang: z.enum(["en", "hi"]), name: z.string().max(80).optional() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "facts and lang are required" });
   res.json(await agentBrief(body.data.facts, body.data.lang, body.data.name));
 });
 
-app.post("/api/agent/page", requireOfficer, rateLimit("agent", 200, 600000), async (req, res) => {
+app.post("/api/agent/page", rateLimit("agent", 200, 600000), async (req, res) => {
   const body = z.object({ page: z.string().min(1).max(60), screen: z.string().max(4000), facts: z.array(z.string().max(400)).max(30), lang: z.enum(["en", "hi"]) }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "page, screen, facts and lang are required" });
-  res.json(await agentPageGuide(body.data.page, body.data.screen, body.data.facts, body.data.lang));
+  // The audit page is about Jugnu's own use, not the block: the screen is all the guide should read.
+  res.json(await agentPageGuide(body.data.page, body.data.screen, body.data.page === "audit" ? [] : body.data.facts, body.data.lang));
+});
+
+app.post("/api/agent/why", rateLimit("agent", 200, 600000), async (req, res) => {
+  const body = z.object({ status: z.string().min(1).max(40), facts: z.array(z.string().max(300)).min(1).max(20), lang: z.enum(["en", "hi"]), fallback: z.string().max(600) }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "status, facts, lang and fallback are required" });
+  res.json(await agentWhy(body.data.status, body.data.facts, body.data.lang, body.data.fallback));
 });
 
 // ---------------------------------------------------------------- voice: speech in, speech out
-app.post("/api/voice/stt", requireOfficer, rateLimit("voice", 240, 600000), express.raw({ type: () => true, limit: "8mb" }), async (req, res) => {
+app.post("/api/voice/stt", rateLimit("voice", 240, 600000), express.raw({ type: () => true, limit: "8mb" }), async (req, res) => {
   if (!Buffer.isBuffer(req.body)) return res.json({ text: "", language: null, engine: null });
   const audio: Buffer = req.body;
   if (audio.length < 800) return res.json({ text: "", language: null, engine: null });
@@ -253,12 +261,12 @@ app.post("/api/voice/tts", rateLimit("voice", 400, 600000), async (req, res) => 
 });
 
 // ---------------------------------------------------------------- AI trace + evaluation
-app.get("/api/ai/trace", requireOfficer, async (_req, res) => res.json({ summary: await traceSummary(), calls: await recentCalls(150) }));
+app.get("/api/ai/trace", async (_req, res) => res.json({ summary: await traceSummary(), calls: await recentCalls(150) }));
 
 app.use("/api/safety", safety);
 
 // Whether Claude and Google speech really answer. For the team and scripts; the console does not show it.
-app.get("/api/ai/health", requireOfficer, async (_req, res) => res.json(await aiHealth()));
+app.get("/api/ai/health", async (_req, res) => res.json(await aiHealth()));
 
 // Totals only (no prompts or answers), so `npm run credits` can read the deployed app's spend.
 app.get("/api/ai/credits", async (_req, res) => res.json(await creditReport()));
@@ -275,6 +283,7 @@ app.use("/api/ivr", ivr);
 app.use("/api/jobs", jobs);
 app.use("/api/whatsapp", whatsapp);
 app.use("/api/export", exportsRouter);
+app.use("/api/audit", audit);
 
 // Jugnu's clock on hosts without a long-running process (Vercel Cron calls this with CRON_SECRET).
 app.get("/api/cron/tick", async (req, res) => {
