@@ -18,13 +18,16 @@ if (process.env.PHONE_SERVER_URL) {
   else NAMES.push("TELEPHONY_PROVIDER", ...provider, "PHONE_SALT", "DEMO_TEACHER_PHONE", "CALL_ONLY_TO", "PUBLIC_URL");
 }
 
+// WhatsApp (Meta Cloud API), once docs/WHATSAPP-SETUP.md is done. Sends go only to CALL_ONLY_TO on the live site.
+for (const n of ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_TEMPLATE", "WHATSAPP_TEMPLATE_LANG", "WHATSAPP_TEMPLATE_VARS"]) if (process.env[n]) NAMES.push(n); // gitleaks:allow (names)
+
 for (const name of NAMES) {
   const value = process.env[name];
   if (!value) {
     console.log(`skip  ${name} (not in .env)`);
     continue;
   }
-  const secret = /KEY|TOKEN|PASSWORD|SALT|PHONE|CALL_ONLY|AUTH_ID|SID/.test(name);
+  const secret = /KEY|TOKEN|PASSWORD|SALT|PHONE|CALL_ONLY|AUTH_ID|SID|SECRET/.test(name);
   try {
     execFileSync(vercel, ["env", "add", name, "production", "--force", "--yes", ...(secret ? ["--sensitive"] : [])], {
       input: value,

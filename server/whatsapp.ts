@@ -13,7 +13,8 @@ import { rateLimit } from "./auth";
 import { db, now } from "./db";
 import { BlockKey, writeEvent } from "./eventlog";
 import { enqueue } from "./scheduler";
-import { normaliseIndianNumber, phoneHash } from "./telephony";
+import { later } from "./later";
+import { mayDial, normaliseIndianNumber, phoneHash } from "./telephony";
 import { synthesize, transcribe, voiceConfigured } from "./voice";
 
 const env = (k: string) => (process.env[k] ?? "").trim();
@@ -24,6 +25,8 @@ const cfg = () => ({
   secret: env("WHATSAPP_APP_SECRET"),
   template: env("WHATSAPP_TEMPLATE"),
   templateLang: env("WHATSAPP_TEMPLATE_LANG") || "hi",
+  // Meta's ready-made test template (hello_world) has no blanks to fill; a template of your own has one.
+  templateVars: env("WHATSAPP_TEMPLATE_VARS") === "0" ? 0 : 1,
   version: env("WHATSAPP_API_VERSION") || "v23.0",
 });
 const GRAPH = "https://graph.facebook.com";
@@ -77,7 +80,11 @@ async function send(to: string, message: Record<string, unknown>, templateText?:
         messaging_product: "whatsapp",
         to,
         type: "template",
-        template: { name: c.template, language: { code: c.templateLang }, components: [{ type: "body", parameters: [{ type: "text", text: templateText.slice(0, 1000) }] }] },
+        template: {
+          name: c.template,
+          language: { code: c.templateLang },
+          ...(c.templateVars ? { components: [{ type: "body", parameters: [{ type: "text", text: templateText.slice(0, 1000) }] }] } : {}),
+        },
       }),
     });
     return d.messages?.[0]?.id ?? "";
@@ -88,6 +95,7 @@ export async function sendText(rawTo: string, text: string): Promise<string> {
   if (!whatsappConfigured()) throw new WhatsAppError("WhatsApp is off: WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set.", 503);
   const to = waNumber(rawTo);
   if (!to) throw new WhatsAppError("Enter an Indian mobile number (10 digits, or +91…).", 400);
+  if (!mayDial(rawTo)) throw new WhatsAppError("On the public site Jugnu sends WhatsApp only to the team's demo phones.", 403);
   return send(to, { type: "text", text: { body: text.slice(0, 4096), preview_url: false } }, text);
 }
 
@@ -96,6 +104,7 @@ export async function sendVoiceNote(rawTo: string, text: string, lang: "hi" | "e
   if (!whatsappConfigured()) throw new WhatsAppError("WhatsApp is off: WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set.", 503);
   const to = waNumber(rawTo);
   if (!to) throw new WhatsAppError("Enter an Indian mobile number (10 digits, or +91…).", 400);
+  if (!mayDial(rawTo)) throw new WhatsAppError("On the public site Jugnu sends WhatsApp only to the team's demo phones.", 403);
   if (!voiceConfigured()) return sendText(rawTo, text);
   const mp3 = await synthesize(text, lang);
   const form = new FormData();
@@ -226,12 +235,15 @@ whatsapp.get("/webhook", (req, res) => {
 
 whatsapp.post("/webhook", async (req, res) => {
   if (!signatureOk((req as { rawBody?: Buffer }).rawBody, req.get("x-hub-signature-256"))) return res.status(401).end();
-  res.status(200).end(); // acknowledge at once; Meta retries slow webhooks
   const body = req.body as { entry?: { changes?: { value?: { messages?: Incoming[] } }[] }[] };
-  for (const e of body.entry ?? [])
-    for (const ch of e.changes ?? [])
-      for (const m of ch.value?.messages ?? [])
-        await handleIncoming(m).catch((err) => console.error("WhatsApp message failed:", (err as Error).message));
+  const messages = (body.entry ?? []).flatMap((e) => (e.changes ?? []).flatMap((ch) => ch.value?.messages ?? []));
+  res.status(200).end(); // acknowledge at once; Meta retries slow webhooks
+  // On Vercel the function stops when the response is sent unless the work is handed to waitUntil.
+  later(
+    (async () => {
+      for (const m of messages) await handleIncoming(m).catch((err) => console.error("WhatsApp message failed:", (err as Error).message));
+    })(),
+  );
 });
 
 whatsapp.get("/status", (_req, res) => res.json(whatsappStatus()));
