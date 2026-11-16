@@ -27,6 +27,8 @@ const PAGES = ["today", "schools", "map", "plan", "approvals", "results", "pract
 
 /** The block keeps no teachers' numbers; the team's demo sets one so a call can be placed by the school's name alone. */
 const numberOnFile = () => (process.env.DEMO_TEACHER_PHONE ?? "").trim();
+// The demo phone registered with Meta for WhatsApp, if it differs from the one that takes calls.
+const waOnFile = () => (process.env.WHATSAPP_TO ?? "").trim() || numberOnFile();
 
 /** Tools the browser runs. Kept small: the agent can see the screen (read_screen) and act on it. */
 const UI_TOOLS: BetaToolUnion[] = [
@@ -213,7 +215,7 @@ export function writeTools(st: PipelineState, ctx: AgentContext) {
     }),
     betaZodTool({
       name: "send_whatsapp",
-      description: `Send on WhatsApp to a teacher${numberOnFile() ? " (this block has the teacher's number on file: leave 'to' out unless the officer gives another)" : ", with a number the officer gave in this conversation (never invent one)"}: voice_note = the school's peer voice note from the plan, spoken in a Jugnu voice; checkin = the day-14 'did you try it?' question, whose reply updates the board; text = a short message the officer dictated.`,
+      description: `Send on WhatsApp to a teacher${waOnFile() ? " (this block has the teacher's number on file: leave 'to' out unless the officer gives another)" : ", with a number the officer gave in this conversation (never invent one)"}: voice_note = the school's peer voice note from the plan, spoken in a Jugnu voice; checkin = the day-14 'did you try it?' question, whose reply updates the board; text = a short message the officer dictated.`,
       inputSchema: z.object({
         school: z.string(),
         to: z.string().optional().describe("Phone number with country code"),
@@ -222,7 +224,7 @@ export function writeTools(st: PipelineState, ctx: AgentContext) {
         language: z.enum(["hi", "en"]).default("hi"),
       }),
       run: async ({ school, to: given, kind, text, language }) => {
-        const to = given ?? numberOnFile();
+        const to = given ?? waOnFile();
         const miss = need();
         if (miss) return miss;
         const s = byName(school);

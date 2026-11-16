@@ -44,6 +44,8 @@ class WhatsAppError extends Error {
   }
 }
 
+const sameNumber = (a: string, b: string) => Boolean(b) && normaliseIndianNumber(a) === normaliseIndianNumber(b);
+
 /** "+91 98765 43210" → "919876543210" (the Cloud API wants digits with the country code). */
 export function waNumber(raw: string): string | null {
   const n = normaliseIndianNumber(raw);
@@ -95,7 +97,7 @@ export async function sendText(rawTo: string, text: string): Promise<string> {
   if (!whatsappConfigured()) throw new WhatsAppError("WhatsApp is off: WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set.", 503);
   const to = waNumber(rawTo);
   if (!to) throw new WhatsAppError("Enter an Indian mobile number (10 digits, or +91…).", 400);
-  if (!mayDial(rawTo)) throw new WhatsAppError("On the public site Jugnu sends WhatsApp only to the team's demo phones.", 403);
+  if (!mayDial(rawTo) && !sameNumber(rawTo, env("WHATSAPP_TO"))) throw new WhatsAppError("On the public site Jugnu sends WhatsApp only to the team's demo phones.", 403);
   return send(to, { type: "text", text: { body: text.slice(0, 4096), preview_url: false } }, text);
 }
 
@@ -104,7 +106,7 @@ export async function sendVoiceNote(rawTo: string, text: string, lang: "hi" | "e
   if (!whatsappConfigured()) throw new WhatsAppError("WhatsApp is off: WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set.", 503);
   const to = waNumber(rawTo);
   if (!to) throw new WhatsAppError("Enter an Indian mobile number (10 digits, or +91…).", 400);
-  if (!mayDial(rawTo)) throw new WhatsAppError("On the public site Jugnu sends WhatsApp only to the team's demo phones.", 403);
+  if (!mayDial(rawTo) && !sameNumber(rawTo, env("WHATSAPP_TO"))) throw new WhatsAppError("On the public site Jugnu sends WhatsApp only to the team's demo phones.", 403);
   if (!voiceConfigured()) return sendText(rawTo, text);
   const mp3 = await synthesize(text, lang);
   const form = new FormData();
