@@ -664,7 +664,7 @@ describe("audit", () => {
     const send = (events: unknown[], role: string | null = "beo") =>
       fetch(`${base}/track`, { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile Safari/604.1", "x-vercel-ip-city": "Damoh" }, body: JSON.stringify({ visit: { id: "visit-test-0001", role, name: "BEO", lang: "hi" }, events }) });
     expect((await send([{ at, kind: "role", name: "beo" }, { at, kind: "page", name: "Today", ms: 30000 }])).status).toBe(200);
-    await send([{ at, kind: "change", name: "Recorded a visit", detail: "s001" }, { at, kind: "ai", name: "Asked Jugnu" }, { at, kind: "page", name: "Today", detail: "again", ms: 10000 }]);
+    await send([{ at, kind: "change", name: "Recorded a visit", detail: "s001" }, { at, kind: "ai", name: "Asked Jugnu" }, { at, kind: "ai", name: "Page guide" }, { at, kind: "page", name: "Today", detail: "again", ms: 10000 }]);
     const r = (await (await fetch(`${base}?days=1`)).json()) as { summary: Record<string, number>; pages: { name: string; n: number }[]; places: { name: string }[]; visits: { device: string; pages: number; changes: number; active_ms: number }[] };
     expect(r.summary).toMatchObject({ visits: 1, signedIn: 1, changes: 1, ai: 1, pages: 1 });
     expect(r.pages[0]).toMatchObject({ name: "Today", n: 1 });

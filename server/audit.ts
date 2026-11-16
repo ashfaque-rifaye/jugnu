@@ -151,7 +151,8 @@ audit.get("/", rateLimit("read", 240, 60000), async (req, res) => {
       visits: visits.length,
       signedIn: withRole.length,
       changes: kinds("change").length,
-      ai: kinds("ai").length,
+      // only what people asked for: the page guide and status reasons come by themselves
+      ai: kinds("ai").filter((e) => e.name === "Asked Jugnu" || e.name === "Morning brief").length,
       voice: kinds("voice").length,
       calls: kinds("call").length,
       pages: views.length,
